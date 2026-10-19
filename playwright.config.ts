@@ -1,0 +1,43 @@
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./tests",
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : 1,
+  reporter: "list",
+  use: {
+    baseURL: "http://127.0.0.1:5173",
+    viewport: { width: 1440, height: 1000 },
+    colorScheme: "light",
+    reducedMotion: "reduce",
+    trace: "retain-on-failure",
+  },
+  webServer: [
+    {
+      command: "npm run dev -- --host 127.0.0.1 --port 5173",
+      url: "http://127.0.0.1:5173",
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "npx tsx server/index.ts",
+      url: "http://127.0.0.1:3001/api/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120000,
+      env: {
+        NODE_ENV: "development",
+        PORT: "3001",
+        APP_URL: "http://127.0.0.1:5173",
+        API_PUBLIC_URL: "http://127.0.0.1:3001",
+        DATA_DIR: `.data/browser-tests-${process.pid}`,
+        ENCRYPTION_KEY: "cd".repeat(32),
+        OPENAI_API_KEY: "",
+        META_APP_SECRET: "",
+        INSTAGRAM_APP_ID: "",
+        INSTAGRAM_APP_SECRET: "",
+        META_WEBHOOK_VERIFY_TOKEN: "",
+        STRIPE_SECRET_KEY: "",
+        SMTP_HOST: "",
+      },
+    },
+  ],
+});

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>DMCloser - Less typing. More closing.</title>
+    <meta
+      name="description"
+      content="Turn Instagram and WhatsApp messages into customers with DMCloser. One calm inbox, AI-suggested replies in your voice, and you in control. Try the interactive demo."
+    />
+    <meta name="theme-color" content="#fafbf7" />
+    <meta property="og:title" content="DMCloser - Less typing. More closing." />
+    <meta
+      property="og:description"
+      content="Your DMs. Your voice. Your next customer. Meet your new AI sales assistant for Instagram and WhatsApp."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      try {
+        var theme = localStorage.getItem("dmcloser-theme");
+        if (theme !== "dark" && theme !== "light")
+          theme = matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        document.documentElement.classList.add(theme);
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]').content =
+          theme === "dark" ? "#131b15" : "#fafbf7";
+      } catch (error) {
+        document.documentElement.classList.add("light");
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
