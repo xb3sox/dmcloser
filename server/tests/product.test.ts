@@ -559,6 +559,38 @@ test("automatic sends require two opt-ins, grounded facts, no draft, and no hold
   assert.equal(f.meta.sent.length, 0);
 });
 
+test("an Arabic opt-out blocks an automatic send and queues nothing", async () => {
+  const f = await fixture();
+  await configureFacts(f);
+  const conversation = await inbound(f, "whatsapp", "توقف عن مراسلتي");
+  const source = conversation.messages[0].id;
+  await f.service.generate(f.snapshot.workspace.id, conversation.id, source);
+  await f.mutate("patch", "/api/settings").send({ autoReplyEnabled: true });
+  await f
+    .mutate("patch", `/api/conversations/${conversation.id}`)
+    .send({ autoSend: true });
+  const [suggestion] = await db.query(
+    "SELECT text FROM suggestions WHERE source_id=$1",
+    [source],
+  );
+  const message = await f.service.queueMessage(
+    f.snapshot.workspace.id,
+    null,
+    conversation.id,
+    suggestion.text,
+    randomUUID(),
+    source,
+    true,
+  );
+  assert.equal(message, null);
+  const [outbound] = await db.query(
+    "SELECT count(*)::int AS total FROM messages WHERE conversation_id=$1 AND sender<>'contact'",
+    [conversation.id],
+  );
+  assert.equal(outbound.total, 0);
+  assert.equal(f.meta.sent.length, 0);
+});
+
 test("delivery status cannot regress from read to sent", async () => {
   const f = await fixture();
   const conversation = await inbound(f);

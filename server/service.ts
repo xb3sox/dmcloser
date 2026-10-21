@@ -4,6 +4,7 @@ import type { Database } from "./db.ts";
 import type { Config } from "./config.ts";
 import { decrypt, digest, encrypt, HttpError } from "./security.ts";
 import { detectRisk, guardReply, type AIEngine, type AIInput } from "./ai.ts";
+import { isClinical, isOptOut } from "../src/domain/safety.ts";
 import {
   MetaProvider,
   ProviderError,
@@ -520,10 +521,7 @@ export class ProductService {
       brain.profile.industry === "medical" &&
       messages.some(
         (message) =>
-          message.sender === "contact" &&
-          /symptom|chest pain|medicat|diagnos|pregnan|emergency|bleeding|suicid/i.test(
-            message.text,
-          ),
+          message.sender === "contact" && isClinical(message.text),
       )
     )
       throw new HttpError(
@@ -775,14 +773,7 @@ export class ProductService {
       "SELECT text FROM messages WHERE workspace_id=$1 AND conversation_id=$2 AND sender='contact' ORDER BY timestamp DESC LIMIT 30",
       [workspaceId, conversation.id],
     );
-    if (
-      inbound.some((message) =>
-        /unsubscribe|stop messaging|do not contact|don't contact/i.test(
-          message.text,
-        ),
-      )
-    )
-      return false;
+    if (inbound.some((message) => isOptOut(message.text))) return false;
     const [workspace] = await tx.query("SELECT * FROM workspaces WHERE id=$1", [
       workspaceId,
     ]);
@@ -813,11 +804,7 @@ export class ProductService {
     if (inbound.some((message) => detectRisk(message.text))) return false;
     if (
       profile.industry === "medical" &&
-      inbound.some((message) =>
-        /symptom|chest pain|medicat|diagnos|pregnan|emergency|bleeding|suicid/i.test(
-          message.text,
-        ),
-      )
+      inbound.some((message) => isClinical(message.text))
     )
       return false;
     const brainFingerprint = digest(

@@ -750,6 +750,9 @@ test("industry agents preserve administrative boundaries and opt-out overrides h
   );
   assert.equal(data.insight.hot, false);
   assert.equal(data.insight.nextDraft, null);
+  const arabic = await lead(f, "اريد الشراء لكن توقف عن مراسلتي");
+  assert.equal(arabic.insight.hot, false);
+  assert.equal(arabic.insight.nextDraft, null);
   const input: AIInput = {
     settings: {
       businessName: "Clinic",
@@ -932,6 +935,26 @@ test("medical clinical content is escalated before any external AI request or sp
     .mutate("patch", "/api/brain/profile")
     .send({ industry: "medical", currency: "USD", autoStage: false });
   const data = await lead(f, "I have chest pain and need a diagnosis.");
+  const source = (await f.client.get("/api/bootstrap")).body.conversations[0]
+    .messages[0].id;
+  await assert.rejects(
+    f.service.generate(
+      f.snapshot.workspace.id,
+      data.deal.conversationId,
+      source,
+    ),
+    /Clinical content requires a qualified human/,
+  );
+  assert.equal(f.input(), null);
+  assert.equal((await f.client.get("/api/bootstrap")).body.usage.aiReplies, 0);
+});
+
+test("Arabic clinical content is escalated before any external AI request or spend", async () => {
+  const f = await fixture();
+  await f
+    .mutate("patch", "/api/brain/profile")
+    .send({ industry: "medical", currency: "USD", autoStage: false });
+  const data = await lead(f, "اشعر بألم شديد في صدري واريد تشخيص");
   const source = (await f.client.get("/api/bootstrap")).body.conversations[0]
     .messages[0].id;
   await assert.rejects(

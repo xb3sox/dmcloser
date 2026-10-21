@@ -45,7 +45,7 @@ body.marketing-page {
     box-shadow 0.2s;
 }
 .landing :is(a, button, input, textarea, select, summary):focus-visible {
-  outline: 2px solid #7ea870;
+  outline: 2px solid #527347;
   outline-offset: 4px;
 }
 .landing input,

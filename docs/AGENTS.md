@@ -5,11 +5,11 @@
 DMCloser 2.0 is an Arabic/English SaaS workspace for Instagram/WhatsApp conversational sales and verified outcomes, across all sectors. Founder has some UI screens only; this documentation specifies proposed future behavior. Do not assume deployed services or root commands.
 
 ## Source of Truth
-1. [Product Brief](docs/BRIEF.md) is authoritative for identity, verified founder decisions and business/product boundaries.
-2. [Business Plan](docs/BUSINESS.md) owns market, competitors, revenue, financial and legal/commercial assumptions.
-3. [PRD](docs/PRD.md) owns roles, functionality, permissions, acceptance and release behavior.
-4. [Technical Design](docs/TECH.md) owns proposed architecture, data flows, API conventions and deployment constraints.
-5. [Visual Design](docs/DESIGN.md) owns normative design tokens and visual component styling; reused UI prevails until inspected.
+1. [Product Brief](BRIEF.md) is authoritative for identity, verified founder decisions and business/product boundaries.
+2. [Business Plan](BUSINESS.md) owns market, competitors, revenue, financial and legal/commercial assumptions.
+3. [PRD](PRD.md) owns roles, functionality, permissions, acceptance and release behavior.
+4. [Technical Design](TECH.md) owns proposed architecture, data flows, API conventions and deployment constraints.
+5. [Visual Design](DESIGN.md) owns normative design tokens and visual component styling; reused UI prevails until inspected.
 
 ## Commands and Project Structure
 **Pre-implementation; no version-controlled repository or executable project files were supplied.** No install, dev, lint, test, build or deployment commands have been verified and none should be invented. The existing UI may use another stack; inspect its package manifests and scripts with the founder before choosing commands. Proposed logical areas: workspace identity, Meta adapter, inbox, business knowledge, AI orchestration, deal/evidence, analytics, usage/billing and tests. These are architecture modules, not asserted actual directories.
@@ -24,4 +24,4 @@ For every changed feature: record the requirement ID, tests run and results, rev
 Do not rewrite or delete current UI without owner review. Never read, copy, commit or display `.env`, private keys, third-party tokens or customer conversation dumps in docs or testing. Do not purge production data, modify permissions, incur vendor billing, send live messages, activate autonomous AI, or deploy to production without explicit founder authorization. Synthetic-only sandbox work is allowed after infrastructure choices and keys are supplied. Human counsel/accountant approvals cannot be simulated.
 
 ## References
-Consult [PRD](docs/PRD.md) for acceptance and [TECH](docs/TECH.md) for proposed integration contracts. [README](README.md) holds readiness and unresolved external actions.
+Consult [PRD](PRD.md) for acceptance and [TECH](TECH.md) for proposed integration contracts. [README](README.md) holds readiness and unresolved external actions.

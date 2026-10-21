@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import type { BusinessSettings } from "../src/types/index.ts";
+import { detectRisk, isClinical } from "../src/domain/safety.ts";
 
 export const replySchema = z.object({
   text: z.string().max(4000),
@@ -27,25 +28,7 @@ export interface AIEngine {
   generate(input: AIInput): Promise<GeneratedReply>;
 }
 
-export function detectRisk(
-  text: string,
-): "spam" | "sensitive" | "injection" | null {
-  if (/buy\s+\d+\s+followers|crypto\s+giveaway|click.*win.*prize/i.test(text))
-    return "spam";
-  if (
-    /ignore (all |previous |your )?instructions|system prompt|developer message|reveal.*(secret|token|password)|bypass.*(rule|policy)/i.test(
-      text,
-    )
-  )
-    return "injection";
-  if (
-    /refund|chargeback|legal action|medical advice|credit card|password|cancel my|stop messaging|unsubscribe/i.test(
-      text,
-    )
-  )
-    return "sensitive";
-  return null;
-}
+export { detectRisk };
 
 export function guardReply(
   reply: GeneratedReply,
@@ -77,9 +60,7 @@ export function guardReply(
     !risk &&
     !(
       input.industry === "medical" &&
-      /symptom|pain|medicat|diagnos|treat|pregnan|emergency|bleeding|suicid/i.test(
-        customerText + "\n" + reply.text,
-      )
+      isClinical(customerText + "\n" + reply.text)
     ) &&
     reply.intent !== "spam" &&
     reply.text.trim().length > 0;
