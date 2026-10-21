@@ -44,6 +44,7 @@
     "@vitejs/plugin-react": "5.1.1",
     "concurrently": "^9.2.5",
     "esbuild": "^0.28.2",
+    "supabase": "^2.121.0",
     "supertest": "^7.3.1",
     "tailwindcss": "4.1.17",
     "tsx": "^4.23.15",
