@@ -10,7 +10,8 @@
   --land-button: #294c31;
   --land-button-text: #ffffff;
   --mark-check: #ffffff;
-  --heading-font: "Manrope", "Inter", sans-serif;
+  --heading-font: "Manrope", "Inter", "Noto Sans Arabic", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
   --focus-color: #557b44;
   --warning-ink: #775b22;
   --warning-bg: #f7eedb;
@@ -39,7 +40,7 @@
 .skip-link {
   position: fixed;
   top: 12px;
-  left: 16px;
+  inset-inline-start: 16px;
   z-index: 200;
   padding: 12px 20px;
   border-radius: 4px;
@@ -176,7 +177,8 @@
   margin: auto;
   overflow-y: auto;
   box-shadow: 0 24px 100px #0b1d1740;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", "Noto Sans Arabic", system-ui, "Helvetica Neue", Arial,
+    sans-serif;
   scrollbar-gutter: stable;
 }
 
@@ -192,7 +194,7 @@
 
 .dialog-close {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   top: 12px;
   display: grid;
   place-items: center;
@@ -276,7 +278,7 @@ button:disabled {
 
 .legal-copy ul {
   list-style: disc;
-  padding-left: 20px;
+  padding-inline-start: 20px;
   margin-block: 14px;
 }
 .legal-copy .closer-button {
@@ -304,4 +306,72 @@ button:disabled {
   select {
     font-size: 16px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Bidirectional support.
+
+   Everything above is written with logical properties, so a document with
+   `dir="rtl"` mirrors on its own. The rules below are the only places where
+   a physical direction is genuinely required: glyphs that point, and a
+   typography reset for Arabic.
+   --------------------------------------------------------------------------- */
+
+/* Money, phone numbers, reference IDs and opaque codes stay left-to-right
+   inside RTL text. `isolate` is a no-op on a plain inline box, so the utility
+   also sets `display: inline-block`. */
+.ltr-isolate {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+/* Arabic has no letter case and joins its letters; the design's negative
+   tracking and uppercase eyebrows are Latin-only (DESIGN.md §3) and break
+   Arabic script joining.
+
+   The reset is scoped by the *subject's own* language, not by the page: an
+   element matches only when its resolved language is Arabic. In an Arabic
+   document every descendant inherits `lang="ar"` and is covered, while a
+   Latin run marked `lang="en"` keeps the design's tracking and casing. A
+   Latin-only page is never touched, and an Arabic run inside a non-Arabic
+   document is still covered.
+
+   `:root body` is in the chain only to outrank the design's own tracking
+   rules (0,2,2 against rules such as `.landing .eyebrow` at 0,2,0 and
+   `.channel-brands > span:not(...)` at 0,2,1). The root element is listed
+   separately so its own text is covered too. */
+:root:lang(ar),
+:root body :is(
+    h1, h2, h3, h4, h5, h6, p, span, a, button, label, li, td, th, dd, dt,
+    strong, em, small, div, section, header, footer, nav, main, article,
+    aside, figure, figcaption, blockquote, pre, code, caption, summary,
+    legend, option, output, input, textarea, select, ul, ol, dl, time,
+    address, hgroup, details, fieldset, svg
+  ):lang(ar) {
+  letter-spacing: normal;
+}
+:root:lang(ar),
+:root body :is(
+    h1, h2, h3, h4, h5, h6, p, span, a, button, label, li, td, th, dd, dt,
+    strong, em, small, div, section, header, footer, nav, main, article,
+    aside, figure, figcaption, blockquote, pre, code, caption, summary,
+    legend, option, output, input, textarea, select, ul, ol, dl, time,
+    address, hgroup, details, fieldset, svg
+  ):lang(ar) {
+  text-transform: none;
+}
+
+/* Directional lucide arrows point along the reading direction. */
+[dir="rtl"] :is(
+    .lucide-arrow-right,
+    .lucide-arrow-left,
+    .lucide-arrow-up-right
+  ) {
+  transform: scaleX(-1);
+}
+
+/* The toggle knob travels to the inline end, not to the physical right. */
+[dir="rtl"] .closer-switch.is-on > span {
+  transform: translateX(-14px);
 }

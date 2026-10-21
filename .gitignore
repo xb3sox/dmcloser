@@ -6,6 +6,7 @@ build-server/
 !.env.example
 .data/
 artifacts/
+backups/
 test-results/
 playwright-report/
 *.log

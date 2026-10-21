@@ -12,6 +12,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    stop_grace_period: 30s
   app:
     build: .
     init: true
@@ -22,9 +23,16 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgres://dmcloser:${POSTGRES_PASSWORD}@database:5432/dmcloser
+      # Compose reads .env for interpolation, so an operator's .env still
+      # supplies this. Naming it here makes the stack fail fast, with a clear
+      # message, instead of letting the container crash-loop on a bad key.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
     depends_on:
       database:
         condition: service_healthy
     restart: unless-stopped
+    # The server drains in-flight jobs on SIGTERM; the default 10s stop window
+    # is shorter than a worst-case AI timeout plus connection drain.
+    stop_grace_period: 45s
 volumes:
   postgres_data:

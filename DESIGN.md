@@ -114,6 +114,10 @@ is not.
   titles. It carries the geometric, slightly architectural voice of the brand.
 - **Inter** — body, UI, labels, data, forms, everything else. Loaded from Google Fonts with
   a system fallback chain.
+- **Arabic uses system faces only.** The stacks fall through to `system-ui`,
+  `Noto Sans Arabic`, `Helvetica Neue` and `Arial`. No Arabic webfont is bundled: a new
+  binary font asset means a new licence obligation, and the system stack already covers
+  Arabic script. This is a licence-safety decision, not a rendering shortcut.
 
 **Type scale (shipped values, not aspirations).** The product UI is compact by design; it is
 a dense tool, not a document.
@@ -135,18 +139,31 @@ a dense tool, not a document.
 
 1. **Negative tracking is Latin-only.** 40 `letter-spacing` declarations exist and most are
    negative (`-0.065em` to `-3px`). Negative tracking **breaks Arabic script joining** — it
-   separates connected letterforms. Under `[dir="rtl"]` set `letter-spacing: normal` and
-   re-add tracking only where the design demands it. This is the single highest-risk
-   typography rule in the system and no automated gate will catch its violation.
-2. **`text-transform: uppercase` is Latin-only.** Arabic has no case. 3 sites
-   (`.app-nav-label`, `.landing .eyebrow`, `.section-intro`) must not uppercase under
-   `[dir="rtl"]`.
+   separates connected letterforms. The reset is scoped by the **subject's own language**,
+   not by the page direction: `:lang(ar)` sets `letter-spacing: normal`. An element matches
+   only when its *resolved* language is Arabic, so an Arabic run inside an English page is
+   still corrected, and an English run inside an Arabic page keeps the design's tracking.
+   This is the single highest-risk typography rule in the system and no automated gate will
+   catch its violation — it needs a human visual review in Arabic.
+2. **`text-transform: uppercase` is Latin-only.** Arabic has no case. The same
+   `:lang(ar)` scope disables uppercasing (`.app-nav-label`, `.landing .eyebrow`,
+   `.section-intro`) for Arabic text only.
 3. **Eyebrow voice.** Section eyebrows are short, uppercase, and declarative:
    `LESS BUSYWORK. MORE BUSINESS.` · `HUMAN BY DESIGN.` · `A LITTLE ASSISTANCE. A BIG
    DIFFERENCE.` They are the product's editorial voice in the smallest possible space.
 4. **Never centre a paragraph.** Body copy is left-aligned (logical `start`).
 5. Body text stays 14px minimum on desktop; 16px is forced on coarse pointers
    (`@media (pointer: coarse)`) to prevent iOS zoom-on-focus.
+6. **Direction is a document property, never a stylesheet fork.** Every layout rule uses CSS
+   logical properties (`padding-inline`, `border-inline-start`, `inset-inline-end`,
+   `text-align: start`), so `dir="rtl"` mirrors the whole interface — the sidebar and thread
+   list land on the right with no override sheet. A `[dir=rtl]` override layer would be a
+   permanent second set of rules to keep in sync and would still miss unenumerated cases.
+7. **Bidi isolation.** Money values, phone numbers, reference IDs and opaque codes are
+   Latin runs inside Arabic text and must not be reordered. They carry the `.ltr-isolate`
+   utility (`direction: ltr; unicode-bidi: isolate; display: inline-block` — `isolate` is a
+   no-op on a plain inline box). Numbers use Western Arabic digits in both locales
+   (`ar-SA-u-nu-latn`), matching Saudi practice.
 
 ---
 

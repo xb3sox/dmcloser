@@ -283,6 +283,8 @@ export interface AppContextValue {
     logout: () => Promise<void>;
     hold: (conversationId: string) => void;
     clearError: () => void;
+    loadMore: () => Promise<void>;
+    hasMore: boolean;
   };
 }
 

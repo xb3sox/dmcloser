@@ -16,10 +16,16 @@ import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
 import { createAI, type AIEngine } from "./ai.ts";
 import { MetaProvider, ProviderError } from "./providers.ts";
-import { ProductService, emptySettings, type Actor } from "./service.ts";
+import {
+  ProductService,
+  emptySettings,
+  decodeCursor,
+  type Actor,
+} from "./service.ts";
 import { Billing } from "./billing.ts";
 import { Worker } from "./worker.ts";
 import { mountRevenueRoutes } from "./revenue-routes.ts";
+import { mountQualityRoutes } from "./quality-routes.ts";
 import {
   digest,
   equal,
@@ -474,6 +480,18 @@ export async function createApp(
     await db.query("SELECT 1");
     res.json({ status: "ok", service: "dmcloser", storage: db.kind });
   });
+  // Liveness is /api/health. Readiness also requires the job worker to be
+  // polling, because a stopped worker silently stops all inbound processing.
+  app.get("/api/ready", async (_req, res) => {
+    await db.query("SELECT 1");
+    const ready = worker.healthy();
+    res.status(ready ? 200 : 503).json({
+      status: ready ? "ready" : "degraded",
+      service: "dmcloser",
+      storage: db.kind,
+      worker: ready ? "polling" : "stopped",
+    });
+  });
   app.get("/internal/metrics", async (req, res) => {
     if (
       !config.metricsToken ||
@@ -708,6 +726,16 @@ export async function createApp(
           ? null
           : z.string().max(150).parse(req.query.include),
       ),
+    ),
+  );
+  app.get("/api/conversations", async (req, res) =>
+    res.json(
+      await service.conversationPage(req.actor!, {
+        cursor:
+          req.query.cursor === undefined
+            ? null
+            : decodeCursor(z.string().max(400).parse(req.query.cursor)),
+      }),
     ),
   );
   app.get("/api/workspaces", async (req, res) => {
@@ -1396,6 +1424,7 @@ export async function createApp(
   });
 
   mountRevenueRoutes(app, service, owner);
+  mountQualityRoutes(app, service, owner);
   app.use("/api", (_req, _res) => {
     throw new HttpError(404, "API endpoint not found.");
   });

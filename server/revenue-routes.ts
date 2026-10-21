@@ -33,12 +33,26 @@ const entry = z
     expiresAt: z.number().int().positive().nullable(),
   })
   .strict();
+const sectorField = z
+  .object({
+    key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .regex(/^[a-z0-9_]+$/),
+    label: z.string().trim().min(1).max(80),
+    type: z.enum(["text", "number", "date"]),
+    required: z.boolean(),
+  })
+  .strict();
 const qualification = z
   .object({
     budgetMinor: minor.nullable(),
     authority: z.enum(["unknown", "decision_maker", "influencer"]),
     need: z.string().trim().max(500),
     timelineDate: isoDate.nullable(),
+    custom: z.record(z.string().max(40), z.string().max(500)).optional(),
   })
   .strict();
 const id = (value: unknown) => z.string().min(1).max(150).parse(value);
@@ -67,9 +81,11 @@ export function mountRevenueRoutes(
               "automotive",
               "beauty",
               "ecommerce",
+              "custom",
             ]),
             currency,
             autoStage: z.boolean(),
+            sectorFields: z.array(sectorField).max(20).default([]),
           })
           .strict()
           .parse(req.body),
@@ -147,6 +163,25 @@ export function mountRevenueRoutes(
   app.get("/api/conversations/:id/deal", async (req, res) =>
     res.json(await revenue.detail(req.actor!.workspaceId, id(req.params.id))),
   );
+  app.get("/api/revenue/recovery", async (req, res) =>
+    res.json(await revenue.recovery(req.actor!.workspaceId)),
+  );
+  app.post("/api/revenue/recovery/:dealId/dismiss", async (req, res) => {
+    const body = z
+      .object({ reason: z.string().trim().min(3).max(300) })
+      .strict()
+      .parse(req.body);
+    await revenue.dismissRecovery(
+      req.actor!,
+      id(req.params.dealId),
+      body.reason,
+    );
+    res.json({ ok: true });
+  });
+  app.post("/api/revenue/recovery/:dealId/restore", async (req, res) => {
+    await revenue.restoreRecovery(req.actor!, id(req.params.dealId));
+    res.json({ ok: true });
+  });
   app.patch("/api/deals/:id", async (req, res) =>
     res.json(
       await revenue.updateDeal(

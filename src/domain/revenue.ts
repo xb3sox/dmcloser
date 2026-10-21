@@ -47,6 +47,12 @@ export const industryGuidance: Record<
     boundary:
       "Only approved catalog prices, stock and policies. Never invent checkout links or discounts.",
   },
+  custom: {
+    question: "What would a good outcome look like for you?",
+    next: "Agree on the next step",
+    boundary:
+      "Never invent a price, availability, policy or completed action.",
+  },
 };
 export const stagePrior: Record<string, number> = {
   new: 0.1,

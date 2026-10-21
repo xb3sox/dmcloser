@@ -12,10 +12,25 @@ import {
   type Action,
   type AppContextValue,
 } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import { workspaceStrings } from "@/i18n/surfaces/workspace";
 import { api, apiBase, ApiError } from "@/lib/api";
-import type { AppState, WorkspaceSnapshot } from "@/types";
+import type { AppState, Conversation, WorkspaceSnapshot } from "@/types";
 import { Brand } from "../landing/Brand";
 import "./workspace.css";
+
+function mergeConversations(
+  existing: Conversation[],
+  incoming: Conversation[],
+): Conversation[] {
+  const seen = new Set(existing.map((conversation) => conversation.id));
+  const extra = incoming.filter((conversation) => {
+    if (seen.has(conversation.id)) return false;
+    seen.add(conversation.id);
+    return true;
+  });
+  return [...existing, ...extra];
+}
 
 function AuthScreen({
   onAuthenticated,
@@ -43,9 +58,16 @@ function AuthScreen({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const t = useStrings(workspaceStrings);
   useEffect(() => {
-    document.title = `${view === "login" ? "Sign in" : view === "register" ? "Create your workspace" : "Account recovery"} - DMCloser`;
-  }, [view]);
+    document.title = `${
+      view === "login"
+        ? t("workspace.auth.documentTitle.signIn")
+        : view === "register"
+          ? t("workspace.auth.documentTitle.register")
+          : t("workspace.auth.documentTitle.recover")
+    }`;
+  }, [view, t]);
   function switchView(next: typeof view) {
     setView(next);
     setError("");
@@ -53,11 +75,11 @@ function AuthScreen({
     setPassword("");
   }
   const title = {
-    register: "Your next chapter starts here.",
-    login: "Welcome back.",
-    recover: "A fresh start for your password.",
-    reset: "Set a new password.",
-    verify: "One last step.",
+    register: t("workspace.auth.title.register"),
+    login: t("workspace.auth.title.login"),
+    recover: t("workspace.auth.title.recover"),
+    reset: t("workspace.auth.title.reset"),
+    verify: t("workspace.auth.title.verify"),
   }[view];
   return (
     <main className="workspace-auth">
@@ -68,26 +90,28 @@ function AuthScreen({
             event.preventDefault();
             onHome();
           }}
-          aria-label="DMCloser home"
+          aria-label={t("workspace.auth.homeLabel")}
         >
           <Brand />
         </a>
         <a href="/app">
-          Explore the demo
+          {t("workspace.auth.exploreDemo")}
           <ArrowRight size={14} />
         </a>
       </header>
       <div className="workspace-auth-content">
-        <span className="app-section-label">Your business. Your voice.</span>
+        <span className="app-section-label">
+          {t("workspace.auth.eyebrow")}
+        </span>
         <h1>{title}</h1>
         <p>
           {view === "register"
-            ? "A private inbox for your business, with 14 days to make it yours. No card required."
+            ? t("workspace.auth.subtitle.register")
             : view === "login"
-              ? "Your conversations are right where you left them."
+              ? t("workspace.auth.subtitle.login")
               : view === "verify"
-                ? "Confirm your email to connect your messaging accounts."
-                : "Use a unique password with at least 12 characters."}
+                ? t("workspace.auth.subtitle.verify")
+                : t("workspace.auth.subtitle.password")}
         </p>
         <form
           onSubmit={async (event) => {
@@ -120,7 +144,7 @@ function AuthScreen({
                 });
                 window.history.replaceState({}, "", "/workspace?login");
                 switchView("login");
-                setNotice("Password changed. Sign in with your new password.");
+                setNotice(t("workspace.auth.notice.passwordChanged"));
               }
               if (view === "verify") {
                 await api("/auth/verify", {
@@ -129,14 +153,14 @@ function AuthScreen({
                 });
                 window.history.replaceState({}, "", "/workspace?login");
                 switchView("login");
-                setNotice("Email verified. Sign in to continue.");
+                setNotice(t("workspace.auth.notice.emailVerified"));
               }
               if (view === "register" || view === "login") onAuthenticated();
             } catch (failure) {
               setError(
                 failure instanceof Error
                   ? failure.message
-                  : "Please try again.",
+                  : t("workspace.common.tryAgain"),
               );
             } finally {
               setPending(false);
@@ -147,7 +171,7 @@ function AuthScreen({
           {view === "register" && (
             <>
               <label htmlFor="account-name">
-                Your name
+                {t("workspace.auth.field.name")}
                 <input
                   id="account-name"
                   autoComplete="name"
@@ -158,7 +182,7 @@ function AuthScreen({
                 />
               </label>
               <label htmlFor="account-business">
-                Business name
+                {t("workspace.auth.field.business")}
                 <input
                   id="account-business"
                   autoComplete="organization"
@@ -172,7 +196,7 @@ function AuthScreen({
           )}
           {["register", "login", "recover"].includes(view) && (
             <label htmlFor="account-email">
-              Work email
+              {t("workspace.auth.field.email")}
               <input
                 type="email"
                 id="account-email"
@@ -186,11 +210,11 @@ function AuthScreen({
           )}
           {["register", "login", "reset"].includes(view) && (
             <label htmlFor="account-password">
-              Password
+              {t("workspace.auth.field.password")}
               <input
                 type="password"
                 id="account-password"
-                aria-label="Password"
+                aria-label={t("workspace.auth.field.password")}
                 aria-describedby={
                   view !== "login" ? "account-password-help" : undefined
                 }
@@ -204,7 +228,9 @@ function AuthScreen({
                 required
               />
               {view !== "login" && (
-                <span id="account-password-help">At least 12 characters.</span>
+                <span id="account-password-help">
+                  {t("workspace.auth.field.passwordHelp")}
+                </span>
               )}
             </label>
           )}
@@ -225,13 +251,13 @@ function AuthScreen({
             type="submit"
           >
             {pending
-              ? "One moment..."
+              ? t("workspace.auth.pending")
               : {
-                  register: "Create workspace",
-                  login: "Sign in",
-                  recover: "Send recovery link",
-                  reset: "Save new password",
-                  verify: "Verify email",
+                  register: t("workspace.auth.submit.register"),
+                  login: t("workspace.auth.submit.login"),
+                  recover: t("workspace.auth.submit.recover"),
+                  reset: t("workspace.auth.submit.reset"),
+                  verify: t("workspace.auth.submit.verify"),
                 }[view]}
             <ArrowRight size={16} />
           </button>
@@ -239,32 +265,28 @@ function AuthScreen({
         <div className="workspace-auth-links">
           {view === "register" ? (
             <button onClick={() => switchView("login")}>
-              Already have an account? Sign in
+              {t("workspace.auth.switch.login")}
               <LogIn size={14} />
             </button>
           ) : (
             <button onClick={() => switchView("register")}>
-              Create a new workspace
+              {t("workspace.auth.switch.register")}
               <ArrowRight size={14} />
             </button>
           )}
           {view === "login" && (
             <button onClick={() => switchView("recover")}>
-              Forgot your password?
+              {t("workspace.auth.forgotPassword")}
             </button>
           )}
         </div>
-        <p className="workspace-auth-note">
-          Account data is stored on the server. Connecting Meta accounts
-          requires approved business permissions. Live AI needs the service
-          owner's API configuration.
-        </p>
+        <p className="workspace-auth-note">{t("workspace.auth.note")}</p>
         <button className="app-text-button" onClick={onHome}>
           <ArrowLeft size={14} />
-          Back to the website
+          {t("workspace.auth.backToSite")}
         </button>
       </div>
-      <footer>DMCloser. A little closer, every day.</footer>
+      <footer>{t("workspace.auth.footer")}</footer>
     </main>
   );
 }
@@ -279,6 +301,7 @@ function ServerWorkspaceProvider({
   onSessionLost: () => void;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
+  const t = useStrings(workspaceStrings);
   const [state, setState] = useState<AppState>({
     conversations: initial.conversations,
     settings: initial.settings,
@@ -289,6 +312,10 @@ function ServerWorkspaceProvider({
   });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    initial.nextCursor ?? null,
+  );
+  const extraPages = useRef(0);
   const [connectionState, setConnectionState] = useState<
     "connected" | "reconnecting"
   >("connected");
@@ -316,10 +343,21 @@ function ServerWorkspaceProvider({
           ? `/bootstrap?include=${encodeURIComponent(selectedId)}`
           : "/bootstrap",
       );
-      setSnapshot(next);
+      let conversations = next.conversations;
+      let cursor = next.nextCursor ?? null;
+      for (let page = 0; page < extraPages.current && cursor; page++) {
+        const result = await request<{
+          conversations: Conversation[];
+          nextCursor: string | null;
+        }>(`/conversations?cursor=${encodeURIComponent(cursor)}`);
+        conversations = mergeConversations(conversations, result.conversations);
+        cursor = result.nextCursor;
+      }
+      setSnapshot({ ...next, conversations });
+      setNextCursor(cursor);
       setState((previous) => ({
         ...previous,
-        conversations: next.conversations,
+        conversations,
         settings: next.settings,
         drafts: { ...next.drafts, ...dirtyDrafts.current },
       }));
@@ -330,10 +368,41 @@ function ServerWorkspaceProvider({
         setError(
           failure instanceof Error
             ? failure.message
-            : "Could not refresh your inbox.",
+            : t("workspace.error.refreshInbox"),
         );
     }
-  }, [request, onSessionLost]);
+  }, [request, onSessionLost, t]);
+  const loadMore = useCallback(async () => {
+    if (!nextCursor) return;
+    try {
+      const result = await request<{
+        conversations: Conversation[];
+        nextCursor: string | null;
+      }>(`/conversations?cursor=${encodeURIComponent(nextCursor)}`);
+      extraPages.current += 1;
+      setNextCursor(result.nextCursor);
+      setState((previous) => ({
+        ...previous,
+        conversations: mergeConversations(
+          previous.conversations,
+          result.conversations,
+        ),
+      }));
+      setSnapshot((previous) => ({
+        ...previous,
+        conversations: mergeConversations(
+          previous.conversations,
+          result.conversations,
+        ),
+      }));
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : t("workspace.error.loadMore"),
+      );
+    }
+  }, [nextCursor, request, t]);
 
   useEffect(() => {
     const stream = new EventSource(`${apiBase}/api/events`, {
@@ -383,7 +452,7 @@ function ServerWorkspaceProvider({
         setError(
           failure instanceof Error
             ? failure.message
-            : "Your draft has not been saved.",
+            : t("workspace.error.draftNotSaved"),
         );
       });
     draftChains.current[id] = chain;
@@ -397,7 +466,7 @@ function ServerWorkspaceProvider({
       setError(
         failure instanceof Error
           ? failure.message
-          : "Could not pause automation.",
+          : t("workspace.error.pauseAutomation"),
       ),
     );
   }
@@ -521,7 +590,7 @@ function ServerWorkspaceProvider({
       setError(
         failure instanceof Error
           ? failure.message
-          : "The action could not be completed.",
+          : t("workspace.error.actionFailed"),
       );
       return false;
     } finally {
@@ -560,6 +629,8 @@ function ServerWorkspaceProvider({
       refresh,
       hold,
       clearError: () => setError(null),
+      loadMore,
+      hasMore: !!nextCursor,
       logout: async () => {
         await request("/auth/logout", { method: "POST", body: {} });
         onSessionLost();
@@ -579,6 +650,7 @@ export default function LiveWorkspace({
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState("");
+  const t = useStrings(workspaceStrings);
   const sessionLost = useCallback(() => {
     setSnapshot(null);
   }, []);
@@ -591,12 +663,14 @@ export default function LiveWorkspace({
       else setSnapshot(null);
     } catch (error) {
       setFailure(
-        error instanceof Error ? error.message : "The server is unavailable.",
+        error instanceof Error
+          ? error.message
+          : t("workspace.service.unavailable"),
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -605,14 +679,14 @@ export default function LiveWorkspace({
       <main className="workspace-service-state">
         <Brand />
         <span className="workspace-loading-line" />
-        <p>Opening your workspace...</p>
+        <p>{t("workspace.service.loading")}</p>
       </main>
     );
   if (failure)
     return (
       <main className="workspace-service-state">
         <Brand />
-        <h1>Your workspace is a moment away.</h1>
+        <h1>{t("workspace.service.unavailableTitle")}</h1>
         <p role="alert">{failure}</p>
         <button
           className="closer-button closer-button-primary"
@@ -620,11 +694,11 @@ export default function LiveWorkspace({
             void load();
           }}
         >
-          Try again
+          {t("workspace.service.tryAgain")}
           <RefreshCw size={15} />
         </button>
         <a href="/app" className="app-text-button">
-          Explore the offline demo
+          {t("workspace.service.exploreDemo")}
           <ArrowRight size={14} />
         </a>
       </main>

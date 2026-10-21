@@ -36,6 +36,22 @@ Worker: leases jobs with FOR UPDATE SKIP LOCKED, retries with backoff, dead-lett
 **separate process on purpose**: a slow AI call or a provider timeout must never occupy an
 HTTP request, and the queue must survive an API restart.
 
+**The image is two-stage.** The client is bundled by Vite and the server is bundled by
+esbuild into `build-server/index.mjs`; the runtime stage copies only `dist/`, the server
+bundle and `server/migrations/`, and runs as the non-root `node` user. Migrations ship as
+files and are applied forward-only at boot.
+
+**Liveness and readiness are separate questions.** `/api/health` answers "is the process
+up". `/api/ready` answers "can this instance take traffic" — the database is reachable
+**and** the job worker is polling. The container healthcheck uses `/api/ready` and follows
+`PORT`, so it never reports healthy on a port the process is not serving.
+
+**Shutdown drains.** `SIGTERM`/`SIGINT` stops the maintenance timer, closes the event
+stream, stops the worker (finishing or releasing the job it holds), closes open
+connections, and only then closes the database. `compose.yaml` gives the app a 45s
+`stop_grace_period` — the default 10s is shorter than a worst-case AI timeout plus the
+connection drain.
+
 ---
 
 ## 2. Persistence
@@ -56,9 +72,10 @@ LOCK TABLE schema_migrations IN EXCLUSIVE MODE
 
 **The split-on-`;` rule is load-bearing.** A `;` inside a statement body silently splits
 it into two broken statements, and a `DO $$ … $$` block is always broken by it. New
-migrations therefore use plain DDL only. Files are `001.sql` (core) and `002_revenue.sql`
-(the Revenue OS increment, 11 tables). There are no down-migrations — rolling back means
-writing a new forward migration.
+migrations therefore use plain DDL only. Files are `001.sql` (core), `002_revenue.sql`
+(the Revenue OS increment, 11 tables), `003_sector.sql` (the custom-sector preset
+columns) and `004_ai_quality.sql` (prompt versions, eval cases, eval runs). There are no
+down-migrations — rolling back means writing a new forward migration.
 
 ### Tenancy
 
@@ -215,14 +232,51 @@ off-pattern; the tokens are the contract (see root `DESIGN.md`).
 
 - **No router.** `src/App.tsx` switches on `window.location.pathname` for `/`, `/app`,
   and `/workspace`.
-- **Two contexts.** `ThemeContext` (light/dark, `localStorage` key `dmcloser-theme`) and
+- **Three contexts.** `ThemeContext` (light/dark, `localStorage` key `dmcloser-theme`),
+  `LocaleContext` (locale + direction, `localStorage` key `dmcloser-locale`) and
   `AppContext` (session, bootstrap payload, live workspace). The theme boot script in
-  `index.html` sets the class before first paint, so there is no flash.
+  `index.html` sets the class before first paint, so there is no flash; the locale boot
+  script does the same for `lang`/`dir`, so an Arabic first paint is never an LTR paint
+  that flips.
 - **Three surfaces.** `/` marketing (public), `/app` an isolated browser-only demo backed
   by `localStorage` (no server, no credentials, no real sends), `/workspace` the
   authenticated product.
 - **Bundle.** One self-contained HTML file via `vite-plugin-singlefile` (~568 kB). It is
   the marketing page *and* the app — the whole product ships as one document.
+
+### Localization
+
+`src/i18n/` is a typed message directory, not a runtime. Each surface exports a flat map
+of `key → { en, ar }`, so a missing Arabic string is a **compile error** rather than a
+silent fallback. `useStrings(surface)` in `src/context/LocaleContext.tsx` is the only
+lookup; there is no interpolation library and no key registry.
+
+**English is the default locale and stays byte-identical to the shipped strings.** The
+browser suite asserts on exact English text, so a translation pass is a substitution, never
+a rewrite.
+
+**Direction is a document property, not a stylesheet fork.** Every layout rule uses CSS
+logical properties (`padding-inline`, `border-inline-start`, `inset-inline-end`,
+`text-align: start`), so `dir="rtl"` mirrors the whole interface with no override sheet.
+The only direction-specific CSS is the handful of rules that must be: pointing glyphs, and
+the Arabic typography reset.
+
+**The Arabic typography reset is scoped by the subject's language, not the page.**
+`:lang(ar)` matches an element only when its *resolved* language is Arabic, so an Arabic
+run inside an English page is still corrected, and an English run inside an Arabic page
+keeps the design's tracking and casing. The reset sets `letter-spacing: normal` (the
+design's negative tracking separates joined Arabic letterforms) and disables
+`text-transform: uppercase` (Arabic has no case).
+
+**Numbers stay Western Arabic digits.** `localeTag` pins `ar-SA-u-nu-latn`, matching Saudi
+practice. Money, phone numbers, reference IDs and opaque codes carry the `.ltr-isolate`
+utility (`direction: ltr; unicode-bidi: isolate`) so they are not reordered inside
+Arabic text.
+
+**Server-side money formatting stays `en-US`.** `server/ai.ts` checks the model's cited
+evidence against the approved facts with a verbatim substring match, so a locale-formatted
+money string in the grounding facts would break the check. Only the client's display
+format is locale-aware.
 
 ---
 

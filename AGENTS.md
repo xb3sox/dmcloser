@@ -20,12 +20,12 @@ invents a price.
 
 | Path | Purpose |
 |---|---|
-| `src/` | React 19 + Vite client. `components/` (landing, workspace, revenue, ui), `domain/` (pure, shared with the server), `types/`, `context/`, `styles/`, `data/` (demo fixtures — never translate). |
-| `server/` | Express 5 API. `app.ts` (core routes), `revenue-routes.ts` (Revenue OS routes), `service.ts` (domain logic), `revenue.ts`, `ai.ts`, `worker.ts` (durable queue), `providers.ts` (Meta), `db.ts` (migrations), `security.ts`, `billing.ts`, `config.ts`. |
-| `server/migrations/` | Numbered, forward-only SQL. `001.sql` core, `002_revenue.sql` Revenue OS. |
-| `server/tests/` | `node:test` suites — `product.test.ts`, `revenue.test.ts`. Pure + DB, no browser. |
-| `tests/` | Playwright browser + axe accessibility specs. |
-| `scripts/` | `check.mjs` (**the single gate entry point**), `control-bands.mjs`, `monitor.mjs`. |
+| `src/` | React 19 + Vite client. `components/` (landing, workspace, revenue, ui), `domain/` (pure, shared with the server), `types/`, `context/`, `i18n/` (typed message surfaces, `en` + `ar`), `styles/`, `data/` (demo fixtures — never translate). |
+| `server/` | Express 5 API. `app.ts` (core routes), `revenue-routes.ts` (Revenue OS routes), `quality-routes.ts` (AI Quality Lab routes), `service.ts` (domain logic), `revenue.ts`, `quality.ts`, `ai.ts`, `worker.ts` (durable queue), `providers.ts` (Meta), `db.ts` (migrations), `security.ts`, `billing.ts`, `config.ts`. |
+| `server/migrations/` | Numbered, forward-only SQL. `001.sql` core, `002_revenue.sql` Revenue OS, `003_sector.sql` custom sector, `004_ai_quality.sql` prompt versions and eval cases. |
+| `server/tests/` | `node:test` suites — `product.test.ts`, `revenue.test.ts`, `safety.test.ts`, `quality.test.ts`, `recovery.test.ts`. Pure + DB, no browser. |
+| `tests/` | Playwright browser + axe accessibility specs, including `arabic.spec.ts` for the RTL locale. |
+| `scripts/` | `check.mjs` (**the single gate entry point**), `control-bands.mjs`, `monitor.mjs`, `backup.sh`, `restore.sh`. |
 | `docs/` | `API.md`, `OPERATIONS.md`, `REVENUE_OS.md`, `REVIEW.md`, `PRD.md`, `TECH.md`, `DESIGN.md`, `BUSINESS.md`, `BRIEF.md`, `AGENTS.md` (upstream proposal set). |
 | `public/` | Favicon, marketing imagery. |
 
@@ -77,19 +77,21 @@ green before any change is proposed.
 node scripts/check.mjs          # everything below, in order
 npx tsc --noEmit                # client type check
 npx tsc -p tsconfig.server.json # server type check
-npx tsx --test server/tests/product.test.ts
-npx tsx --test server/tests/revenue.test.ts
+npx tsx --test server/tests/*.test.ts
 node --test scripts/control-bands.test.mjs
 npm run build
 npm audit --audit-level=moderate
 npx playwright test              # not in check.mjs — run it too, it needs a browser
 ```
 
+`check.mjs` discovers the server suites from the filesystem and runs each in its own
+process, so a new suite cannot be added without the gate picking it up.
+
 Against a real Postgres (what CI does):
 
 ```sh
 TEST_DATABASE_URL=postgres://user:pass@localhost/db npx tsx --test --test-concurrency=1 \
-  server/tests/product.test.ts server/tests/revenue.test.ts
+  server/tests/*.test.ts
 ```
 
 **An incident produces a new intent and a new test.** A defect fix without a regression is
@@ -108,7 +110,7 @@ not finished.
 5. **Model confidence alone never authorizes a send.** `autoAllowed()` in
    `server/service.ts` is the single automation gate: two opt-ins, no open draft, no hold,
    grounded facts, no escalation, no opt-out, no risk, no clinical content, within the
-   message window.
+   message window, and no **blocked** prompt version in the workspace.
 6. **Escalation must block automatic sends at the server boundary.** Clinical content in a
    medical workspace returns 409 and makes **no** AI request and **no** spend.
 7. **Medical modes are administrative-only.** Scheduling and approved service information.
@@ -121,10 +123,16 @@ not finished.
     scores are labelled uncalibrated; learning evidence is immutable. **No automatic claim
     of a won deal, causal attribution, or payment.**
 11. **Model output, thresholds, and prompt changes require deterministic evals plus a
-    human-reviewed live sample set before release.**
-12. **Do not claim live integration, latency SLO, backups, or compliance verified without
+    human-reviewed live sample set before release.** The AI Quality Lab owns the
+    deterministic half: a failing blocking case marks the prompt version `blocked` and
+    stops auto-send. Publishing a prompt version is owner-only.
+12. **Safety guards are bilingual, in one shared module.** `src/domain/safety.ts` is pure,
+    dependency-free and imported by both the client and the server. English patterns stay
+    verbatim; Arabic patterns are added beside them, never substituted. A guard that
+    exists in one language and not the other is a safety defect, not a gap.
+13. **Do not claim live integration, latency SLO, backups, or compliance verified without
     actual evidence.** Agents may prepare releases; **only the owner authorizes production.**
-13. **PR first. Never merge or push `main` without Basem's review.**
+14. **PR first. Never merge or push `main` without Basem's review.**
 
 ## Identifiers
 

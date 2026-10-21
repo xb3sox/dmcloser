@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MotionConfig } from "motion/react";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { LocaleProvider } from "@/context/LocaleContext";
 import { AppProvider, useApp } from "@/context/AppContext";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
@@ -12,13 +13,14 @@ import LiveWorkspace from "@/components/workspace/LiveWorkspace";
 import { WorkspaceNotices } from "@/components/workspace/AccountSettings";
 import RevenueView from "@/components/revenue/RevenueView";
 import BusinessBrain from "@/components/revenue/BusinessBrain";
+import QualityLab from "@/components/revenue/QualityLab";
 import "./styles/app.css";
 
 function AppContent({ onHome }: { onHome: () => void }) {
   const { state, selectedConversation, storageAvailable } = useApp();
 
   useEffect(() => {
-    document.title = `${state.currentView === "revenue" ? "Revenue" : state.currentView === "brain" ? "Business Brain" : state.currentView === "settings" ? "Settings" : state.currentView === "chat" && selectedConversation ? selectedConversation.contactName : "Inbox"} - DMCloser`;
+    document.title = `${state.currentView === "revenue" ? "Revenue" : state.currentView === "brain" ? "Business Brain" : state.currentView === "quality" ? "AI Quality Lab" : state.currentView === "settings" ? "Settings" : state.currentView === "chat" && selectedConversation ? selectedConversation.contactName : "Inbox"} - DMCloser`;
   }, [state.currentView, selectedConversation?.contactName]);
 
   useEffect(() => {
@@ -50,6 +52,8 @@ function AppContent({ onHome }: { onHome: () => void }) {
           <RevenueView />
         ) : state.currentView === "brain" ? (
           <BusinessBrain />
+        ) : state.currentView === "quality" ? (
+          <QualityLab />
         ) : state.currentView === "settings" ? (
           <SettingsView />
         ) : (
@@ -99,11 +103,13 @@ function AppRouter() {
 export default function App() {
   return (
     <ThemeProvider>
-      <MotionConfig reducedMotion="user">
-        <AppProvider>
-          <AppRouter />
-        </AppProvider>
-      </MotionConfig>
+      <LocaleProvider>
+        <MotionConfig reducedMotion="user">
+          <AppProvider>
+            <AppRouter />
+          </AppProvider>
+        </MotionConfig>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

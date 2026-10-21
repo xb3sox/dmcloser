@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import { landingStrings } from "@/i18n/surfaces/landing";
 import type { Tone } from "@/types";
 import { DialogShell } from "@/components/ui/Dialog";
 
@@ -19,16 +21,17 @@ export default function SetupDialog({
   const [businessName, setBusinessName] = useState("");
   const [products, setProducts] = useState("");
   const [tone, setTone] = useState<Tone>(state.settings.tone);
+  const t = useStrings(landingStrings);
 
   return (
-    <DialogShell title="Meet your new closer." onClose={onClose}>
+    <DialogShell title={t("landing.setup.title")} onClose={onClose}>
       <p className="dialog-description">
-        A little about your business. A lot less time in your inbox.
+        {t("landing.setup.description")}
       </p>
       {plan && (
         <p className="dialog-plan">
-          You're exploring the <strong>{plan}</strong> plan. Start with a free
-          demo.
+          {t("landing.setup.planBefore")} <strong>{plan}</strong>{" "}
+          {t("landing.setup.planAfter")}
         </p>
       )}
       <form
@@ -49,12 +52,12 @@ export default function SetupDialog({
         }}
       >
         <label htmlFor="setup-business">
-          Business name
+          {t("landing.setup.businessName")}
           <input
             id="setup-business"
             name="business"
             autoComplete="organization"
-            placeholder="e.g. Maison Studio"
+            placeholder={t("landing.setup.businessPlaceholder")}
             maxLength={100}
             value={businessName}
             onChange={(event) => setBusinessName(event.target.value)}
@@ -63,11 +66,11 @@ export default function SetupDialog({
           />
         </label>
         <label htmlFor="setup-products">
-          What do you sell?
+          {t("landing.setup.products")}
           <textarea
             id="setup-products"
             name="products"
-            placeholder="e.g. Thoughtfully made linen clothing and home essentials"
+            placeholder={t("landing.setup.productsPlaceholder")}
             rows={2}
             maxLength={1000}
             value={products}
@@ -76,16 +79,16 @@ export default function SetupDialog({
           />
         </label>
         <label htmlFor="setup-tone">
-          Your reply tone
+          {t("landing.setup.tone")}
           <select
             id="setup-tone"
             name="tone"
             value={tone}
             onChange={(event) => setTone(event.target.value as Tone)}
           >
-            <option value="friendly">Friendly and approachable</option>
-            <option value="premium">Premium and polished</option>
-            <option value="aggressive">Direct and sales-focused</option>
+            <option value="friendly">{t("landing.setup.toneFriendly")}</option>
+            <option value="premium">{t("landing.setup.tonePremium")}</option>
+            <option value="aggressive">{t("landing.setup.toneAggressive")}</option>
           </select>
         </label>
         <button
@@ -93,18 +96,15 @@ export default function SetupDialog({
           className="closer-button closer-button-primary"
           disabled={!businessName.trim() || !products.trim()}
         >
-          Create demo workspace
+          {t("landing.setup.submit")}
           <ArrowRight size={16} />
         </button>
-        <p className="setup-note">
-          No credit card or real account connection. Your workspace is saved in
-          this browser; no paid subscription is created.
-        </p>
+        <p className="setup-note">{t("landing.setup.note")}</p>
       </form>
       <div className="workspace-create-account">
-        <span>Ready for your own inbox?</span>
+        <span>{t("landing.setup.readyPrompt")}</span>
         <a href="/workspace">
-          Create a private workspace
+          {t("landing.setup.createLink")}
           <ArrowRight size={14} />
         </a>
       </div>

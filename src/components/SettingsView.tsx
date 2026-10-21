@@ -1,29 +1,35 @@
 import { useState } from "react";
 import { ArrowUpRight, Check } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import { settingsStrings } from "@/i18n/surfaces/settings";
 import { InstagramIcon, WhatsAppIcon } from "./landing/Brand";
 import { DialogShell } from "./ui/Dialog";
 import Switch from "./ui/Switch";
 import type { Platform, Tone } from "@/types";
 import AccountSettings from "./workspace/AccountSettings";
 
-const tones: { value: Tone; label: string; description: string }[] = [
+const tones = [
   {
     value: "friendly",
-    label: "Friendly",
-    description: "Warm, conversational, and approachable.",
+    labelKey: "settings.tone.friendly.label",
+    descriptionKey: "settings.tone.friendly.description",
   },
   {
     value: "premium",
-    label: "Premium",
-    description: "Thoughtful, polished, and professional.",
+    labelKey: "settings.tone.premium.label",
+    descriptionKey: "settings.tone.premium.description",
   },
   {
     value: "aggressive",
-    label: "Sales-focused",
-    description: "Direct, clear, and focused on the next step.",
+    labelKey: "settings.tone.aggressive.label",
+    descriptionKey: "settings.tone.aggressive.description",
   },
-];
+] as const satisfies {
+  value: Tone;
+  labelKey: string;
+  descriptionKey: string;
+}[];
 
 export default function SettingsView() {
   const {
@@ -33,6 +39,7 @@ export default function SettingsView() {
     live,
     update,
   } = useApp();
+  const t = useStrings(settingsStrings);
   const [businessName, setBusinessName] = useState(settings.businessName);
   const [products, setProducts] = useState(settings.productsSold);
   const [description, setDescription] = useState(settings.businessDescription);
@@ -53,9 +60,9 @@ export default function SettingsView() {
   return (
     <section className="settings-page" aria-labelledby="settings-heading">
       <header className="settings-page-header">
-        <span className="app-section-label">Make it yours</span>
-        <h1 id="settings-heading">Settings</h1>
-        <p>Your business. Your voice. Your control.</p>
+        <span className="app-section-label">{t("settings.page.eyebrow")}</span>
+        <h1 id="settings-heading">{t("settings.page.title")}</h1>
+        <p>{t("settings.page.subtitle")}</p>
       </header>
       <div className="settings-sections">
         <section
@@ -63,8 +70,8 @@ export default function SettingsView() {
           aria-labelledby="business-heading"
         >
           <div className="settings-section-intro">
-            <h2 id="business-heading">Business information</h2>
-            <p>The context behind a more helpful reply.</p>
+            <h2 id="business-heading">{t("settings.business.title")}</h2>
+            <p>{t("settings.business.description")}</p>
           </div>
           <form
             className="business-settings-form"
@@ -87,7 +94,7 @@ export default function SettingsView() {
             }}
           >
             <label htmlFor="business-name">
-              Business name
+              {t("settings.business.name")}
               <input
                 id="business-name"
                 name="businessName"
@@ -102,7 +109,7 @@ export default function SettingsView() {
               />
             </label>
             <label htmlFor="business-products">
-              What do you sell?
+              {t("settings.business.products")}
               <input
                 id="business-products"
                 name="products"
@@ -116,7 +123,7 @@ export default function SettingsView() {
               />
             </label>
             <label htmlFor="business-description">
-              Business context
+              {t("settings.business.context")}
               <textarea
                 id="business-description"
                 name="description"
@@ -131,11 +138,10 @@ export default function SettingsView() {
               />
             </label>
             <p id="business-context-help" className="app-field-help">
-              Add approved facts such as products, pricing, and delivery
-              policies.{" "}
+              {t("settings.business.help")}{" "}
               {mode === "demo"
-                ? "Demo suggestions are examples, not live AI."
-                : "Uncertain questions stay with you; only approved facts are used automatically."}
+                ? t("settings.business.helpDemo")
+                : t("settings.business.helpLive")}
             </p>
             <div className="settings-save-row">
               <button
@@ -148,30 +154,30 @@ export default function SettingsView() {
                   (mode === "live" && live?.snapshot.user.role !== "owner")
                 }
               >
-                Save changes
+                {t("settings.business.save")}
                 <Check size={14} />
               </button>
               <span role="status">
                 {saved
                   ? mode === "live"
-                    ? "Changes saved to your workspace."
-                    : "Changes saved in this browser."
+                    ? t("settings.business.savedLive")
+                    : t("settings.business.savedDemo")
                   : hasChanges
-                    ? "You have unsaved changes."
+                    ? t("settings.business.unsaved")
                     : mode === "live"
-                      ? "Saved to your workspace."
-                      : "Saved in this browser."}
+                      ? t("settings.business.storedLive")
+                      : t("settings.business.storedDemo")}
               </span>
             </div>
           </form>
         </section>
         <section className="settings-section" aria-labelledby="tone-heading">
           <div className="settings-section-intro">
-            <h2 id="tone-heading">Reply tone</h2>
-            <p>Sound like yourself, without writing every word.</p>
+            <h2 id="tone-heading">{t("settings.tone.title")}</h2>
+            <p>{t("settings.tone.description")}</p>
           </div>
           <fieldset className="settings-tone-options">
-            <legend className="sr-only">Choose your reply tone</legend>
+            <legend className="sr-only">{t("settings.tone.legend")}</legend>
             {tones.map((tone) => (
               <label
                 key={tone.value}
@@ -191,16 +197,13 @@ export default function SettingsView() {
                   }
                 />
                 <span>
-                  <strong>{tone.label}</strong>
-                  <span>{tone.description}</span>
+                  <strong>{t(tone.labelKey)}</strong>
+                  <span>{t(tone.descriptionKey)}</span>
                 </span>
               </label>
             ))}
           </fieldset>
-          <p className="app-field-help">
-            Tone changes are saved automatically and applied to suggested
-            replies.
-          </p>
+          <p className="app-field-help">{t("settings.tone.help")}</p>
         </section>
         <section
           className="settings-section"
@@ -208,14 +211,15 @@ export default function SettingsView() {
         >
           <div className="settings-toggle-row">
             <div className="settings-section-intro">
-              <h2 id="auto-reply-heading">Auto-reply</h2>
+              <h2 id="auto-reply-heading">{t("settings.autoReply.title")}</h2>
               <p id="auto-reply-help">
-                Allow high-confidence {mode === "demo" ? "demo " : ""}replies
-                for contacts with auto-send enabled.
+                {mode === "demo"
+                  ? t("settings.autoReply.allowDemo")
+                  : t("settings.autoReply.allow")}
               </p>
             </div>
             <Switch
-              label="Workspace auto-reply"
+              label={t("settings.autoReply.switchLabel")}
               checked={settings.autoReplyEnabled}
               onChange={() => dispatch({ type: "TOGGLE_AUTO_REPLY" })}
               describedBy="auto-reply-help"
@@ -227,16 +231,16 @@ export default function SettingsView() {
           </div>
           <p className="app-field-help">
             {settings.autoReplyEnabled
-              ? "Enabled. Turn on auto-send in a conversation to try it."
-              : "Off. Suggested replies always wait for your approval."}{" "}
+              ? t("settings.autoReply.enabled")
+              : t("settings.autoReply.off")}{" "}
             {mode === "demo"
-              ? "No real messages are sent."
-              : "Live replies require both switches, safe grounded content, and an open provider window."}
+              ? t("settings.autoReply.demoNote")
+              : t("settings.autoReply.liveNote")}
           </p>
           {settings.autoReplyEnabled && (
             <div className="confidence-control">
               <label htmlFor="confidence-threshold">
-                Minimum confidence
+                {t("settings.autoReply.minimumConfidence")}
                 <output htmlFor="confidence-threshold">
                   {settings.autoSendConfidenceThreshold}%
                 </output>
@@ -262,8 +266,8 @@ export default function SettingsView() {
                 }
               />
               <div>
-                <span>More automation</span>
-                <span>More review</span>
+                <span>{t("settings.autoReply.moreAutomation")}</span>
+                <span>{t("settings.autoReply.moreReview")}</span>
               </div>
             </div>
           )}
@@ -276,11 +280,8 @@ export default function SettingsView() {
               aria-labelledby="accounts-heading"
             >
               <div className="settings-section-intro">
-                <h2 id="accounts-heading">Messaging accounts</h2>
-                <p>
-                  Explore the setup requirements. Live connections are not
-                  configured.
-                </p>
+                <h2 id="accounts-heading">{t("settings.accounts.title")}</h2>
+                <p>{t("settings.accounts.description")}</p>
               </div>
               <div className="account-connections">
                 {(["instagram", "whatsapp"] as const).map((platform) => (
@@ -296,14 +297,17 @@ export default function SettingsView() {
                       <strong>
                         {platform === "instagram" ? "Instagram" : "WhatsApp"}
                       </strong>
-                      <span>Not connected</span>
+                      <span>{t("settings.accounts.notConnected")}</span>
                     </div>
                     <button
                       className="app-text-button"
                       onClick={() => setConnection(platform)}
-                      aria-label={`View ${platform === "instagram" ? "Instagram" : "WhatsApp"} setup`}
+                      aria-label={t("settings.accounts.viewSetupLabel", {
+                        platform:
+                          platform === "instagram" ? "Instagram" : "WhatsApp",
+                      })}
                     >
-                      View setup
+                      {t("settings.accounts.viewSetup")}
                       <ArrowUpRight size={14} />
                     </button>
                   </div>
@@ -316,36 +320,31 @@ export default function SettingsView() {
       </div>
       {connection && (
         <DialogShell
-          title={`${connection === "instagram" ? "Instagram" : "WhatsApp"} setup`}
+          title={t("settings.accounts.dialogTitle", {
+            platform: connection === "instagram" ? "Instagram" : "WhatsApp",
+          })}
           onClose={() => setConnection(null)}
         >
           <div className="legal-copy">
-            <p>
-              This demo does not connect to a real messaging account. Your
-              sample inbox will continue to work without a connection.
-            </p>
-            <h3>For a live connection</h3>
+            <p>{t("settings.accounts.demoNotice")}</p>
+            <h3>{t("settings.accounts.liveHeading")}</h3>
             <ul>
               <li>
-                An eligible{" "}
-                {connection === "instagram"
-                  ? "Instagram professional"
-                  : "WhatsApp Business"}{" "}
-                account.
+                {t("settings.accounts.eligibleAccount", {
+                  kind: t(
+                    connection === "instagram"
+                      ? "settings.accounts.kind.instagram"
+                      : "settings.accounts.kind.whatsapp",
+                  ),
+                })}
               </li>
-              <li>
-                A configured Meta application with approved messaging
-                permissions.
-              </li>
-              <li>
-                A secure backend, verified webhooks, and server-side access
-                tokens.
-              </li>
+              <li>{t("settings.accounts.metaApplication")}</li>
+              <li>{t("settings.accounts.secureBackend")}</li>
             </ul>
             <p>
-              Never paste access tokens or account passwords into this demo.
+              {t("settings.accounts.neverPaste")}
               <a href="/workspace" className="app-text-button">
-                Create a server-backed workspace
+                {t("settings.accounts.createWorkspace")}
                 <ArrowUpRight size={14} />
               </a>
             </p>
@@ -353,7 +352,7 @@ export default function SettingsView() {
               className="closer-button closer-button-primary"
               onClick={() => setConnection(null)}
             >
-              Back to settings
+              {t("settings.accounts.backToSettings")}
               <Check size={15} />
             </button>
           </div>

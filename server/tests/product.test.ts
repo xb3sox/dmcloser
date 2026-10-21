@@ -1213,3 +1213,37 @@ test("workspace export is complete beyond UI limits and erasure redacts buffered
   );
   assert.ok(!JSON.stringify(receipt.payload).includes("private-to-be-erased"));
 });
+
+test("cursor pagination returns every conversation exactly once and rejects a bad cursor", async () => {
+  const f = await fixture();
+  const now = Date.now();
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,last_at,window_until) SELECT $1||'-'||n,$1,'whatsapp','paged-'||n,'Paged '||n,$2,$3 FROM generate_series(1,250) AS n",
+    [f.snapshot.workspace.id, now, now + 86400000],
+  );
+  const first = (await f.client.get("/api/bootstrap")).body;
+  assert.equal(first.conversations.length, 200);
+  assert.equal(typeof first.nextCursor, "string");
+  const second = (
+    await f.client.get(
+      `/api/conversations?cursor=${encodeURIComponent(first.nextCursor)}`,
+    )
+  ).body;
+  assert.equal(second.conversations.length, 50);
+  assert.equal(second.nextCursor, null);
+  const ids = [...first.conversations, ...second.conversations].map(
+    (conversation: { id: string }) => conversation.id,
+  );
+  assert.equal(ids.length, 250);
+  assert.equal(new Set(ids).size, 250);
+  const third = (
+    await f.client.get(
+      `/api/conversations?cursor=${encodeURIComponent(second.nextCursor ?? "")}`,
+    )
+  ).status;
+  assert.equal(third, 400);
+  const tenant = await fixture();
+  const other = (await tenant.client.get("/api/bootstrap")).body;
+  assert.equal(other.conversations.length, 0);
+  assert.equal(other.nextCursor, null);
+});

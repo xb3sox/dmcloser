@@ -40,14 +40,14 @@ Status values: **Implemented** · **Partial** · **Deferred** · **Proposal only
 | FEAT-007 | AI suggested reply | **Implemented** | `server/ai.ts` `createAI()` / `guardReply()`; strict JSON schema, grounding check at `server/ai.ts:60-66` |
 | FEAT-008 | Approval and takeover | **Implemented** | `autoAllowed()` (`server/service.ts:762`), `POST /api/conversations/:id/hold` (`server/app.ts:911`), `POST /api/deals/:id/escalation` (`server/revenue-routes.ts:473`) |
 | FEAT-009 | Next best action | **Implemented** | `SalesInsight.nextAction` in `src/domain/revenue.ts`; surfaced in the inbox and the deal panel |
-| FEAT-010 | Search, filters and status | **Partial** | Channel, intent, unread, and free-text search exist (`src/components/InboxView.tsx:8-12`). **Deferred:** lead-status filter, time-range filter, assignee filter (no `assignee` column exists in any migration), and cursor pagination (`server/service.ts:181` `LIMIT 200`). |
+| FEAT-010 | Search, filters and status | **Partial** | Channel, intent, unread, free-text search, **lead-status** and **time-range** filters (`src/components/InboxView.tsx:10-36`) plus **cursor pagination** (`server/service.ts:198-282`; `GET /api/bootstrap` returns the first page and a `nextCursor`, `GET /api/conversations?cursor=` returns the next page). **Deferred:** assignee filter — no `assignee` column exists in any migration, and conversation assignment is a separate feature. |
 | FEAT-011 | Follow-up scheduler | **Implemented** (review-only) | `sales_tasks` (`002_revenue.sql:13`), `POST /api/deals/:id/follow-ups` (`server/revenue-routes.ts:384`), `POST /api/sales-tasks/:id/use` (`:423`). Tasks are human reminders; they never auto-send. |
 | FEAT-012 | Bookings and appointments | **Partial** | `appointments` table + conflict check + ICS export (`server/revenue-routes.ts:285-383`). **Deferred:** external calendar sync (explicitly out of scope per `docs/REVENUE_OS.md`). |
 | FEAT-013 | Deal and outcome ledger | **Implemented** | `deals` / `deal_outcomes` / `revenue_events` (`002_revenue.sql:5,8,9`), `POST /api/deals/:id/outcome` (`server/revenue-routes.ts:173`), `POST /api/deals/:id/revenue` (`:198`) |
-| FEAT-014 | Recovery list | **Partial** | The 7-day "no customer response" risk is computed in `src/domain/revenue.ts:187` and shown per deal. **Deferred:** a ranked, dismissible recovery list endpoint + view. |
-| FEAT-015 | Analytics dashboard | **Partial** | `GET /api/revenue` (`server/revenue-routes.ts:136`), `src/components/revenue/RevenueView.tsx`. Totals are shown, but not yet split into separately labelled **Potential / Attributed / Verified** blocks with evidence links and reversal status. |
-| FEAT-016 | Sector configuration | **Partial** | Five fixed industry modes + `industryGuidance` (`src/domain/revenue.ts:10`), `business_profiles.industry` CHECK (`002_revenue.sql:1`), `src/components/revenue/BusinessBrain.tsx:283-293`. **Deferred:** `custom` sector with user-defined field presets — the CHECK constraint is closed at six values. |
-| FEAT-017 | AI Quality Lab | **Deferred** | Deterministic safety evals exist only as a test (`server/tests/product.test.ts:731`). **Deferred:** prompt-version registry, persisted eval cases, publish gate, owner-only publish, nav surface. |
+| FEAT-014 | Recovery list | **Implemented** | `GET /api/revenue/recovery` (`server/revenue-routes.ts:166`) → `RevenueService.recovery()` (`server/revenue.ts:940`) ranks stale open opportunities (7+ days without a customer reply) with a reason, a next safe action and an indicative value. `POST …/dismiss` / `POST …/restore` (`:169`, `:181`) record the operator's reason in `audit_events`. Surfaced as a ranked, dismissible section in `src/components/revenue/RevenueView.tsx`; nothing is ever sent automatically. |
+| FEAT-015 | Analytics dashboard | **Implemented** | `GET /api/revenue` (`server/revenue-routes.ts:152`) returns three separately labelled blocks — **Verified** (`revenueMinor`, `reversedMinor`, `verifiedReceipts` with per-receipt reference and reversal status), **Potential** (`pipelineMinor`, `forecastMinor`, both marked estimated) and **Attributed** (`attribution[]` grouped by first touch, explicitly descriptive). Rendered in `src/components/revenue/RevenueView.tsx` with the "not cash / not guaranteed / no causal claim" labels the contract requires. |
+| FEAT-016 | Sector configuration | **Implemented** | `custom` industry + `business_profiles.sector_fields` jsonb (`server/migrations/003_sector.sql`), `Industry` gains `"custom"` with a generic-guidance entry so no `Record<Industry, …>` map is half-open (`src/domain/revenue.ts:10`, `src/types/revenue.ts:1`), and an owner-gated field-preset editor in `src/components/revenue/BusinessBrain.tsx`. The fixed BANT qualification shape is untouched; custom fields are additional. |
+| FEAT-017 | AI Quality Lab | **Implemented** | `ai_prompt_versions` / `ai_eval_cases` / `ai_eval_runs` (`server/migrations/004_ai_quality.sql`), `server/quality.ts` + 8 owner-gated routes (`server/quality-routes.ts`), the `ai-eval` job kind in the durable queue (`server/worker.ts`), and the owner-only view `src/components/revenue/QualityLab.tsx`. A failing **blocking** case marks the version `blocked`, and `autoAllowed()` (`server/service.ts:844`) refuses to auto-send while a workspace's published version is blocked. |
 | FEAT-018 | Cost and consent controls | **Implemented** | `usage` table with `ai_replies` cap (`001.sql:17`), conversation limit → 429 (`server/service.ts:510-515`), opt-out blocks auto-send, `GET /api/operations` (`:1370`) |
 | FEAT-019 | Billing and subscription | **Implemented** | `server/billing.ts`, `POST /api/billing/checkout` / `/portal` (`server/app.ts:1108`, `:1127`), signed idempotent Stripe events, `billing` job kind (`server/worker.ts:80`) |
 | FEAT-020 | Data export and deletion | **Implemented** | `GET /api/workspace/export` (`server/app.ts:1225`), `DELETE /api/workspace` (`:1265`), `deletion_requests` (`001.sql:19`), `GET /api/data-deletion/:code` (`:340`) |
@@ -61,8 +61,8 @@ Requirements and §Acceptance Criteria.
 FR-001 Implemented · FR-002 Implemented · FR-003 Partial · FR-004 Implemented ·
 FR-005 Implemented · FR-006 Implemented · FR-007 Implemented · FR-008 Implemented ·
 FR-009 Implemented · FR-010 Partial · FR-011 Implemented · FR-012 Partial ·
-FR-013 Implemented · FR-014 Partial · FR-015 Partial · FR-016 Partial · FR-017 Deferred ·
-FR-018 Implemented · FR-019 Implemented · FR-020 Implemented
+FR-013 Implemented · FR-014 Implemented · FR-015 Implemented · FR-016 Implemented ·
+FR-017 Implemented · FR-018 Implemented · FR-019 Implemented · FR-020 Implemented
 
 ## Non-functional requirements (NFR-001 … NFR-012)
 
@@ -73,7 +73,7 @@ FR-018 Implemented · FR-019 Implemented · FR-020 Implemented
 | NFR-003 | Unknown status never shows delivered; failed send shows reason | **Implemented** | `messages.status` state machine, `POST /api/messages/:id/resolve` (`server/app.ts:984`) |
 | NFR-004 | Audit entries for human outbound, AI suggestion, knowledge update | **Implemented** | `audit_events` (`001.sql:18`), `deal_events` (`002_revenue.sql:7`) |
 | NFR-005 | No horizontal scrolling at 360px | **Implemented** | `tests/workspace.spec.ts` mobile viewport assertions + axe matrix |
-| NFR-006 | **English/Arabic LTR/RTL, locale-aware dates, legible currency/phones** | **Partial — the gap** | Today the interface is **English-only**: zero Arabic characters, no `lang=`/`dir=` attributes, 50 physical CSS properties awaiting logical-property conversion. Server-side guard matching is now bilingual (`src/domain/safety.ts`), so the *safety* half of NFR-006 is closed ahead of the UI half. |
+| NFR-006 | **English/Arabic LTR/RTL, locale-aware dates, legible currency/phones** | **Implemented** | `src/context/LocaleContext.tsx` (locale, `dir`, `Intl` formatters, persisted in `localStorage` under `dmcloser-locale`), a boot script in `index.html` that sets `lang`/`dir` before first paint, CSS **logical properties** throughout (`src/styles/system.css`, `src/index.css`) so RTL needs no override sheet, and a per-surface message map under `src/i18n/surfaces/` where every entry carries both locales — a missing translation is a compile error. Money and reference IDs render through `src/components/ui/Money.tsx` and the `.ltr-isolate` utility so a Latin run is not reordered inside Arabic prose. Server-side guard matching is bilingual in `src/domain/safety.ts`. Verified by `tests/arabic.spec.ts` (switch, persistence, no horizontal overflow at 360 px, LTR isolation, axe in Arabic). |
 | NFR-007 | No secrets, raw bodies, or sensitive ids in errors/analytics | **Implemented** | `server/app.ts` error mapper; `scripts/control-bands.mjs`; `server/tests/product.test.ts` error-shape cases |
 | NFR-008 | No paid AI call beyond the tenant cap | **Implemented** | `usage` cap in the same statement as the increment (`server/service.ts:522-530`); cap exhaustion blocks inference |
 | NFR-009 | p95 inbox open ≤2s for 100 conversations | **Not verified** | A release **target**, not a measured claim. Requires a load test in staging. No local gate can prove it. |
@@ -88,26 +88,26 @@ FR-018 Implemented · FR-019 Implemented · FR-020 Implemented
 | AC-021 / NFR-001 | Two workspaces with identical external contact ids stay isolated | **Implemented** | `server/tests/product.test.ts` cross-tenant fixtures |
 | AC-022 / NFR-002 | Replay the same signed event 100× → one logical message | **Implemented** | `webhook_receipts` + unique provider id; `server/tests/product.test.ts` |
 | AC-025 / FR-011, NFR-010 | No follow-up after opt-out, outside the window, or under wrong permissions | **Implemented** | `server/tests/revenue.test.ts:589` (English opt-out) and the new Arabic opt-out regression; `autoAllowed()` |
-| AC-026 / NFR-005, NFR-012 | Keyboard-only completion; **Arabic RTL layout without clipping** | **Partial** | Keyboard path is covered by the browser suite. The **Arabic RTL half is not implemented** — it is the Phase 2 deliverable, and it needs native-speaker review of the customer-facing wording. |
+| AC-026 / NFR-005, NFR-012 | Keyboard-only completion; **Arabic RTL layout without clipping** | **Implemented** | Keyboard path is covered by the browser suite. The Arabic RTL half is implemented and covered by `tests/arabic.spec.ts`: the switch flips `<html lang dir>`, the layout has no horizontal overflow at 360 px, money and reference IDs stay LTR-isolated, the choice survives a reload, and the axe matrix passes in Arabic. **Residual:** the Arabic customer-facing wording is an engineering artefact and still wants native-speaker review before it is shown to real customers. |
 | AC-027 / NFR-008 | Exhausted cap blocks the next inference and allows a manual response | **Implemented** | `usage` cap (`server/service.ts:522`); the manual composer path is unconditional |
 
 ---
 
 ## The gaps that remain
 
-Ordered by what unblocks the most. Each one is specced in the approved plan; none is
-started.
+Ordered by what unblocks the most. Every one of these is an **external** gate: no
+local test, no amount of code, and no agent can close them. Only the owner can.
 
-| # | Gap | Why it matters | Size |
+| # | Gap | Why it matters | Who closes it |
 |---|---|---|---|
-| 1 | **Arabic / RTL interface** (NFR-006, AC-026) | The differentiator the whole product is built on, and the upstream NFR marked MUST. | Large — 465 UI strings, 50 physical CSS properties, a new locale context, a font stack, and a boot script to prevent a first-paint flip. |
-| 2 | **AI Quality Lab** (FEAT-017) | Without a prompt-version registry and a publish gate, a prompt change can silently degrade safety. | Medium — one migration, one job kind, one owner-gated view. |
-| 3 | **Custom sector** (FEAT-016) | "All sectors selectable from day one" is an upstream P0. The CHECK constraint currently allows six. | Medium — one migration, two `Record<Industry, …>` maps, one editor. |
-| 4 | **Potential / Attributed / Verified blocks** (FEAT-015) | Upstream DESIGN.md requires three separately labelled blocks; today the totals are three unlabelled-ish figures. | Medium — the data exists; the presentation does not. |
-| 5 | **Cursor pagination** (FEAT-010, NFR-002 failure path) | A large inbox silently truncates at 200 conversations. | Small — the ordering is already `(last_at DESC, id DESC)`. |
-| 6 | **Lead-status and time filters** (FEAT-010) | Cheap once pagination lands. | Small. |
-| 7 | **Recovery list** (FEAT-014) | The staleness risk is already computed but never surfaced as a ranked list. | Small. |
-| 8 | **Assignee filter** (FEAT-010) | **Deliberately deferred.** No `assignee` column exists in any migration, and conversation assignment is a separate feature that touches the team/roles model. It will not be invented. | Not scoped. |
+| 1 | **Meta app permission and a live Meta connection** (FEAT-003) | Without the Webhooks permission, inbound Instagram and WhatsApp messages never arrive, and there is no live send path to verify. | Owner — Meta app review + credentials. |
+| 2 | **Live SMTP / OpenAI / Stripe credentials** | The AI, the email and the billing paths are all exercised by fakes in the test suite only. | Owner — production accounts. |
+| 3 | **Production Postgres, TLS, and a deployment-host rehearsal of the compose stack** | The compose stack has never been run on the deployment host; the local path uses PGlite. | Owner — infra + a rehearsal run. |
+| 4 | **Restore rehearsal and a load test** (NFR-009, NFR-011) | `docs/OPERATIONS.md` holds the runbook, but a backup that has never been restored is a hypothesis, and p95 ≤ 2s at 100 conversations is a target, not a measurement. | Owner — a staging rehearsal. |
+| 5 | **Cross-border privacy review** | Arabic support does not constitute PDPL or cross-border compliance; that is counsel's determination, not an engineering one. | Owner + counsel. |
+| 6 | **Native-speaker review of the Arabic customer-facing wording** | The Arabic phrase set and the interface copy are validated engineering artefacts. The guard set does not cover Arabic dialect or transliterated Arabic. | Owner + a native reviewer. |
+| 7 | **Assignee filter** (FEAT-010) | **Deliberately deferred.** No `assignee` column exists in any migration, and conversation assignment is a separate feature that touches the team/roles model. It will not be invented. | Not scoped. |
+| 8 | **External calendar sync, PSP-verified payments, ad ingestion, calibrated models, causal attribution, outcome voiding** | Explicitly out of scope in `docs/REVENUE_OS.md`; each needs a contract with a third party. | Not scoped. |
 
 ## Known limits of the current implementation
 

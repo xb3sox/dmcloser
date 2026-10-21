@@ -13,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useStrings } from "@/context/LocaleContext";
+import { landingStrings } from "@/i18n/surfaces/landing";
 import type { Tone } from "@/types";
 import { Brand, InstagramIcon, WhatsAppIcon } from "./Brand";
 import ProductDemo from "./ProductDemo";
@@ -42,62 +44,34 @@ function Reveal({
 }
 
 const steps = [
-  {
-    number: "01",
-    title: "Bring your DMs together.",
-    text: "Instagram and WhatsApp. One clean inbox, so a good conversation never gets lost between tabs.",
-  },
-  {
-    number: "02",
-    title: "Give it your know-how.",
-    text: "Share what you sell and how you like to say it. Your business context makes every reply feel like you.",
-  },
-  {
-    number: "03",
-    title: "Turn a hello into a sale.",
-    text: "Send a suggested reply, make it your own, or let high-confidence replies take care of themselves.",
-  },
-];
+  { number: "01", title: "landing.how.step1Title", text: "landing.how.step1Text" },
+  { number: "02", title: "landing.how.step2Title", text: "landing.how.step2Text" },
+  { number: "03", title: "landing.how.step3Title", text: "landing.how.step3Text" },
+] as const;
 
-const toneReplies: Record<Tone, string> = {
-  friendly:
-    "Absolutely! The olive set is in stock and ready for you. We deliver to New York in 3-5 business days. Want me to send you the link?",
-  premium:
-    "The olive linen set is available, with delivery to New York in 3-5 business days. I would be delighted to arrange your order. May I share a checkout link?",
-  aggressive:
-    "Yes, the olive set is in stock. We can deliver to New York in 3-5 business days. Let's get your order started. Shall I send the checkout link?",
-};
+const toneReplies = {
+  friendly: "landing.voice.replyFriendly",
+  premium: "landing.voice.replyPremium",
+  aggressive: "landing.voice.replyAggressive",
+} as const satisfies Record<Tone, string>;
+
+const toneLabels = {
+  friendly: "landing.voice.toneFriendly",
+  premium: "landing.voice.tonePremium",
+  aggressive: "landing.voice.toneAggressive",
+} as const satisfies Record<Tone, string>;
 
 const questions = [
-  {
-    question: "Will the replies actually sound like my business?",
-    answer:
-      "That is the idea. DMCloser uses your business information, the conversation, and your chosen tone to suggest a relevant next reply. You can always edit the wording before sending. Try the tone preview above to see the difference.",
-  },
-  {
-    question: "Can I approve replies before they are sent?",
-    answer:
-      "Always. Keep auto-send off to review every suggested reply. When live integrations are configured, high-confidence replies can be automated while uncertain conversations stay in your hands. The interactive demo lets you explore both modes without sending any real messages.",
-  },
-  {
-    question: "Does it work with Instagram and WhatsApp?",
-    answer:
-      "DMCloser is designed for Instagram business messaging and the WhatsApp Cloud API. This preview uses sample conversations. Live messaging requires a configured Meta integration, an eligible business account, and the appropriate permissions.",
-  },
-  {
-    question: "Do I need a credit card to try it?",
-    answer:
-      "No. You can explore the interactive inbox here or create a local demo workspace in a couple of clicks. No payment is collected, and selecting a preview plan does not start a paid subscription.",
-  },
-  {
-    question: "Where is my demo workspace data stored?",
-    answer:
-      "Your demo workspace, business settings, and messages are saved locally in this browser. They are not sent to a messaging provider or an AI service. Avoid adding sensitive customer information to the demo. You can clear the saved data through your browser settings.",
-  },
-];
+  { question: "landing.faq.q1", answer: "landing.faq.a1" },
+  { question: "landing.faq.q2", answer: "landing.faq.a2" },
+  { question: "landing.faq.q3", answer: "landing.faq.a3" },
+  { question: "landing.faq.q4", answer: "landing.faq.a4" },
+  { question: "landing.faq.q5", answer: "landing.faq.a5" },
+] as const;
 
 export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
   const { theme, toggle } = useTheme();
+  const t = useStrings(landingStrings);
   const reducedMotion = useReducedMotion();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -108,10 +82,10 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    document.title = "DMCloser - Less typing. More closing.";
+    document.title = t("landing.hero.documentTitle");
     document.body.classList.add("marketing-page");
     return () => document.body.classList.remove("marketing-page");
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -148,44 +122,46 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
   return (
     <div className="landing">
       <a href="#main-content" className="skip-link">
-        Skip to content
+        {t("landing.nav.skipToContent")}
       </a>
       <header className="landing-header">
         <div className="landing-container header-inner">
-          <a href="#top" className="brand-link" aria-label="DMCloser home">
+          <a href="#top" className="brand-link" aria-label={t("landing.nav.home")}>
             <Brand />
           </a>
-          <nav className="desktop-navigation" aria-label="Main navigation">
-            <a href="#product">Product</a>
-            <a href="#how-it-works">How it works</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQs</a>
+          <nav className="desktop-navigation" aria-label={t("landing.nav.main")}>
+            <a href="#product">{t("landing.nav.product")}</a>
+            <a href="#how-it-works">{t("landing.nav.howItWorks")}</a>
+            <a href="#pricing">{t("landing.nav.pricing")}</a>
+            <a href="#faq">{t("landing.nav.faqs")}</a>
           </nav>
           <div className="header-actions">
             <button
               className="theme-toggle"
               onClick={toggle}
-              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              aria-label={t(
+                theme === "dark" ? "landing.theme.switchToLight" : "landing.theme.switchToDark",
+              )}
             >
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <a href="/workspace?login" className="header-login">
-              Sign in
+              {t("landing.nav.signIn")}
               <ArrowUpRight size={13} />
             </a>
             <button
               className="closer-button closer-button-primary header-cta"
               onClick={() => openSetup()}
             >
-              Get started
+              {t("landing.nav.getStarted")}
               <ArrowUpRight size={14} />
             </button>
             <button
               className="mobile-menu-toggle"
               ref={menuButtonRef}
-              aria-label={
-                mobileMenuOpen ? "Close navigation" : "Open navigation"
-              }
+              aria-label={t(
+                mobileMenuOpen ? "landing.nav.close" : "landing.nav.open",
+              )}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -199,41 +175,43 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             <motion.nav
               id="mobile-navigation"
               className="mobile-navigation"
-              aria-label="Mobile navigation"
+              aria-label={t("landing.nav.mobile")}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
             >
               <a href="#product" onClick={() => setMobileMenuOpen(false)}>
-                Product
+                {t("landing.nav.product")}
                 <ArrowUpRight size={16} />
               </a>
               <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>
-                How it works
+                {t("landing.nav.howItWorks")}
                 <ArrowUpRight size={16} />
               </a>
               <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>
-                Pricing
+                {t("landing.nav.pricing")}
                 <ArrowUpRight size={16} />
               </a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)}>
-                FAQs
+                {t("landing.nav.faqs")}
                 <ArrowUpRight size={16} />
               </a>
               <button onClick={openApp}>
-                Open the demo inbox
+                {t("landing.nav.openDemoInbox")}
                 <ArrowRight size={16} />
               </button>
               <a href="/workspace">
-                Create your workspace
+                {t("landing.nav.createWorkspace")}
                 <ArrowUpRight size={16} />
               </a>
               <button
                 className="mobile-theme-action"
                 onClick={toggle}
-                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                aria-label={t(
+                  theme === "dark" ? "landing.theme.switchToLight" : "landing.theme.switchToDark",
+                )}
               >
-                {theme === "dark" ? "Light mode" : "Dark mode"}
+                {t(theme === "dark" ? "landing.theme.lightMode" : "landing.theme.darkMode")}
                 {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
               </button>
             </motion.nav>
@@ -250,7 +228,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
           <motion.img
             className="hero-image"
             src="/images/dmcloser-studio.jpg"
-            alt="A small business owner at work in her sunlit studio"
+            alt={t("landing.hero.imageAlt")}
             width="1280"
             height="720"
             fetchPriority="high"
@@ -282,7 +260,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                     },
                   }}
                 >
-                  DMCloser.
+                  {t("landing.hero.brand")}
                 </motion.span>
                 <motion.span
                   variants={{
@@ -294,7 +272,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                     },
                   }}
                 >
-                  Less typing.
+                  {t("landing.hero.lessTyping")}
                 </motion.span>
                 <motion.span
                   variants={{
@@ -306,7 +284,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                     },
                   }}
                 >
-                  More closing.
+                  {t("landing.hero.moreClosing")}
                 </motion.span>
               </h1>
               <motion.p
@@ -315,8 +293,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
                 }}
               >
-                Turn Instagram and WhatsApp messages into customers, with an AI
-                sales assistant that sounds like you.
+                {t("landing.hero.subtitle")}
               </motion.p>
               <motion.div
                 className="hero-actions"
@@ -329,7 +306,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   className="closer-button closer-button-primary"
                   onClick={() => openSetup()}
                 >
-                  Try DMCloser
+                  {t("landing.hero.ctaTry")}
                   <ArrowUpRight size={17} />
                 </button>
                 <a
@@ -337,7 +314,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   className="closer-button closer-button-ghost"
                 >
                   <Play size={13} fill="currentColor" />
-                  See it in action
+                  {t("landing.hero.ctaWatch")}
                 </a>
               </motion.div>
             </motion.div>
@@ -346,7 +323,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
 
         <div className="channel-strip">
           <div className="landing-container channel-strip-inner">
-            <p>Right where your next customer is.</p>
+            <p>{t("landing.channels.heading")}</p>
             <div className="channel-brands">
               <span>
                 <InstagramIcon />
@@ -359,7 +336,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
               </span>
             </div>
             <span className="channel-strip-note">
-              Two channels. One closer.
+              {t("landing.channels.note")}
             </span>
           </div>
         </div>
@@ -373,21 +350,18 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             <Reveal className="section-intro product-intro">
               <div>
                 <span className="eyebrow">
-                  A LITTLE ASSISTANCE. A BIG DIFFERENCE.
+                  {t("landing.product.eyebrow")}
                 </span>
                 <h2 id="product-heading">
-                  All your DMs.
+                  {t("landing.product.titleTop")}
                   <br />
-                  One clear next move.
+                  {t("landing.product.titleBottom")}
                 </h2>
               </div>
               <div className="section-intro-description">
-                <p>
-                  One calm inbox. Replies that are already one step ahead. More
-                  time for the business you're building.
-                </p>
+                <p>{t("landing.product.description")}</p>
                 <button className="text-link" onClick={openApp}>
-                  Explore the full inbox
+                  {t("landing.product.cta")}
                   <ArrowUpRight size={16} />
                 </button>
               </div>
@@ -397,11 +371,11 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             </Reveal>
             <div className="product-caption">
               <span>
-                <span className="caption-dot" />A suggestion when you need it.
-                Your control, always.
+                <span className="caption-dot" />
+                {t("landing.product.captionLeft")}
               </span>
               <span>
-                Try it above. It's a working demo.
+                {t("landing.product.captionRight")}
                 <ArrowUpRight size={13} />
               </span>
             </div>
@@ -415,13 +389,13 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
         >
           <div className="landing-container">
             <Reveal className="how-intro">
-              <span className="eyebrow">LESS BUSYWORK. MORE BUSINESS.</span>
+              <span className="eyebrow">{t("landing.how.eyebrow")}</span>
               <h2 id="how-heading">
-                Your next sale starts
+                {t("landing.how.titleTop")}
                 <br />
-                with a simple hello.
+                {t("landing.how.titleBottom")}
               </h2>
-              <p>Getting to the good part shouldn't be complicated.</p>
+              <p>{t("landing.how.subtitle")}</p>
             </Reveal>
             <div className="steps-grid">
               {steps.map((step, index) => (
@@ -434,8 +408,8 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                     {step.number}
                     <span />
                   </span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
+                  <h3>{t(step.title)}</h3>
+                  <p>{t(step.text)}</p>
                 </Reveal>
               ))}
             </div>
@@ -448,56 +422,46 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
         >
           <div className="landing-container voice-grid">
             <Reveal className="voice-copy">
-              <span className="eyebrow">HUMAN BY DESIGN.</span>
+              <span className="eyebrow">{t("landing.voice.eyebrow")}</span>
               <h2 id="voice-heading">
-                Your business.
+                {t("landing.voice.titleBusiness")}
                 <br />
-                Your voice.
+                {t("landing.voice.titleVoice")}
                 <br />
-                <span>Your right hand.</span>
+                <span>{t("landing.voice.titleHand")}</span>
               </h2>
-              <p>
-                Not another chatbot to manage. A sales assistant that knows what
-                you sell, remembers the conversation, and leaves the final say
-                to you.
-              </p>
+              <p>{t("landing.voice.description")}</p>
               <button className="text-link" onClick={() => openSetup()}>
-                Find your voice
+                {t("landing.voice.cta")}
                 <ArrowUpRight size={16} />
               </button>
             </Reveal>
             <Reveal className="tone-playground" delay={0.12}>
               <div className="tone-customer">
-                <span>THE CUSTOMER</span>
-                <p>"I love the olive set. Do you ship to New York?"</p>
+                <span>{t("landing.voice.customerLabel")}</span>
+                <p>{t("landing.voice.customerMessage")}</p>
               </div>
               <div
                 className="tone-selector"
                 role="group"
-                aria-label="Preview a reply tone"
+                aria-label={t("landing.voice.toneGroupLabel")}
               >
-                {(
-                  [
-                    { value: "friendly", label: "Friendly" },
-                    { value: "premium", label: "Premium" },
-                    { value: "aggressive", label: "Sales-focused" },
-                  ] as { value: Tone; label: string }[]
-                ).map((item) => (
+                {(["friendly", "premium", "aggressive"] as Tone[]).map((value) => (
                   <button
-                    key={item.value}
-                    aria-pressed={tone === item.value}
-                    className={tone === item.value ? "is-selected" : ""}
-                    onClick={() => setTone(item.value)}
+                    key={value}
+                    aria-pressed={tone === value}
+                    className={tone === value ? "is-selected" : ""}
+                    onClick={() => setTone(value)}
                   >
-                    {item.label}
-                    {tone === item.value && <Check size={12} />}
+                    {t(toneLabels[value])}
+                    {tone === value && <Check size={12} />}
                   </button>
                 ))}
               </div>
               <div className="tone-reply" aria-live="polite" aria-atomic="true">
                 <span>
                   <Sparkles size={13} />
-                  YOUR SUGGESTED REPLY
+                  {t("landing.voice.suggestedReplyLabel")}
                 </span>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.p
@@ -507,13 +471,13 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.18 }}
                   >
-                    {toneReplies[tone]}
+                    {t(toneReplies[tone])}
                   </motion.p>
                 </AnimatePresence>
               </div>
               <div className="tone-footer">
                 <Check size={13} />
-                Same business. A tone that's yours.
+                {t("landing.voice.footer")}
               </div>
             </Reveal>
           </div>
@@ -528,126 +492,129 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             <Reveal className="section-intro pricing-intro">
               <div>
                 <span className="eyebrow">
-                  A SMALL INVESTMENT IN YOUR NEXT CHAPTER.
+                  {t("landing.pricing.eyebrow")}
                 </span>
                 <h2 id="pricing-heading">
-                  More sales.
+                  {t("landing.pricing.titleSales")}
                   <br />
-                  Less overhead.
+                  {t("landing.pricing.titleOverhead")}
                 </h2>
-                <p>Simple plans for businesses with places to go.</p>
+                <p>{t("landing.pricing.subtitle")}</p>
               </div>
               <div
                 className="billing-switch"
                 role="group"
-                aria-label="Billing frequency"
+                aria-label={t("landing.pricing.billingGroupLabel")}
               >
                 <button
                   className={!annual ? "is-selected" : ""}
                   aria-pressed={!annual}
                   onClick={() => setAnnual(false)}
                 >
-                  Monthly
+                  {t("landing.pricing.monthly")}
                 </button>
                 <button
                   className={annual ? "is-selected" : ""}
                   aria-pressed={annual}
                   onClick={() => setAnnual(true)}
                 >
-                  Yearly<span>Save up to 19%</span>
+                  {t("landing.pricing.yearly")}
+                  <span>{t("landing.pricing.yearlySave")}</span>
                 </button>
               </div>
             </Reveal>
             <Reveal className="plans-grid">
               <article className="pricing-plan">
                 <div className="plan-heading">
-                  <h3>Starter</h3>
-                  <p>For your next big little business.</p>
+                  <h3>{t("landing.pricing.starterName")}</h3>
+                  <p>{t("landing.pricing.starterTagline")}</p>
                 </div>
                 <div className="plan-price">
                   <span>$</span>
                   {annual ? "24" : "29"}
-                  <small>/ month</small>
+                  <small>{t("landing.pricing.priceSuffix")}</small>
                 </div>
                 <p className="plan-billing">
-                  {annual
-                    ? "$288 billed yearly"
-                    : "Billed monthly. Grow at your own pace."}
+                  {t(
+                    annual
+                      ? "landing.pricing.starterBilledYearly"
+                      : "landing.pricing.starterBilledMonthly",
+                  )}
                 </p>
                 <button
                   className="closer-button closer-button-outline"
                   onClick={() => openSetup("Starter")}
                 >
-                  Start with Starter
+                  {t("landing.pricing.starterCta")}
                   <ArrowUpRight size={15} />
                 </button>
                 <ul>
                   <li>
                     <Check size={14} />
-                    1,000 conversations per month
+                    {t("landing.pricing.starterFeatureConversations")}
                   </li>
                   <li>
                     <Check size={14} />
-                    Instagram + WhatsApp inbox
+                    {t("landing.pricing.starterFeatureInbox")}
                   </li>
                   <li>
                     <Check size={14} />
-                    AI replies in your brand voice
+                    {t("landing.pricing.starterFeatureVoice")}
                   </li>
                   <li>
                     <Check size={14} />
-                    You + one teammate
+                    {t("landing.pricing.starterFeatureTeammates")}
                   </li>
                 </ul>
               </article>
               <article className="pricing-plan growth-plan">
                 <div className="plan-heading">
                   <h3>
-                    Growth<span>A little more room.</span>
+                    {t("landing.pricing.growthName")}
+                    <span>{t("landing.pricing.growthBadge")}</span>
                   </h3>
-                  <p>For more conversations and more possibility.</p>
+                  <p>{t("landing.pricing.growthTagline")}</p>
                 </div>
                 <div className="plan-price">
                   <span>$</span>
                   {annual ? "64" : "79"}
-                  <small>/ month</small>
+                  <small>{t("landing.pricing.priceSuffix")}</small>
                 </div>
                 <p className="plan-billing">
-                  {annual
-                    ? "$768 billed yearly"
-                    : "Billed monthly. Ready when you are."}
+                  {t(
+                    annual
+                      ? "landing.pricing.growthBilledYearly"
+                      : "landing.pricing.growthBilledMonthly",
+                  )}
                 </p>
                 <button
                   className="closer-button closer-button-primary"
                   onClick={() => openSetup("Growth")}
                 >
-                  Make room to grow
+                  {t("landing.pricing.growthCta")}
                   <ArrowUpRight size={15} />
                 </button>
                 <ul>
                   <li>
                     <Check size={14} />
-                    5,000 conversations per month
+                    {t("landing.pricing.growthFeatureConversations")}
                   </li>
                   <li>
                     <Check size={14} />
-                    Everything in Starter
+                    {t("landing.pricing.growthFeatureStarter")}
                   </li>
                   <li>
                     <Check size={14} />
-                    Advanced auto-send controls
+                    {t("landing.pricing.growthFeatureAutoSend")}
                   </li>
                   <li>
                     <Check size={14} />
-                    You + four teammates
+                    {t("landing.pricing.growthFeatureTeammates")}
                   </li>
                 </ul>
               </article>
             </Reveal>
-            <p className="pricing-note">
-              Preview pricing. Explore the full demo with no payment or
-              subscription.
-            </p>
+            <p className="pricing-note">{t("landing.pricing.note")}</p>
           </div>
         </section>
 
@@ -658,23 +625,23 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
         >
           <div className="landing-container faq-grid">
             <Reveal>
-              <span className="eyebrow">GOOD QUESTION.</span>
+              <span className="eyebrow">{t("landing.faq.eyebrow")}</span>
               <h2 id="faq-heading">
-                A little clarity
+                {t("landing.faq.titleTop")}
                 <br />
-                goes a long way.
+                {t("landing.faq.titleBottom")}
               </h2>
-              <p>The things you might be wondering.</p>
+              <p>{t("landing.faq.subtitle")}</p>
             </Reveal>
             <Reveal className="faq-list">
               {questions.map((item, index) => (
                 <details key={item.question} name="dmcloser-faq">
                   <summary>
                     <span className="faq-number">0{index + 1}</span>
-                    <span>{item.question}</span>
+                    <span>{t(item.question)}</span>
                     <Plus size={17} />
                   </summary>
-                  <p>{item.answer}</p>
+                  <p>{t(item.answer)}</p>
                 </details>
               ))}
             </Reveal>
@@ -684,13 +651,11 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
         <section className="closing-section" aria-labelledby="closing-heading">
           <div className="landing-container closing-inner">
             <Reveal>
-              <span className="eyebrow">
-                YOUR NEXT CUSTOMER IS ALREADY TYPING.
-              </span>
+              <span className="eyebrow">{t("landing.closing.eyebrow")}</span>
               <h2 id="closing-heading">
-                Be there for the hello.
+                {t("landing.closing.titleTop")}
                 <br />
-                We'll help with the rest.
+                {t("landing.closing.titleBottom")}
               </h2>
             </Reveal>
             <Reveal className="closing-actions" delay={0.1}>
@@ -698,10 +663,10 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                 className="closer-button closer-button-cream"
                 onClick={() => openSetup()}
               >
-                Meet your new closer
+                {t("landing.closing.cta")}
                 <ArrowUpRight size={17} />
               </button>
-              <span>Try the demo. Make it yours.</span>
+              <span>{t("landing.closing.note")}</span>
             </Reveal>
           </div>
         </section>
@@ -709,28 +674,24 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
 
       <footer className="landing-footer">
         <div className="landing-container footer-main">
-          <a href="#top" aria-label="DMCloser home" className="brand-link">
+          <a href="#top" aria-label={t("landing.nav.home")} className="brand-link">
             <Brand />
           </a>
-          <span className="footer-tagline">
-            Better conversations. Better business.
-          </span>
-          <nav aria-label="Footer navigation">
-            <a href="#product">Product</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQs</a>
+          <span className="footer-tagline">{t("landing.footer.tagline")}</span>
+          <nav aria-label={t("landing.nav.footer")}>
+            <a href="#product">{t("landing.nav.product")}</a>
+            <a href="#pricing">{t("landing.nav.pricing")}</a>
+            <a href="#faq">{t("landing.nav.faqs")}</a>
           </nav>
         </div>
         <div className="landing-container footer-bottom">
-          <span>
-            &copy; {new Date().getFullYear()} DMCloser. Made for the way you
-            work.
-          </span>
+          <span>{t("landing.footer.copyright", { year: new Date().getFullYear() })}</span>
           <div>
-            <button onClick={() => setLegal("privacy")}>Privacy</button>
-            <button onClick={() => setLegal("terms")}>Terms</button>
+            <button onClick={() => setLegal("privacy")}>{t("landing.footer.privacy")}</button>
+            <button onClick={() => setLegal("terms")}>{t("landing.footer.terms")}</button>
             <span className="footer-status">
-              <span />A little closer, every day.
+              <span />
+              {t("landing.footer.status")}
             </span>
           </div>
         </div>
@@ -745,58 +706,31 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
       )}
       {legal && (
         <DialogShell
-          title={
+          title={t(
             legal === "privacy"
-              ? "Your privacy, simply."
-              : "A note about this demo."
-          }
+              ? "landing.legal.privacyTitle"
+              : "landing.legal.termsTitle",
+          )}
           onClose={() => setLegal(null)}
           className="legal-dialog"
         >
           {legal === "privacy" ? (
             <div className="legal-copy">
-              <p>
-                This DMCloser preview saves workspace settings, sample
-                conversations, and your theme preference locally in your
-                browser.
-              </p>
-              <h3>No real messages are sent.</h3>
-              <p>
-                The demo does not connect to Instagram, WhatsApp, a payment
-                provider, or an AI service. Do not enter sensitive customer
-                information.
-              </p>
-              <h3>Your browser. Your choice.</h3>
-              <p>
-                You can remove saved demo information by clearing this site's
-                browser storage. The page does not use analytics or advertising
-                cookies.
-              </p>
-              <h3>Site assets</h3>
-              <p>
-                The site uses Google Fonts. Your browser may contact Google's
-                servers to load those font files.
-              </p>
+              <p>{t("landing.legal.privacyP1")}</p>
+              <h3>{t("landing.legal.privacyH1")}</h3>
+              <p>{t("landing.legal.privacyP2")}</p>
+              <h3>{t("landing.legal.privacyH2")}</h3>
+              <p>{t("landing.legal.privacyP3")}</p>
+              <h3>{t("landing.legal.privacyH3")}</h3>
+              <p>{t("landing.legal.privacyP4")}</p>
             </div>
           ) : (
             <div className="legal-copy">
-              <p>
-                This is an interactive product preview of DMCloser, provided so
-                you can explore the intended experience.
-              </p>
-              <h3>Explore without a subscription.</h3>
-              <p>
-                Plan prices are illustrative. Creating a demo workspace or
-                selecting a plan does not collect a payment, create a
-                subscription, or establish a live service connection.
-              </p>
-              <h3>Live use requires configuration.</h3>
-              <p>
-                Real account connections, message delivery, backend storage, AI
-                generation, and billing require separately configured services.
-                Demo replies and conversations are examples, not live customer
-                interactions.
-              </p>
+              <p>{t("landing.legal.termsP1")}</p>
+              <h3>{t("landing.legal.termsH1")}</h3>
+              <p>{t("landing.legal.termsP2")}</p>
+              <h3>{t("landing.legal.termsH2")}</h3>
+              <p>{t("landing.legal.termsP3")}</p>
             </div>
           )}
         </DialogShell>

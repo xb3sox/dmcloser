@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import { workspaceStrings } from "@/i18n/surfaces/workspace";
 import { DialogShell } from "../ui/Dialog";
 
 export default function DevelopmentSimulator() {
   const { live } = useApp();
+  const t = useStrings(workspaceStrings);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("Alex");
   const [text, setText] = useState("Hi! Can you tell me about your products?");
@@ -20,16 +23,15 @@ export default function DevelopmentSimulator() {
     <>
       <button className="app-text-button" onClick={() => setOpen(true)}>
         <Plus size={14} />
-        Test an inbound message
+        {t("workspace.simulator.open")}
       </button>
       {open && (
         <DialogShell
-          title="Test your inbox pipeline"
+          title={t("workspace.simulator.title")}
           onClose={() => setOpen(false)}
         >
           <p className="dialog-description">
-            Development only. This writes a message to your database and
-            exercises the AI job pipeline. It cannot send to a real account.
+            {t("workspace.simulator.description")}
           </p>
           <form
             className="setup-form"
@@ -48,7 +50,7 @@ export default function DevelopmentSimulator() {
                 setError(
                   failure instanceof Error
                     ? failure.message
-                    : "Please try again.",
+                    : t("workspace.common.tryAgain"),
                 );
               } finally {
                 setPending(false);
@@ -56,7 +58,7 @@ export default function DevelopmentSimulator() {
             }}
           >
             <label htmlFor="simulate-name">
-              Contact name
+              {t("workspace.simulator.field.name")}
               <input
                 id="simulate-name"
                 value={name}
@@ -66,7 +68,7 @@ export default function DevelopmentSimulator() {
               />
             </label>
             <label htmlFor="simulate-channel">
-              Channel
+              {t("workspace.simulator.field.channel")}
               <select
                 id="simulate-channel"
                 value={platform}
@@ -77,7 +79,7 @@ export default function DevelopmentSimulator() {
               </select>
             </label>
             <label htmlFor="simulate-message">
-              Inbound message
+              {t("workspace.simulator.field.message")}
               <textarea
                 id="simulate-message"
                 value={text}
@@ -96,7 +98,7 @@ export default function DevelopmentSimulator() {
               className="closer-button closer-button-primary"
               disabled={pending}
             >
-              Add test message
+              {t("workspace.simulator.submit")}
               <ArrowRight size={15} />
             </button>
           </form>

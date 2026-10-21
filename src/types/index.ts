@@ -84,6 +84,7 @@ export interface WorkspaceSnapshot {
   };
   settings: BusinessSettings;
   conversations: Conversation[];
+  nextCursor: string | null;
   drafts: Record<string, string>;
   suggestions: LiveSuggestion[];
   connections: {
@@ -128,7 +129,7 @@ export interface BusinessSettings {
   autoSendConfidenceThreshold: number;
 }
 
-export type View = "inbox" | "chat" | "settings" | 'revenue' | 'brain';
+export type View = "inbox" | "chat" | "settings" | 'revenue' | 'brain' | 'quality';
 
 export interface AppState {
   conversations: Conversation[];
