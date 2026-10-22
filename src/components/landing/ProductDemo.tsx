@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Brand, InstagramIcon, WhatsAppIcon } from "./Brand";
 import { previewConversations } from "@/data/preview";
+import { useStrings } from "@/context/LocaleContext";
+import { landingStrings } from "@/i18n/surfaces/landing";
 import Switch from "../ui/Switch";
 
 type Channel = "all" | "instagram" | "whatsapp";
@@ -32,12 +34,22 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
   const [notice, setNotice] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
+  const t = useStrings(landingStrings);
   const active = conversations.find(
     (conversation) => conversation.id === selectedId,
   )!;
   const sentReplies = replies[selectedId] ?? [];
   const hasReplied = sentReplies.length > 0;
   const draft = drafts[selectedId] ?? "";
+  const statusLabels: Record<string, string> = {
+    "Ready to buy": t("landing.demo.statusReadyToBuy"),
+    "Qualified lead": t("landing.demo.statusQualifiedLead"),
+    "Getting to know you": t("landing.demo.statusGettingToKnowYou"),
+  };
+  const intentLabels: Record<string, string> = {
+    Buy: t("landing.demo.intentBuy"),
+    Question: t("landing.demo.intentQuestion"),
+  };
   const filtered = conversations.filter(
     (conversation) =>
       (channel === "all" || conversation.channel === channel) &&
@@ -55,7 +67,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
     setEditing(false);
     setDrafts((previous) => ({ ...previous, [selectedId]: "" }));
     setNotice(
-      `Reply sent to ${active.name.split(" ")[0]} in the demo. No real message was sent.`,
+      t("landing.demo.noticeSent", { name: active.name.split(" ")[0] }),
     );
   }
 
@@ -76,7 +88,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
           : { ...previous, [selectedId]: [active.reply] },
       );
       setNotice(
-        `High-confidence reply auto-sent to ${active.name.split(" ")[0]} in the demo.`,
+        t("landing.demo.noticeAutoSent", { name: active.name.split(" ")[0] }),
       );
     }, 1500);
     return () => window.clearTimeout(timer);
@@ -88,6 +100,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
     selectedId,
     active.reply,
     active.name,
+    t,
   ]);
 
   function selectConversation(id: string) {
@@ -108,7 +121,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
   }
 
   return (
-    <div className="product-demo" aria-label="Interactive DMCloser inbox demo">
+    <div className="product-demo" aria-label={t("landing.demo.ariaLabel")}>
       <div className="demo-window-bar">
         <div className="demo-window-brand">
           <Brand compact />
@@ -118,26 +131,28 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
         <div className="demo-window-actions">
           <span className="demo-live-label">
             <span />
-            Interactive demo
+            {t("landing.demo.liveLabel")}
           </span>
-          <button onClick={onOpenApp} aria-label="Open the full inbox">
+          <button onClick={onOpenApp} aria-label={t("landing.demo.openFullInbox")}>
             <ArrowUpRight size={17} />
           </button>
         </div>
       </div>
 
       <div className="demo-workspace">
-        <aside className="demo-sidebar" aria-label="Demo channels">
-          <span className="demo-sidebar-label">WORKSPACE</span>
+        <aside className="demo-sidebar" aria-label={t("landing.demo.channelsLabel")}>
+          <span className="demo-sidebar-label">{t("landing.demo.workspaceLabel")}</span>
           <button
             className={channel === "all" ? "is-selected" : ""}
             aria-pressed={channel === "all"}
             onClick={() => changeChannel("all")}
           >
             <Inbox size={16} />
-            All conversations<span>3</span>
+            {t("landing.demo.allConversations")}<span>3</span>
           </button>
-          <span className="demo-sidebar-label channel-label">CHANNELS</span>
+          <span className="demo-sidebar-label channel-label">
+            {t("landing.demo.channelsHeading")}
+          </span>
           <button
             className={channel === "instagram" ? "is-selected" : ""}
             aria-pressed={channel === "instagram"}
@@ -157,7 +172,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
           <div className="demo-sidebar-bottom">
             <span className="workspace-avatar">M</span>
             <div>
-              Maison Studio<small>Demo workspace</small>
+              Maison Studio<small>{t("landing.demo.workspaceName")}</small>
             </div>
           </div>
         </aside>
@@ -165,14 +180,14 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
         <div className="demo-conversations">
           <div className="demo-list-heading">
             <span>
-              Inbox <small>{filtered.length}</small>
+              {t("landing.demo.inbox")} <small>{filtered.length}</small>
             </span>
             <button
               onClick={() => {
                 setSearchOpen(!searchOpen);
                 setSearch("");
               }}
-              aria-label="Search demo conversations"
+              aria-label={t("landing.demo.searchLabel")}
               aria-expanded={searchOpen}
             >
               <Search size={16} />
@@ -184,8 +199,8 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
               className="demo-search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search conversations"
-              aria-label="Search demo conversations"
+              placeholder={t("landing.demo.searchPlaceholder")}
+              aria-label={t("landing.demo.searchLabel")}
             />
           )}
           <div className="demo-conversation-items">
@@ -219,26 +234,24 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                       {conversation.intent === "Buy" && (
                         <ArrowUpRight size={10} />
                       )}
-                      {conversation.intent}
+                      {intentLabels[conversation.intent] ?? conversation.intent}
                     </span>
                     <span>
                       {replies[conversation.id]?.length
-                        ? "Replied"
-                        : conversation.status}
+                        ? t("landing.demo.replied")
+                        : statusLabels[conversation.status] ?? conversation.status}
                     </span>
                   </span>
                 </span>
               </button>
             ))}
             {!filtered.length && (
-              <p className="demo-no-results">
-                No conversations match. Try another name.
-              </p>
+              <p className="demo-no-results">{t("landing.demo.noResults")}</p>
             )}
           </div>
           <div className="demo-list-footer">
             <Check size={12} />
-            Three sample conversations. Ready to explore.
+            {t("landing.demo.listFooter")}
           </div>
         </div>
 
@@ -259,10 +272,10 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
               </span>
             </div>
             <div className="demo-auto-send">
-              <span>Auto-send</span>
+              <span>{t("landing.demo.autoSend")}</span>
               <Switch
                 checked={autoSend}
-                label="Auto-send demo replies"
+                label={t("landing.demo.autoSendLabel")}
                 onChange={() => setAutoSend(!autoSend)}
               />
             </div>
@@ -276,7 +289,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
             transition={{ duration: 0.18 }}
           >
             <div className="demo-messages">
-              <span className="demo-date">Today, 10:42 AM</span>
+              <span className="demo-date">{t("landing.demo.dateToday")}</span>
               {active.messages.map((message, index) => (
                 <div
                   key={`${selectedId}-${index}`}
@@ -310,11 +323,11 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                 <div className="demo-suggestion-heading">
                   <span>
                     <Sparkles size={13} />
-                    Suggested reply
+                    {t("landing.demo.suggestedReply")}
                   </span>
                   <small>
                     <span />
-                    {active.confidence}% confidence
+                    {t("landing.demo.confidence", { confidence: active.confidence })}
                   </small>
                 </div>
                 {editing ? (
@@ -323,7 +336,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                     value={editedReply}
                     onChange={(event) => setEditedReply(event.target.value)}
                     maxLength={4000}
-                    aria-label="Edit suggested reply"
+                    aria-label={t("landing.demo.editSuggestedReply")}
                     rows={3}
                   />
                 ) : (
@@ -337,7 +350,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                       sendReply(editing ? editedReply : active.reply)
                     }
                   >
-                    Send reply
+                    {t("landing.demo.sendReply")}
                     <Send size={12} />
                   </button>
                   <button
@@ -348,16 +361,18 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                     }}
                   >
                     {editing ? (
-                      "Cancel"
+                      t("landing.demo.cancel")
                     ) : (
                       <>
                         <Pencil size={12} />
-                        Edit
+                        {t("landing.demo.edit")}
                       </>
                     )}
                   </button>
                   {autoSend && !editing && !draft.trim() && (
-                    <span className="auto-send-hint">Sending shortly...</span>
+                    <span className="auto-send-hint">
+                      {t("landing.demo.sendingShortly")}
+                    </span>
                   )}
                 </div>
               </div>
@@ -365,7 +380,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
             {hasReplied && (
               <div className="demo-replied">
                 <Check size={13} />
-                One less reply. One step closer to a sale.
+                {t("landing.demo.repliedBanner")}
               </div>
             )}
           </motion.div>
@@ -387,12 +402,12 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
                 }))
               }
               maxLength={4000}
-              placeholder="Or write your own reply..."
-              aria-label="Write a demo reply"
+              placeholder={t("landing.demo.composerPlaceholder")}
+              aria-label={t("landing.demo.writeReplyLabel")}
             />
             <button
               type="submit"
-              aria-label="Send your demo reply"
+              aria-label={t("landing.demo.sendReplyLabel")}
               disabled={editing || !draft.trim()}
             >
               <Send size={15} />
@@ -401,7 +416,7 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
         </div>
       </div>
       <div className="demo-bottom-bar">
-        <span>Sample conversations. Real possibilities.</span>
+        <span>{t("landing.demo.bottomLabel")}</span>
         <button
           onClick={() => {
             setReplies({});
@@ -413,11 +428,11 @@ export default function ProductDemo({ onOpenApp }: { onOpenApp: () => void }) {
             setSearchOpen(false);
             setChannel("all");
             setSelectedId("sofia");
-            setNotice("Demo reset.");
+            setNotice(t("landing.demo.resetNotice"));
           }}
         >
           <RotateCcw size={11} />
-          Reset demo
+          {t("landing.demo.reset")}
         </button>
       </div>
       <span className="sr-only" role="status" aria-live="polite">

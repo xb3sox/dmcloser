@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
+import { useStrings } from "@/context/LocaleContext";
+import { landingStrings } from "@/i18n/surfaces/landing";
 import { CloserMark } from "../landing/Brand";
 
 export function DialogShell({
@@ -17,6 +19,7 @@ export function DialogShell({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const reducedMotion = useReducedMotion();
+  const t = useStrings(landingStrings);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -56,7 +59,7 @@ export function DialogShell({
           type="button"
           className="dialog-close"
           onClick={onClose}
-          aria-label="Close dialog"
+          aria-label={t("landing.dialog.closeLabel")}
         >
           <X size={20} />
         </button>

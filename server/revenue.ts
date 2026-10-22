@@ -12,6 +12,8 @@ import {
   type DealDetail,
   type DealQuote,
   type DealStage,
+  type RecoveryEntry,
+  type RecoveryList,
   type RevenueOverview,
   type SalesTask,
 } from "../src/types/revenue.ts";
@@ -25,6 +27,7 @@ export const defaultProfile: BusinessProfile = {
   industry: "general",
   currency: "USD",
   autoStage: false,
+  sectorFields: [],
 };
 const entryView = (row: any): BrainEntry => ({
   id: row.id,
@@ -101,6 +104,9 @@ export class RevenueService {
           industry: row.industry,
           currency: row.currency,
           autoStage: row.auto_stage,
+          sectorFields: Array.isArray(row.sector_fields)
+            ? row.sector_fields
+            : [],
         }
       : { ...defaultProfile };
   }
@@ -153,8 +159,14 @@ export class RevenueService {
   async updateProfile(actor: Actor, input: BusinessProfile) {
     await this.db.transaction(async (tx) => {
       await tx.query(
-        "INSERT INTO business_profiles(workspace_id,industry,currency,auto_stage) VALUES($1,$2,$3,$4) ON CONFLICT(workspace_id) DO UPDATE SET industry=EXCLUDED.industry,currency=EXCLUDED.currency,auto_stage=EXCLUDED.auto_stage,updated_at=now()",
-        [actor.workspaceId, input.industry, input.currency, input.autoStage],
+        "INSERT INTO business_profiles(workspace_id,industry,currency,auto_stage,sector_fields) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(workspace_id) DO UPDATE SET industry=EXCLUDED.industry,currency=EXCLUDED.currency,auto_stage=EXCLUDED.auto_stage,sector_fields=EXCLUDED.sector_fields,updated_at=now()",
+        [
+          actor.workspaceId,
+          input.industry,
+          input.currency,
+          input.autoStage,
+          JSON.stringify(input.sectorFields),
+        ],
       );
       await tx.query(
         "UPDATE suggestions SET safe=false,reason='Business profile changed. Generate a new reply.' WHERE workspace_id=$1 AND status='ready'",
@@ -165,7 +177,7 @@ export class RevenueService {
         actor.userId,
         "brain.profile_updated",
         actor.workspaceId,
-        { industry: input.industry },
+        { industry: input.industry, sectorFields: input.sectorFields.length },
         tx,
       );
     });
@@ -704,7 +716,7 @@ export class RevenueService {
           workspaceId,
         ]),
         this.db.query(
-          "SELECT r.*,d.source,d.campaign FROM revenue_events r JOIN deals d ON d.id=r.deal_id AND d.workspace_id=r.workspace_id WHERE r.workspace_id=$1",
+          "SELECT r.*,d.source,d.campaign,c.name FROM revenue_events r JOIN deals d ON d.id=r.deal_id AND d.workspace_id=r.workspace_id JOIN conversations c ON c.id=d.conversation_id AND c.workspace_id=d.workspace_id WHERE r.workspace_id=$1",
           [workspaceId],
         ),
         this.db.query(
@@ -780,6 +792,18 @@ export class RevenueService {
         Number(payment.occurred_at) <= now &&
         payment.currency === currency,
     );
+    const verifiedReceipts = recentPayments.map((payment) => ({
+      id: payment.id,
+      dealId: payment.deal_id,
+      name: payment.name || "Unknown contact",
+      amountMinor: Number(payment.amount_minor),
+      kind: payment.kind as "payment" | "refund",
+      reference: payment.reference,
+      occurredAt: Number(payment.occurred_at),
+    }));
+    const reversedMinor = verifiedReceipts
+      .filter((receipt) => receipt.kind === "refund")
+      .reduce((sum, receipt) => sum + receipt.amountMinor, 0);
     const won = recentOutcomes.filter((outcome) => outcome.outcome === "won"),
       lost = recentOutcomes.filter((outcome) => outcome.outcome === "lost");
     const net = (rows: any[]) =>
@@ -853,6 +877,8 @@ export class RevenueService {
       to: new Date(now).toISOString(),
       forecastTo: new Date(horizon).toISOString(),
       revenueMinor: net(recentPayments),
+      reversedMinor,
+      verifiedReceipts,
       wonMinor: won.reduce(
         (sum, outcome) => sum + Number(outcome.value_minor || 0),
         0,
@@ -905,6 +931,101 @@ export class RevenueService {
         lessons,
       },
     };
+  }
+  /**
+   * Open opportunities waiting on a person, most stale first. This is a human
+   * worklist: it never sends a message and never claims a sale. Candidates are
+   * open, not escalated, and without a customer reply for seven days.
+   */
+  async recovery(workspaceId: string): Promise<RecoveryList> {
+    const now = Date.now();
+    const rows = await this.db.query(
+      `SELECT d.*,c.name,c.platform,c.created_at AS conversation_created_at,
+        (SELECT max(m.timestamp) FROM messages m WHERE m.conversation_id=d.conversation_id AND m.workspace_id=d.workspace_id AND m.sender='contact') AS last_inbound,
+        (SELECT a.action FROM audit_events a WHERE a.workspace_id=d.workspace_id AND a.resource_id=d.id AND a.action IN ('revenue.recovery_dismissed','revenue.recovery_restored') ORDER BY a.created_at DESC,a.id DESC LIMIT 1) AS recovery_action
+       FROM deals d JOIN conversations c ON c.id=d.conversation_id AND c.workspace_id=d.workspace_id
+       WHERE d.workspace_id=$1 AND d.stage NOT IN ('won','lost') AND d.escalated=false
+       ORDER BY d.created_at`,
+      [workspaceId],
+    );
+    const stale = rows
+      .map((row) => ({
+        row,
+        daysStale: Math.floor(
+          (
+            now -
+            Number(
+              row.last_inbound ?? new Date(row.conversation_created_at).getTime(),
+            )
+          ) /
+            86400000
+        ),
+      }))
+      .filter((item) => item.daysStale >= 7)
+      .sort(
+        (first, second) =>
+          second.daysStale - first.daysStale ||
+          String(first.row.name).localeCompare(String(second.row.name)),
+      );
+    const limit = 25;
+    const active = stale
+      .filter((item) => item.row.recovery_action !== "revenue.recovery_dismissed")
+      .slice(0, limit);
+    const dismissed = stale
+      .filter((item) => item.row.recovery_action === "revenue.recovery_dismissed")
+      .slice(0, limit);
+    const build = async (item: { row: any; daysStale: number }) => {
+      const insight = await this.intelligence(workspaceId, item.row);
+      const entry: RecoveryEntry = {
+        dealId: item.row.id,
+        conversationId: item.row.conversation_id,
+        name: item.row.name,
+        platform: item.row.platform,
+        stage: item.row.stage,
+        daysStale: item.daysStale,
+        reason:
+          insight.risks.find((risk) => risk.includes("seven days")) ??
+          insight.risks[0] ??
+          "No customer response in seven days.",
+        nextAction: insight.nextAction,
+        valueMinor: insight.indicativeValueMinor,
+        currency: item.row.currency,
+        insight,
+      };
+      return entry;
+    };
+    const entries = await Promise.all(active.map((item) => build(item)));
+    const dismissedEntries = await Promise.all(dismissed.map((item) => build(item)));
+    return {
+      entries,
+      dismissed: dismissedEntries,
+      notice:
+        "Open opportunities waiting on a person. Nothing here is sent automatically; open the conversation to reply.",
+    };
+  }
+  async dismissRecovery(actor: Actor, dealId: string, reason: string) {
+    const deal = await this.getDeal(actor.workspaceId, dealId);
+    await this.event(
+      actor.workspaceId,
+      actor.userId,
+      "revenue.recovery_dismissed",
+      deal.id,
+      { reason },
+    );
+    this.changed(actor.workspaceId);
+    return { ok: true };
+  }
+  async restoreRecovery(actor: Actor, dealId: string) {
+    const deal = await this.getDeal(actor.workspaceId, dealId);
+    await this.event(
+      actor.workspaceId,
+      actor.userId,
+      "revenue.recovery_restored",
+      deal.id,
+      {},
+    );
+    this.changed(actor.workspaceId);
+    return { ok: true };
   }
   async quote(
     actor: Actor,

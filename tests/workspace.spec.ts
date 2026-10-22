@@ -412,6 +412,12 @@ test("keeps the reply input above mobile navigation at short viewport heights", 
       .getByRole("navigation", { name: "Mobile workspace navigation" })
       .getByRole("button", { name: /Inbox/ })
       .click();
+    // The filters must not squeeze the list away: a collapsed list hides the
+    // conversations under the navigation and no row can be tapped.
+    const listHeight = await page
+      .locator(".inbox-conversation-list")
+      .evaluate((element) => element.clientHeight);
+    expect(listHeight).toBeGreaterThan(60);
     await sofia(page).click();
     const metrics = await page.evaluate(() => ({
       messagesHeight: document.querySelector(".chat-messages")!.clientHeight,

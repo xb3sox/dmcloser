@@ -42,13 +42,13 @@ body.workspace-page {
   flex-direction: column;
   min-height: 0;
   padding: 30px 15px 18px;
-  border-right: 1px solid var(--land-line);
+  border-inline-end: 1px solid var(--land-line);
   background: var(--land-bg);
 }
 .app-brand-link {
   display: inline-flex;
   align-self: flex-start;
-  margin-left: 9px;
+  margin-inline-start: 9px;
 }
 .app-brand-link .closer-brand {
   font-size: 23px;
@@ -108,7 +108,7 @@ body.workspace-page {
   min-height: 42px;
   padding: 10px;
   border-radius: 5px;
-  text-align: left;
+  text-align: start;
   font-size: 13px;
   color: var(--land-muted);
 }
@@ -216,10 +216,14 @@ body.workspace-page {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  border-right: 1px solid var(--land-line);
+  border-inline-end: 1px solid var(--land-line);
 }
 .inbox-panel-header {
   padding: 28px 20px 0;
+  /* The header yields to the list: without this it never shrinks, the
+     conversation list collapses to nothing and rows cannot be tapped. */
+  min-height: 0;
+  overflow-y: auto;
 }
 .inbox-title-row {
   display: flex;
@@ -237,6 +241,7 @@ body.workspace-page {
 .inbox-title-row h1 > span {
   font:
     400 11px/1.5 "Inter",
+    "Noto Sans Arabic",
     sans-serif;
   color: var(--land-muted);
   letter-spacing: 0;
@@ -309,8 +314,41 @@ body.workspace-page {
 .inbox-intent-filters button:hover {
   color: var(--land-ink);
 }
+.inbox-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+.inbox-filters > label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--land-muted);
+}
+.inbox-filters select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 4px 7px;
+  border: 1px solid var(--land-line);
+  border-radius: 4px;
+  background: var(--land-bg);
+  color: var(--land-ink);
+  font-size: 12px;
+}
+.inbox-filters + .app-field-help {
+  margin-top: 9px;
+  font-size: 10px;
+  line-height: 1.7;
+}
 .inbox-conversation-list {
-  min-height: 0;
+  /* flex-grow cannot claim space on its own: a list whose basis is 0 stays at
+     0 when the panel is over-full, so it is given a floor of one row. */
+  min-height: 120px;
   flex: 1;
   overflow-y: auto;
   border-top: 1px solid var(--land-line);
@@ -322,12 +360,12 @@ body.workspace-page {
   gap: 11px;
   width: 100%;
   padding: 21px 18px;
-  text-align: left;
+  text-align: start;
   border-bottom: 1px solid var(--land-line);
-  border-left: 2px solid transparent;
+  border-inline-start: 2px solid transparent;
 }
 .conversation-row.is-selected {
-  border-left-color: var(--land-green);
+  border-inline-start-color: var(--land-green);
   background: var(--land-soft);
 }
 .conversation-row:hover {
@@ -425,13 +463,14 @@ body.workspace-page {
   background: var(--danger-bg);
 }
 .conversation-channel {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .conversation-channel svg {
   width: 13px;
   height: 13px;
 }
 .inbox-list-footer {
+  flex-shrink: 0;
   padding: 13px 18px;
   border-top: 1px solid var(--land-line);
   font-size: 10px;
@@ -559,7 +598,7 @@ body.workspace-page {
   display: flex;
   gap: 9px;
   align-items: center;
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--land-muted);
   font-size: 11px;
   white-space: nowrap;
@@ -674,13 +713,13 @@ body.workspace-page {
 .chat-message.incoming {
   align-self: flex-start;
   background: var(--land-soft);
-  border-bottom-left-radius: 2px;
+  border-end-start-radius: 2px;
 }
 .chat-message.outgoing {
   align-self: flex-end;
   background: #edf3e7;
   color: #354b2e;
-  border-bottom-right-radius: 2px;
+  border-end-end-radius: 2px;
 }
 .dark .chat-message.outgoing {
   background: #2d4028;
@@ -789,7 +828,7 @@ body.workspace-page {
 .auto-send-message {
   font-size: 10px;
   color: var(--land-muted);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .chat-composer {
   display: flex;
@@ -947,7 +986,7 @@ body.workspace-page {
   cursor: pointer;
 }
 .settings-tone-options > label + label {
-  border-left: 1px solid var(--land-line);
+  border-inline-start: 1px solid var(--land-line);
 }
 .settings-tone-options > label.is-selected {
   background: var(--land-soft);
@@ -1103,7 +1142,7 @@ body.workspace-page {
   }
   .chat-back-button {
     display: grid;
-    margin-left: -10px;
+    margin-inline-start: -10px;
   }
   .chat-auto-send > span {
     display: inline;
@@ -1257,7 +1296,7 @@ body.workspace-page {
   .chat-back-button {
     display: grid;
     width: 32px;
-    margin-left: 0;
+    margin-inline-start: 0;
   }
   .chat-panel-header > .contact-avatar {
     width: 31px;
@@ -1281,7 +1320,7 @@ body.workspace-page {
     font-size: 10px;
   }
   .chat-auto-send {
-    margin-left: 5px;
+    margin-inline-start: 5px;
   }
   .lead-memory summary {
     padding: 11px 18px;
@@ -1355,7 +1394,7 @@ body.workspace-page {
     padding: 15px;
   }
   .settings-tone-options > label + label {
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--land-line);
   }
   .settings-tone-options label > span > span {

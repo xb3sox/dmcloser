@@ -1,5 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
+// The browser suite runs the API against a PGlite directory (DATA_DIR below).
+// Nothing removed it, so every run left ~40 MB behind. The directory is named
+// after the runner pid, so only the server this run started can have written
+// it, and Playwright stops that server before the teardown runs.
+const dataDir = `.data/browser-tests-${process.pid}`;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -28,7 +34,7 @@ export default defineConfig({
         PORT: "3001",
         APP_URL: "http://127.0.0.1:5173",
         API_PUBLIC_URL: "http://127.0.0.1:3001",
-        DATA_DIR: `.data/browser-tests-${process.pid}`,
+        DATA_DIR: dataDir,
         ENCRYPTION_KEY: "cd".repeat(32),
         OPENAI_API_KEY: "",
         META_APP_SECRET: "",
@@ -40,4 +46,5 @@ export default defineConfig({
       },
     },
   ],
+  globalTeardown: "tests/global-teardown.ts",
 });

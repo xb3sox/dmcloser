@@ -2,20 +2,26 @@ import type { ReactNode } from "react";
 import {
   ArrowLeft,
   Inbox,
+  Languages,
   Moon,
   Settings,
   Sun,
   TrendingUp,
   BookOpen,
+  FlaskConical,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useLocale, useStrings } from "@/context/LocaleContext";
+import { navStrings } from "@/i18n/surfaces/nav";
 import { Brand, InstagramIcon, WhatsAppIcon } from "./landing/Brand";
 import type { InboxChannel } from "@/types";
 
 export default function Sidebar({ onHome }: { onHome: () => void }) {
   const { state, dispatch, mode, live } = useApp();
   const { theme, toggle } = useTheme();
+  const { locale, setLocale } = useLocale();
+  const t = useStrings(navStrings);
   const unread = state.conversations.filter(
     (conversation) => conversation.unread,
   ).length;
@@ -28,7 +34,7 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
           event.preventDefault();
           onHome();
         }}
-        aria-label="DMCloser home"
+        aria-label={t("nav.home")}
       >
         <Brand />
       </a>
@@ -38,10 +44,12 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
         </span>
         <div>
           <strong>{state.settings.businessName}</strong>
-          <span>{mode === "live" ? "Your workspace" : "Demo workspace"}</span>
+          <span>
+            {t(mode === "live" ? "nav.workspaceLive" : "nav.workspaceDemo")}
+          </span>
         </div>
       </div>
-      <nav className="app-navigation" aria-label="Workspace navigation">
+      <nav className="app-navigation" aria-label={t("nav.workspaceNav")}>
         <button
           aria-current={
             ["inbox", "chat"].includes(state.currentView) ? "page" : undefined
@@ -49,9 +57,9 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
           onClick={() => dispatch({ type: "SET_VIEW", view: "inbox" })}
         >
           <Inbox size={17} />
-          <span>Inbox</span>
+          <span>{t("nav.inbox")}</span>
           {unread > 0 && (
-            <span className="nav-count" aria-label={`${unread} unread`}>
+            <span className="nav-count" aria-label={t("nav.unreadCount", { count: unread })}>
               {unread}
             </span>
           )}
@@ -65,15 +73,26 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
               onClick={() => dispatch({ type: "SET_VIEW", view: "revenue" })}
             >
               <TrendingUp size={17} />
-              <span>Revenue</span>
+              <span>{t("nav.revenue")}</span>
             </button>
             <button
               aria-current={state.currentView === "brain" ? "page" : undefined}
               onClick={() => dispatch({ type: "SET_VIEW", view: "brain" })}
             >
               <BookOpen size={17} />
-              <span>Business Brain</span>
+              <span>{t("nav.brain")}</span>
             </button>
+            {live?.snapshot.user.role === "owner" && (
+              <button
+                aria-current={
+                  state.currentView === "quality" ? "page" : undefined
+                }
+                onClick={() => dispatch({ type: "SET_VIEW", view: "quality" })}
+              >
+                <FlaskConical size={17} />
+                <span>{t("nav.quality")}</span>
+              </button>
+            )}
           </>
         )}
         <button
@@ -81,17 +100,17 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
           onClick={() => dispatch({ type: "SET_VIEW", view: "settings" })}
         >
           <Settings size={17} />
-          <span>Settings</span>
+          <span>{t("nav.settings")}</span>
         </button>
       </nav>
       <div className="app-channel-navigation">
-        <span className="app-nav-label">Channels</span>
-        <nav aria-label="Conversation channels">
+        <span className="app-nav-label">{t("nav.channels")}</span>
+        <nav aria-label={t("nav.channelNav")}>
           {(
             [
               {
                 value: "all",
-                label: "All conversations",
+                label: t("nav.allConversations"),
                 icon: <Inbox size={16} />,
               },
               {
@@ -128,25 +147,39 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
         <div className="app-assistant-state">
           <span className="assistant-dot" />
           <div>
-            {state.settings.autoReplyEnabled
-              ? "Auto-reply enabled"
-              : "You have the final say"}
+            {t(
+              state.settings.autoReplyEnabled
+                ? "nav.autoReplyEnabled"
+                : "nav.finalSay",
+            )}
             <small>
-              {mode === "live"
-                ? live?.connectionState === "connected"
-                  ? "Connected to your server."
-                  : "Reconnecting to live updates."
-                : "Sample messages. No live sends."}
+              {t(
+                mode === "live"
+                  ? live?.connectionState === "connected"
+                    ? "nav.connected"
+                    : "nav.reconnecting"
+                  : "nav.sampleMessages",
+              )}
             </small>
           </div>
         </div>
         <button onClick={toggle}>
           {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-          {theme === "light" ? "Dark mode" : "Light mode"}
+          {t(theme === "light" ? "nav.darkMode" : "nav.lightMode")}
+        </button>
+        <button
+          onClick={() => setLocale(locale === "en" ? "ar" : "en")}
+          title={t(
+            locale === "en" ? "nav.switchToArabic" : "nav.switchToEnglish",
+          )}
+          data-locale-switch={locale === "en" ? "ar" : "en"}
+        >
+          <Languages size={16} />
+          {locale === "en" ? "العربية" : "English"}
         </button>
         <button onClick={onHome}>
           <ArrowLeft size={16} />
-          Back to website
+          {t("nav.backToWebsite")}
         </button>
         {mode === "demo" && (
           <a
@@ -154,7 +187,7 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
             className="app-text-button"
             style={{ paddingInline: 10 }}
           >
-            Create your workspace
+            {t("nav.createWorkspace")}
             <ArrowLeft size={14} style={{ transform: "rotate(180deg)" }} />
           </a>
         )}

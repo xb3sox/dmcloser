@@ -5,6 +5,11 @@
     "Inter",
     -apple-system,
     BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    "Noto Sans Arabic",
+    "Helvetica Neue",
+    Arial,
     sans-serif;
   font-size: 14px;
   overflow: clip;
@@ -45,7 +50,7 @@ body.marketing-page {
     box-shadow 0.2s;
 }
 .landing :is(a, button, input, textarea, select, summary):focus-visible {
-  outline: 2px solid #7ea870;
+  outline: 2px solid #527347;
   outline-offset: 4px;
 }
 .landing input,
@@ -100,7 +105,7 @@ body.marketing-page {
   display: flex;
   align-items: center;
   gap: 29px;
-  margin-left: 40px;
+  margin-inline-start: 40px;
 }
 .desktop-navigation a {
   display: flex;
@@ -179,11 +184,12 @@ body.marketing-page {
   object-position: center 53%;
 }
 .hero-photo-wash {
+  --hero-wash-angle: 90deg;
   position: absolute;
   inset: 0;
   z-index: -1;
   background: linear-gradient(
-    90deg,
+    var(--hero-wash-angle),
     #f4f4e94f 0%,
     #f5f4e82b 45%,
     #f5f4e800 67%
@@ -245,7 +251,7 @@ body.marketing-page {
 }
 .dark .hero-photo-wash {
   background: linear-gradient(
-    90deg,
+    var(--hero-wash-angle),
     #102119f5 0%,
     #102119df 30%,
     #10211936 70%,
@@ -442,7 +448,7 @@ body.marketing-page {
   flex-direction: column;
   padding: 21px 11px 15px;
   background: var(--land-bg);
-  border-right: 1px solid var(--land-line);
+  border-inline-end: 1px solid var(--land-line);
 }
 .demo-sidebar-label {
   display: block;
@@ -460,7 +466,7 @@ body.marketing-page {
   border-radius: 4px;
   font-size: 12px;
   color: var(--land-muted);
-  text-align: left;
+  text-align: start;
 }
 .demo-sidebar > button svg {
   width: 14px;
@@ -468,7 +474,7 @@ body.marketing-page {
   flex-shrink: 0;
 }
 .demo-sidebar > button > span {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 11px;
 }
 .demo-sidebar > button.is-selected {
@@ -512,7 +518,7 @@ body.marketing-page {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--land-line);
+  border-inline-end: 1px solid var(--land-line);
 }
 .demo-list-heading {
   height: 63px;
@@ -566,13 +572,13 @@ body.marketing-page {
   width: 100%;
   gap: 11px;
   padding: 20px 14px;
-  text-align: left;
+  text-align: start;
   border-bottom: 1px solid var(--land-line);
-  border-left: 2px solid transparent;
+  border-inline-start: 2px solid transparent;
 }
 .demo-conversation.is-selected {
   background: var(--land-soft);
-  border-left-color: var(--land-green);
+  border-inline-start-color: var(--land-green);
 }
 .demo-conversation:hover {
   background: var(--land-soft);
@@ -701,7 +707,7 @@ body.marketing-page {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 11px;
   color: var(--land-muted);
 }
@@ -734,12 +740,12 @@ body.marketing-page {
 }
 .demo-bubble.contact {
   align-self: flex-start;
-  border-bottom-left-radius: 2px;
+  border-end-start-radius: 2px;
   background: color-mix(in srgb, var(--land-soft) 80%, var(--land-surface));
 }
 .demo-bubble.agent {
   align-self: flex-end;
-  border-bottom-right-radius: 2px;
+  border-end-end-radius: 2px;
   background: #edf3e7;
   color: #3f4e37;
 }
@@ -836,7 +842,7 @@ body.marketing-page {
 .auto-send-hint {
   font-size: 10px;
   color: var(--land-green);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .demo-replied {
   display: flex;
@@ -918,6 +924,7 @@ body.marketing-page {
   gap: 16px;
   font:
     500 11px "Inter",
+    "Noto Sans Arabic",
     sans-serif;
   color: var(--land-green);
 }
@@ -1108,6 +1115,7 @@ body.marketing-page {
 .plan-heading h3 > span {
   font:
     400 11px/1.5 "Inter",
+    "Noto Sans Arabic",
     sans-serif;
   letter-spacing: 0;
   color: var(--land-green);
@@ -1132,9 +1140,10 @@ body.marketing-page {
   margin-top: 7px;
 }
 .plan-price > small {
-  margin-left: 7px;
+  margin-inline-start: 7px;
   font:
     400 12px "Inter",
+    "Noto Sans Arabic",
     sans-serif;
   color: var(--land-muted);
   letter-spacing: 0;
@@ -1173,7 +1182,7 @@ body.marketing-page {
 }
 .growth-plan {
   background: var(--land-soft);
-  border-left: 1px solid var(--land-line);
+  border-inline-start: 1px solid var(--land-line);
 }
 .pricing-note {
   text-align: center;
@@ -1229,7 +1238,7 @@ body.marketing-page {
   flex-shrink: 0;
 }
 .faq-list summary > svg {
-  margin-left: auto;
+  margin-inline-start: auto;
   flex-shrink: 0;
   transition: transform 0.2s;
 }
@@ -1296,7 +1305,7 @@ body.marketing-page {
 .footer-main nav {
   display: flex;
   gap: 25px;
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 12px;
   color: var(--land-muted);
 }
@@ -1389,7 +1398,7 @@ body.marketing-page {
     width: calc(100% - 96px);
   }
   .desktop-navigation {
-    margin-left: 0;
+    margin-inline-start: 0;
     gap: 22px;
   }
   .header-actions {
@@ -1511,7 +1520,7 @@ body.marketing-page {
   }
   .hero-photo-wash {
     background: linear-gradient(
-      90deg,
+      var(--hero-wash-angle),
       #f4f4e980,
       #f5f4e82b 54%,
       transparent 85%
@@ -1656,7 +1665,12 @@ body.marketing-page {
     object-position: 72% center;
   }
   .hero-photo-wash {
-    background: linear-gradient(90deg, #f4f4e9a8, #f5f4e87a 45%, #f5f4e800 90%);
+    background: linear-gradient(
+      var(--hero-wash-angle),
+      #f4f4e9a8,
+      #f5f4e87a 45%,
+      #f5f4e800 90%
+    );
   }
   .channel-strip-inner {
     min-height: 90px;
@@ -1901,8 +1915,9 @@ body.marketing-page {
     object-position: 83% center;
   }
   .hero-photo-wash {
+    --hero-wash-angle: 180deg;
     background: linear-gradient(
-      180deg,
+      var(--hero-wash-angle),
       #f0f0e5 0%,
       #f0f0e5 37%,
       #f0f0e5f0 47%,
@@ -1911,7 +1926,7 @@ body.marketing-page {
   }
   .dark .hero-photo-wash {
     background: linear-gradient(
-      180deg,
+      var(--hero-wash-angle),
       #13271c 0%,
       #13271c 37%,
       #13271ce8 47%,
@@ -1993,7 +2008,7 @@ body.marketing-page {
     grid-template-columns: minmax(0, 1fr);
   }
   .demo-conversations {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--land-line);
   }
   .demo-list-heading,
@@ -2018,7 +2033,7 @@ body.marketing-page {
     border-bottom-color: var(--land-green);
   }
   .demo-conversation + .demo-conversation {
-    border-left: 1px solid var(--land-line);
+    border-inline-start: 1px solid var(--land-line);
   }
   .demo-conversation .demo-avatar {
     width: 28px;
@@ -2195,7 +2210,7 @@ body.marketing-page {
     font-size: 13px;
   }
   .growth-plan {
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--land-line);
   }
   .pricing-note {
@@ -2214,8 +2229,8 @@ body.marketing-page {
     padding-block: 21px;
   }
   .faq-list details > p {
-    padding-left: 24px;
-    padding-right: 12px;
+    padding-inline-start: 24px;
+    padding-inline-end: 12px;
     font-size: 14px;
   }
   .closing-section {
@@ -2346,4 +2361,31 @@ body.marketing-page {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   RTL overrides for the landing page.
+
+   The two chevron disclosures in this file rotate a down-chevron to an
+   up-chevron and a plus to a cross. Both are vertical or symmetric, so they
+   read identically in either direction and need no override.
+   --------------------------------------------------------------------------- */
+
+/* The hero wash is a horizontal scrim over the photograph (DESIGN.md §2.4). It
+   reads left to right in LTR; under RTL the copy sits on the other side of
+   the hero, so the scrim mirrors with it. Below 600px the wash is vertical
+   and stays vertical. */
+[dir="rtl"] .hero-photo-wash {
+  --hero-wash-angle: 270deg;
+}
+@media (max-width: 599px) {
+  [dir="rtl"] .hero-photo-wash {
+    --hero-wash-angle: 180deg;
+  }
+}
+
+/* The landing call-to-action arrow is diagonal. It mirrors with the reading
+   direction, and the hover nudge follows the arrow it belongs to. */
+[dir="rtl"] .text-link:hover svg {
+  transform: scaleX(-1) translate(2px, -2px);
 }

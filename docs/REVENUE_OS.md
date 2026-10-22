@@ -83,6 +83,56 @@ The deterministic intelligence engine runs without an LLM or credentials. It cit
 7. Test scoring evidence, unknown facts, money/horizon denominators, duplicate receipts, refund caps, roles/tenants, source staleness, booking conflicts, Brain expiry/fingerprint, learning thresholds, escalation and reminder non-delivery; rerun previous API/browser/accessibility regressions and build.
 8. Owner reviews pilot outcomes/evals and staging migration/rollback evidence. Do not auto-deploy or label heuristic scores calibrated. Incidents feed a new intent plus a regression.
 
+## Shipped Increment — 2026-10-22
+
+Three gaps in the contract above are now closed **on top of** the v1 primitives. The money
+model did not change: the ledgers, the denominators and the provenance rules are exactly
+as specified. What moved is the presentation, the safety gate, and the worklist.
+
+### Three separately labelled money blocks (P6)
+
+`GET /revenue` now carries the receipt rows it already loaded, and the Revenue page splits
+the totals into three blocks that are never merged:
+
+| Block | Value | Rule |
+| --- | --- | --- |
+| **Potential** | `pipelineMinor` | Open opportunity value. Labelled an estimate. **Never green**, never called revenue, never counted as cash. |
+| **Attributed** | `attribution[]` | First-touch source plus the user-entered campaign. A descriptive grouping — **never** "AI-generated". |
+| **Verified** | `revenueMinor` | Owner-confirmed receipts net of refunds, each row carrying its reference and its reversal status. |
+
+**Verified is the only block that is money the owner confirmed.** A won deal is not cash.
+An estimate is not an estimate of cash. The three blocks answer three different questions
+and are deliberately not summed together.
+
+### Recovery list (P2 deal risk, surfaced)
+
+`GET /revenue/recovery` returns the open opportunities that need a human, ranked by
+staleness. Each entry carries the risk reason — reused from the existing risk engine, not
+a parallel one — and the next **human** action. Nothing is sent automatically from this
+list; it is a worklist, not an outreach queue.
+
+`POST /revenue/recovery/:dealId/dismiss` with `{reason}` records the dismissal as an
+audit event; `POST /revenue/recovery/:dealId/restore` undoes it. **A dismissal is the
+operator's own triage decision, not a revenue fact**, so it lives in `audit_events` and
+never touches the money ledger. The most recent recovery event per opportunity decides
+whether it is dismissed.
+
+### Custom sector (P7)
+
+`business_profiles.industry` accepts `custom`, and the profile carries a jsonb list of
+user-defined field presets (label, type, required). Presets are **configuration**: they
+are stored with the approved profile and are edited by the owner. Custom fields are
+*additional* to the fixed BANT shape — the deterministic scoring engine still reads BANT
+only, so adding a preset can never change the meaning of a score. An unknown field value
+stays unknown.
+
+### Inbox filters (P6)
+
+Lead status and time range join the existing channel, intent, unread and search filters
+and combine with them. They are applied to the conversations **currently loaded in the
+window**, which is a client-side filter over a server-paged list; the boundary is stated
+in the UI rather than implied by it. The owner export remains independent of the window.
+
 ## Explicit Later Gates
 
 External Google/Microsoft calendars and availability; PSP-verified customer payment reconciliation; ad campaign ingestion; multilingual semantic signal extraction; calibrated conversion/time-to-close models; consented automated follow-up sequences; causal reply experimentation; multi-opportunity CRM lifecycle; correction/voiding workflows for erroneous immutable outcomes. These require separate intent/spec/evals and are not implied by the v1 primitives.

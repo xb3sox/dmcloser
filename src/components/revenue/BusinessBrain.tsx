@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Check, Plus, Trash2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import {
+  revenueBrainKindLabelKeys,
+  revenueIndustryLabelKeys,
+  revenueStrings,
+} from "@/i18n/surfaces/revenue";
 import { DialogShell } from "../ui/Dialog";
 import Switch from "../ui/Switch";
+import Money from "../ui/Money";
 import {
   brainLabels,
   industryLabels,
-  money,
   parseMoney,
   type BrainEntry,
   type BrainKind,
   type BrainLink,
   type BusinessProfile,
+  type SectorField,
 } from "@/types/revenue";
 import "./revenue.css";
 
@@ -49,15 +56,13 @@ function EntryEditor({
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const t = useStrings(revenueStrings);
   return (
     <DialogShell
-      title={entry ? "Edit business knowledge" : "Add business knowledge"}
+      title={entry ? t("revenue.brain.editTitle") : t("revenue.brain.addTitle")}
       onClose={onClose}
     >
-      <p className="dialog-description">
-        Only approve facts you have verified. Competitor notes and playbooks
-        guide a seller; they are not price or policy evidence.
-      </p>
+      <p className="dialog-description">{t("revenue.brain.editorDescription")}</p>
       <form
         className="setup-form revenue-form"
         onSubmit={async (event) => {
@@ -65,7 +70,7 @@ function EntryEditor({
           setError("");
           const minor = parseMoney(price);
           if (Number.isNaN(minor)) {
-            setError("Use a positive amount with at most two decimals.");
+            setError(t("revenue.brain.invalidAmount"));
             return;
           }
           setPending(true);
@@ -87,7 +92,9 @@ function EntryEditor({
             onClose();
           } catch (failure) {
             setError(
-              failure instanceof Error ? failure.message : "Could not save.",
+              failure instanceof Error
+                ? failure.message
+                : t("revenue.brain.saveFailed"),
             );
           } finally {
             setPending(false);
@@ -95,21 +102,21 @@ function EntryEditor({
         }}
       >
         <label htmlFor="brain-kind">
-          Knowledge type
+          {t("revenue.brain.entryType")}
           <select
             id="brain-kind"
             value={kind}
             onChange={(event) => setKind(event.target.value as BrainKind)}
           >
-            {Object.entries(brainLabels).map(([value, label]) => (
+            {Object.entries(brainLabels).map(([value]) => (
               <option key={value} value={value}>
-                {label}
+                {t(revenueBrainKindLabelKeys[value])}
               </option>
             ))}
           </select>
         </label>
         <label htmlFor="brain-title">
-          Title
+          {t("revenue.brain.entryTitle")}
           <input
             id="brain-title"
             maxLength={120}
@@ -120,7 +127,7 @@ function EntryEditor({
           />
         </label>
         <label htmlFor="brain-content">
-          Approved details
+          {t("revenue.brain.entryDetails")}
           <textarea
             id="brain-content"
             rows={4}
@@ -133,17 +140,17 @@ function EntryEditor({
         {["product", "service", "offer"].includes(kind) && (
           <div className="revenue-form-pair">
             <label htmlFor="brain-price">
-              Price (optional)
+              {t("revenue.brain.entryPrice")}
               <input
                 id="brain-price"
                 inputMode="decimal"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
-                placeholder="e.g. 80.00"
+                placeholder={t("revenue.brain.entryPricePlaceholder")}
               />
             </label>
             <label htmlFor="brain-currency">
-              Currency
+              {t("revenue.brain.entryCurrency")}
               <select
                 id="brain-currency"
                 value={entryCurrency}
@@ -157,7 +164,7 @@ function EntryEditor({
           </div>
         )}
         <label htmlFor="brain-expiry">
-          Valid through (optional)
+          {t("revenue.brain.entryExpiry")}
           <input
             type="date"
             id="brain-expiry"
@@ -171,7 +178,7 @@ function EntryEditor({
             checked={approved}
             onChange={(event) => setApproved(event.target.checked)}
           />
-          I verified this entry and approve it for business use.
+          {t("revenue.brain.entryApprove")}
         </label>
         {error && (
           <p className="workspace-form-error" role="alert">
@@ -182,7 +189,7 @@ function EntryEditor({
           className="closer-button closer-button-primary"
           disabled={pending}
         >
-          Save knowledge
+          {t("revenue.brain.saveEntry")}
           <Check size={15} />
         </button>
       </form>
@@ -192,6 +199,7 @@ function EntryEditor({
 
 export default function BusinessBrain() {
   const { live } = useApp();
+  const t = useStrings(revenueStrings);
   const [data, setData] = useState<BrainData | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -202,6 +210,7 @@ export default function BusinessBrain() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [relation, setRelation] = useState<BrainLink["relation"]>("supports");
+  const [draftFields, setDraftFields] = useState<SectorField[] | null>(null);
   const request = live?.request;
   const load = useCallback(async () => {
     if (!request) return;
@@ -212,10 +221,10 @@ export default function BusinessBrain() {
       setError(
         failure instanceof Error
           ? failure.message
-          : "Knowledge could not be loaded.",
+          : t("revenue.brain.loadFailed"),
       );
     }
-  }, [request]);
+  }, [request, t]);
   useEffect(() => {
     void load();
   }, [load, live?.snapshot]);
@@ -231,7 +240,7 @@ export default function BusinessBrain() {
       await live!.refresh();
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : "Please try again.",
+        failure instanceof Error ? failure.message : t("revenue.brain.tryAgain"),
       );
     } finally {
       setPending(false);
@@ -240,6 +249,15 @@ export default function BusinessBrain() {
   const entries = (data?.entries || []).filter(
     (entry) => filter === "all" || entry.kind === filter,
   );
+  const sectorFields = draftFields ?? data?.profile.sectorFields ?? [];
+  function updateField(index: number, patch: Partial<SectorField>) {
+    setDraftFields((current) => {
+      const base = current ?? data?.profile.sectorFields ?? [];
+      return base.map((field, position) =>
+        position === index ? { ...field, ...patch } : field,
+      );
+    });
+  }
   return (
     <section
       className="revenue-page brain-page"
@@ -247,11 +265,9 @@ export default function BusinessBrain() {
     >
       <header className="revenue-page-header">
         <div>
-          <span className="app-section-label">Business Brain</span>
-          <h1 id="brain-heading">Your knowledge. Working together.</h1>
-          <p>
-            Verified products, answers, and sales know-how. One source of truth.
-          </p>
+          <span className="app-section-label">{t("revenue.brain.label")}</span>
+          <h1 id="brain-heading">{t("revenue.brain.heading")}</h1>
+          <p>{t("revenue.brain.subheading")}</p>
         </div>
         <button
           className="app-small-button"
@@ -259,7 +275,7 @@ export default function BusinessBrain() {
           onClick={() => setEditing(null)}
         >
           <Plus size={15} />
-          Add knowledge
+          {t("revenue.brain.add")}
         </button>
       </header>
       {error && (
@@ -276,12 +292,12 @@ export default function BusinessBrain() {
         <>
           <details className="revenue-disclosure brain-context">
             <summary>
-              Industry agent & sales defaults{" "}
-              <span>{industryLabels[data.profile.industry]}</span>
+              {t("revenue.brain.contextSummary")}{" "}
+              <span>{t(revenueIndustryLabelKeys[data.profile.industry])}</span>
             </summary>
             <div className="revenue-form-pair">
               <label htmlFor="brain-industry">
-                Industry mode
+                {t("revenue.brain.industryMode")}
                 <select
                   id="brain-industry"
                   disabled={!owner || pending}
@@ -292,19 +308,19 @@ export default function BusinessBrain() {
                         method: "PATCH",
                         body: { ...data.profile, industry: event.target.value },
                       });
-                      setNotice("Industry guidance updated.");
+                      setNotice(t("revenue.brain.industryUpdated"));
                     });
                   }}
                 >
-                  {Object.entries(industryLabels).map(([value, label]) => (
+                  {Object.entries(industryLabels).map(([value]) => (
                     <option key={value} value={value}>
-                      {label}
+                      {t(revenueIndustryLabelKeys[value])}
                     </option>
                   ))}
                 </select>
               </label>
               <label htmlFor="brain-default-currency">
-                New opportunity currency
+                {t("revenue.brain.defaultCurrency")}
                 <select
                   id="brain-default-currency"
                   disabled={!owner || pending}
@@ -315,9 +331,7 @@ export default function BusinessBrain() {
                         method: "PATCH",
                         body: { ...data.profile, currency: event.target.value },
                       });
-                      setNotice(
-                        "Default currency updated. Existing deals are unchanged.",
-                      );
+                      setNotice(t("revenue.brain.currencyUpdated"));
                     });
                   }}
                 >
@@ -330,15 +344,11 @@ export default function BusinessBrain() {
             <p className="revenue-method-note">{data.guidance.boundary}</p>
             <div className="revenue-toggle">
               <div>
-                <strong>Assist with deal stages</strong>
-                <p>
-                  Confirmed BANT can qualify a lead; a quote can move it to
-                  Proposal. Wins, losses, and receipts always need your
-                  confirmation.
-                </p>
+                <strong>{t("revenue.brain.autoStageTitle")}</strong>
+                <p>{t("revenue.brain.autoStageText")}</p>
               </div>
               <Switch
-                label="Automatic deal-stage assistance"
+                label={t("revenue.brain.autoStageSwitch")}
                 checked={data.profile.autoStage}
                 disabled={!owner || pending}
                 onChange={() => {
@@ -354,23 +364,153 @@ export default function BusinessBrain() {
                 }}
               />
             </div>
+            {data.profile.industry === "custom" && (
+              <div className="revenue-section">
+                <div className="revenue-section-heading">
+                  <h2>
+                    {t("revenue.brain.customFields")}{" "}
+                    <span>{sectorFields.length}</span>
+                  </h2>
+                  <button
+                    className="app-small-button"
+                    disabled={!owner || pending || sectorFields.length >= 20}
+                    onClick={() =>
+                      setDraftFields([
+                        ...sectorFields,
+                        {
+                          key: `field_${sectorFields.length + 1}`,
+                          label: "",
+                          type: "text",
+                          required: false,
+                        },
+                      ])
+                    }
+                  >
+                    <Plus size={15} />
+                    {t("revenue.brain.addField")}
+                  </button>
+                </div>
+                <p className="revenue-method-note">
+                  {t("revenue.brain.customFieldsNote")}
+                </p>
+                {sectorFields.map((field, index) => (
+                  <div className="brain-row" key={field.key}>
+                    <div
+                      className="setup-form revenue-form"
+                      style={{ flex: "1 1 0", minWidth: 0, marginTop: 0 }}
+                    >
+                      <div className="revenue-form-pair">
+                        <label>
+                          {t("revenue.brain.fieldLabel")}
+                          <input
+                            value={field.label}
+                            maxLength={80}
+                            onChange={(event) =>
+                              updateField(index, {
+                                label: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          {t("revenue.brain.fieldType")}
+                          <select
+                            value={field.type}
+                            onChange={(event) =>
+                              updateField(index, {
+                                type: event.target
+                                  .value as SectorField["type"],
+                              })
+                            }
+                          >
+                            <option value="text">
+                              {t("revenue.brain.fieldTypeText")}
+                            </option>
+                            <option value="number">
+                              {t("revenue.brain.fieldTypeNumber")}
+                            </option>
+                            <option value="date">
+                              {t("revenue.brain.fieldTypeDate")}
+                            </option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                    <label className="revenue-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={field.required}
+                        onChange={(event) =>
+                          updateField(index, {
+                            required: event.target.checked,
+                          })
+                        }
+                      />
+                      {t("revenue.brain.required")}
+                    </label>
+                    <button
+                      className="app-text-button"
+                      onClick={() =>
+                        setDraftFields(
+                          sectorFields.filter(
+                            (_, position) => position !== index,
+                          ),
+                        )
+                      }
+                      aria-label={t("revenue.brain.removeField", {
+                        name: field.label || t("revenue.brain.genericField"),
+                      })}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="closer-button closer-button-primary"
+                  disabled={!owner || pending}
+                  onClick={() => {
+                    if (sectorFields.some((field) => !field.label.trim())) {
+                      setError(t("revenue.brain.fieldNeedsLabel"));
+                      return;
+                    }
+                    void run(async () => {
+                      await request!("/brain/profile", {
+                        method: "PATCH",
+                        body: {
+                          ...data!.profile,
+                          sectorFields: sectorFields.map((field) => ({
+                            ...field,
+                            label: field.label.trim(),
+                          })),
+                        },
+                      });
+                      setDraftFields(null);
+                      setNotice(t("revenue.brain.customFieldsSaved"));
+                    });
+                  }}
+                >
+                  {t("revenue.brain.saveCustomFields")}
+                </button>
+              </div>
+            )}
           </details>
           <div className="revenue-section-heading">
             <h2>
-              Business knowledge <span>{data.entries.length}</span>
+              {t("revenue.brain.entriesHeading")}{" "}
+              <span>{data.entries.length}</span>
             </h2>
             <label className="sr-only" htmlFor="brain-filter">
-              Filter knowledge
+              {t("revenue.brain.filterLabel")}
             </label>
             <select
               id="brain-filter"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             >
-              <option value="all">All knowledge</option>
-              {Object.entries(brainLabels).map(([value, label]) => (
+              <option value="all">{t("revenue.brain.filterAll")}</option>
+              {Object.entries(brainLabels).map(([value]) => (
                 <option value={value} key={value}>
-                  {label}
+                  {t(revenueBrainKindLabelKeys[value])}
                 </option>
               ))}
             </select>
@@ -382,10 +522,12 @@ export default function BusinessBrain() {
                   <button
                     onClick={() => setEditing(entry)}
                     disabled={!owner}
-                    aria-label={`Edit ${entry.title}`}
+                    aria-label={t("revenue.brain.editEntry", {
+                      title: entry.title,
+                    })}
                   >
                     <span className="brain-entry-type">
-                      {brainLabels[entry.kind]}
+                      {t(revenueBrainKindLabelKeys[entry.kind])}
                     </span>
                     <strong>{entry.title}</strong>
                     <span className="brain-entry-description">
@@ -393,21 +535,31 @@ export default function BusinessBrain() {
                     </span>
                     <span className="brain-entry-state">
                       {entry.expiresAt && entry.expiresAt < Date.now()
-                        ? "Expired"
+                        ? t("revenue.brain.stateExpired")
                         : entry.approved
-                          ? "Approved"
-                          : "Draft"}{" "}
-                      · version {entry.version}
-                      {entry.priceMinor !== null
-                        ? ` · ${money(entry.priceMinor, entry.currency)}`
-                        : ""}
+                          ? t("revenue.brain.stateApproved")
+                          : t("revenue.brain.stateDraft")}{" "}
+                      {t("revenue.brain.version", {
+                        version: entry.version,
+                      })}
+                      {entry.priceMinor !== null && (
+                        <>
+                          {" · "}
+                          <Money
+                            minor={entry.priceMinor}
+                            currency={entry.currency}
+                          />
+                        </>
+                      )}
                     </span>
                   </button>
                   {owner && (
                     <button
                       className="app-icon-button"
                       onClick={() => setDeleting(entry)}
-                      aria-label={`Delete ${entry.title}`}
+                      aria-label={t("revenue.brain.deleteEntry", {
+                        title: entry.title,
+                      })}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -417,22 +569,16 @@ export default function BusinessBrain() {
             </div>
           ) : (
             <div className="revenue-empty">
-              <h3>A better answer starts with a verified fact.</h3>
-              <p>
-                Add a product, a service, or your most helpful FAQ. Existing
-                business settings still work; this adds structured, reusable
-                knowledge.
-              </p>
+              <h3>{t("revenue.brain.emptyHeading")}</h3>
+              <p>{t("revenue.brain.emptyText")}</p>
             </div>
           )}
           <details className="revenue-disclosure">
             <summary>
-              Knowledge relationships <span>{data.links.length}</span>
+              {t("revenue.brain.relationships")}{" "}
+              <span>{data.links.length}</span>
             </summary>
-            <p>
-              Connect an FAQ to a product, a playbook to an objection, or
-              related offers. Relationships stay within your workspace.
-            </p>
+            <p>{t("revenue.brain.relationshipsText")}</p>
             {data.links.length ? (
               <ul className="brain-links">
                 {data.links.map((link) => (
@@ -451,7 +597,7 @@ export default function BusinessBrain() {
                     {owner && (
                       <button
                         className="app-icon-button"
-                        aria-label="Delete knowledge relationship"
+                        aria-label={t("revenue.brain.deleteRelationship")}
                         disabled={pending}
                         onClick={() => {
                           void run(async () => {
@@ -470,7 +616,7 @@ export default function BusinessBrain() {
               </ul>
             ) : (
               <p className="revenue-method-note">
-                No relationships yet. Add two entries to connect them.
+                {t("revenue.brain.noRelationships")}
               </p>
             )}
             {owner && data.entries.length >= 2 && (
@@ -485,19 +631,19 @@ export default function BusinessBrain() {
                     });
                     setFrom("");
                     setTo("");
-                    setNotice("Knowledge relationship added.");
+                    setNotice(t("revenue.brain.relationshipAdded"));
                   });
                 }}
               >
                 <label htmlFor="brain-link-from">
-                  From
+                  {t("revenue.brain.linkFrom")}
                   <select
                     id="brain-link-from"
                     value={from}
                     onChange={(event) => setFrom(event.target.value)}
                     required
                   >
-                    <option value="">Choose entry</option>
+                    <option value="">{t("revenue.brain.chooseEntry")}</option>
                     {data.entries.map((entry) => (
                       <option value={entry.id} key={entry.id}>
                         {entry.title}
@@ -506,7 +652,7 @@ export default function BusinessBrain() {
                   </select>
                 </label>
                 <label htmlFor="brain-link-relation">
-                  Relationship
+                  {t("revenue.brain.linkRelation")}
                   <select
                     id="brain-link-relation"
                     value={relation}
@@ -514,21 +660,29 @@ export default function BusinessBrain() {
                       setRelation(event.target.value as BrainLink["relation"])
                     }
                   >
-                    <option value="supports">Supports</option>
-                    <option value="answers">Answers</option>
-                    <option value="competes_with">Competes with</option>
-                    <option value="bundles">Bundles</option>
+                    <option value="supports">
+                      {t("revenue.brain.relationSupports")}
+                    </option>
+                    <option value="answers">
+                      {t("revenue.brain.relationAnswers")}
+                    </option>
+                    <option value="competes_with">
+                      {t("revenue.brain.relationCompetes")}
+                    </option>
+                    <option value="bundles">
+                      {t("revenue.brain.relationBundles")}
+                    </option>
                   </select>
                 </label>
                 <label htmlFor="brain-link-to">
-                  To
+                  {t("revenue.brain.linkTo")}
                   <select
                     id="brain-link-to"
                     value={to}
                     onChange={(event) => setTo(event.target.value)}
                     required
                   >
-                    <option value="">Choose entry</option>
+                    <option value="">{t("revenue.brain.chooseEntry")}</option>
                     {data.entries
                       .filter((entry) => entry.id !== from)
                       .map((entry) => (
@@ -542,16 +696,14 @@ export default function BusinessBrain() {
                   className="app-small-button"
                   disabled={pending || !from || !to}
                 >
-                  Connect
+                  {t("revenue.brain.connect")}
                   <ArrowRight size={14} />
                 </button>
               </form>
             )}
           </details>
           <p className="revenue-method-note">
-            Learning never silently approves knowledge. Edits or expiry make old
-            automatic replies require review. Only owners can change the
-            Business Brain.
+            {t("revenue.brain.approvalNote")}
           </p>
         </>
       )}
@@ -568,18 +720,19 @@ export default function BusinessBrain() {
             );
             await load();
             await live.refresh();
-            setNotice("Business knowledge saved.");
+            setNotice(t("revenue.brain.saved"));
           }}
         />
       )}
       {deleting && (
         <DialogShell
-          title="Delete this knowledge?"
+          title={t("revenue.brain.deleteTitle")}
           onClose={() => setDeleting(null)}
         >
           <p className="dialog-description">
-            {deleting.title} will be removed from future replies. Existing quote
-            snapshots stay intact; related knowledge links will be removed.
+            {t("revenue.brain.deleteDescription", {
+              title: deleting.title,
+            })}
           </p>
           <button
             className="closer-button closer-button-primary"
@@ -591,11 +744,11 @@ export default function BusinessBrain() {
                   body: {},
                 });
                 setDeleting(null);
-                setNotice("Knowledge deleted.");
+                setNotice(t("revenue.brain.deleted"));
               });
             }}
           >
-            Delete knowledge
+            {t("revenue.brain.deleteAction")}
             <Trash2 size={15} />
           </button>
         </DialogShell>

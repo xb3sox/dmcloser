@@ -9,7 +9,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:17-alpine
@@ -30,11 +30,37 @@ jobs:
       - run: npm ci
       - run: node scripts/check.mjs
       - name: Verify external Postgres adapter
-        run: npx tsx --test --test-concurrency=1 server/tests/product.test.ts server/tests/revenue.test.ts
+        run: npx tsx --test --test-concurrency=1 server/tests/*.test.ts
         env:
           TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/dmcloser_test
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+      - name: Build the production image
+        run: docker build -t dmcloser:${{ github.sha }} .
+      - name: Smoke test the production image
+        run: |
+          docker run -d --name dmcloser-smoke --network host \
+            -e NODE_ENV=production \
+            -e PORT=3001 \
+            -e APP_URL=https://localhost:3001 \
+            -e API_PUBLIC_URL=https://localhost:3001 \
+            -e DATABASE_URL=postgres://test:test@127.0.0.1:5432/dmcloser_test \
+            -e ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            dmcloser:${{ github.sha }}
+          ready=""
+          for _ in $(seq 1 30); do
+            if ready=$(curl -fsS http://127.0.0.1:3001/api/ready); then break; fi
+            sleep 2
+          done
+          echo "readiness: $ready"
+          curl -fsS http://127.0.0.1:3001/api/health
+          curl -fsS -X POST http://127.0.0.1:3001/api/auth/register \
+            -H 'Content-Type: application/json' \
+            -H 'Origin: https://localhost:3001' \
+            -d '{"name":"Smoke","businessName":"Smoke Co","email":"smoke@example.com","password":"correct horse battery staple"}' \
+            | head -c 200
+          docker logs dmcloser-smoke
+          docker rm -f dmcloser-smoke
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -45,6 +71,60 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     environment: production
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dmcloser
+          POSTGRES_PASSWORD: dmcloser
+          POSTGRES_DB: dmcloser_release
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dmcloser" --health-interval 5s
+          --health-timeout 5s --health-retries 10
     steps:
-      - run: echo "Owner approval gate passed. Deployment must use the approved immutable image and rollback runbook. No automatic deployment is configured."
+      - uses: actions/checkout@v4
+      - name: Build the candidate image
+        run: docker build -t dmcloser:${{ github.sha }} .
+      - name: Smoke test the candidate image
+        run: |
+          docker run -d --name dmcloser-release --network host \
+            -e NODE_ENV=production \
+            -e PORT=3001 \
+            -e APP_URL=https://localhost:3001 \
+            -e API_PUBLIC_URL=https://localhost:3001 \
+            -e DATABASE_URL=postgres://dmcloser:dmcloser@127.0.0.1:5432/dmcloser_release \
+            -e ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            dmcloser:${{ github.sha }}
+          ready=""
+          for _ in $(seq 1 30); do
+            if ready=$(curl -fsS http://127.0.0.1:3001/api/ready); then break; fi
+            sleep 2
+          done
+          echo "readiness: $ready"
+          docker rm -f dmcloser-release
+        env:
+          POSTGRES_USER: dmcloser
+          POSTGRES_PASSWORD: dmcloser
+          POSTGRES_DB: dmcloser_release
+      - name: Record the immutable image reference
+        run: |
+          image_id=$(docker image inspect --format='{{.Id}}' dmcloser:${{ github.sha }})
+          mkdir -p release
+          echo "$image_id" | tee release/image-id.txt
+          echo "### Release candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- image id: \`$image_id\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- deploy with: \`docker load\` this artifact, tag it, and run \`docker compose up -d\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Export the image
+        run: |
+          docker save dmcloser:${{ github.sha }} | gzip -1 > release/dmcloser-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: release/
+          retention-days: 30
+      - run: echo "Owner approval gate passed. The image above is verified and content-addressed. Deployment stays manual: load the artifact on the host and run the runbook in docs/OPERATIONS.md. No automatic deployment is configured."

@@ -1,7 +1,23 @@
 import type { Conversation } from "@/types";
 import { useApp } from "@/context/AppContext";
+import { useStrings } from "@/context/LocaleContext";
+import { workspaceStrings } from "@/i18n/surfaces/workspace";
 import { InstagramIcon, WhatsAppIcon } from "./landing/Brand";
-import { intentLabels, statusLabels, timeAgo } from "@/utils/conversation";
+import { timeAgo } from "@/utils/conversation";
+
+const intentKeys = {
+  buy: "workspace.intent.buy",
+  question: "workspace.intent.question",
+  spam: "workspace.intent.spam",
+} as const;
+
+const statusKeys = {
+  new: "workspace.status.new",
+  engaged: "workspace.status.engaged",
+  qualified: "workspace.status.qualified",
+  converted: "workspace.status.converted",
+  lost: "workspace.status.lost",
+} as const;
 
 export default function ConversationItem({
   conversation,
@@ -9,6 +25,7 @@ export default function ConversationItem({
   conversation: Conversation;
 }) {
   const { state, dispatch } = useApp();
+  const t = useStrings(workspaceStrings);
   const draft = state.drafts[conversation.id];
   return (
     <button
@@ -17,7 +34,9 @@ export default function ConversationItem({
         dispatch({ type: "SELECT_CONVERSATION", id: conversation.id })
       }
       aria-pressed={state.selectedConversationId === conversation.id}
-      aria-label={`Open conversation with ${conversation.contactName}${conversation.unread ? ", unread" : ""}`}
+      aria-label={`${t("workspace.conversation.openWith", {
+        name: conversation.contactName,
+      })}${conversation.unread ? t("workspace.conversation.unread") : ""}`}
     >
       <span
         className={`contact-avatar avatar-${conversation.id.charCodeAt(conversation.id.length - 1) % 3}`}
@@ -33,14 +52,18 @@ export default function ConversationItem({
           </time>
         </span>
         <span className="conversation-row-preview">
-          {draft && <span className="draft-indicator">Draft: </span>}
+          {draft && (
+            <span className="draft-indicator">
+              {t("workspace.conversation.draftPrefix")}
+            </span>
+          )}
           {draft || conversation.lastMessage}
         </span>
         <span className="conversation-row-meta">
           <span className={`intent-label intent-${conversation.intent}`}>
-            {intentLabels[conversation.intent]}
+            {t(intentKeys[conversation.intent])}
           </span>
-          <span>{statusLabels[conversation.conversionStatus]}</span>
+          <span>{t(statusKeys[conversation.conversionStatus])}</span>
           <span
             className="conversation-channel"
             aria-label={

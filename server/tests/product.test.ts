@@ -559,6 +559,38 @@ test("automatic sends require two opt-ins, grounded facts, no draft, and no hold
   assert.equal(f.meta.sent.length, 0);
 });
 
+test("an Arabic opt-out blocks an automatic send and queues nothing", async () => {
+  const f = await fixture();
+  await configureFacts(f);
+  const conversation = await inbound(f, "whatsapp", "توقف عن مراسلتي");
+  const source = conversation.messages[0].id;
+  await f.service.generate(f.snapshot.workspace.id, conversation.id, source);
+  await f.mutate("patch", "/api/settings").send({ autoReplyEnabled: true });
+  await f
+    .mutate("patch", `/api/conversations/${conversation.id}`)
+    .send({ autoSend: true });
+  const [suggestion] = await db.query(
+    "SELECT text FROM suggestions WHERE source_id=$1",
+    [source],
+  );
+  const message = await f.service.queueMessage(
+    f.snapshot.workspace.id,
+    null,
+    conversation.id,
+    suggestion.text,
+    randomUUID(),
+    source,
+    true,
+  );
+  assert.equal(message, null);
+  const [outbound] = await db.query(
+    "SELECT count(*)::int AS total FROM messages WHERE conversation_id=$1 AND sender<>'contact'",
+    [conversation.id],
+  );
+  assert.equal(outbound.total, 0);
+  assert.equal(f.meta.sent.length, 0);
+});
+
 test("delivery status cannot regress from read to sent", async () => {
   const f = await fixture();
   const conversation = await inbound(f);
@@ -1180,4 +1212,38 @@ test("workspace export is complete beyond UI limits and erasure redacts buffered
     [receiptId],
   );
   assert.ok(!JSON.stringify(receipt.payload).includes("private-to-be-erased"));
+});
+
+test("cursor pagination returns every conversation exactly once and rejects a bad cursor", async () => {
+  const f = await fixture();
+  const now = Date.now();
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,last_at,window_until) SELECT $1||'-'||n,$1,'whatsapp','paged-'||n,'Paged '||n,$2,$3 FROM generate_series(1,250) AS n",
+    [f.snapshot.workspace.id, now, now + 86400000],
+  );
+  const first = (await f.client.get("/api/bootstrap")).body;
+  assert.equal(first.conversations.length, 200);
+  assert.equal(typeof first.nextCursor, "string");
+  const second = (
+    await f.client.get(
+      `/api/conversations?cursor=${encodeURIComponent(first.nextCursor)}`,
+    )
+  ).body;
+  assert.equal(second.conversations.length, 50);
+  assert.equal(second.nextCursor, null);
+  const ids = [...first.conversations, ...second.conversations].map(
+    (conversation: { id: string }) => conversation.id,
+  );
+  assert.equal(ids.length, 250);
+  assert.equal(new Set(ids).size, 250);
+  const third = (
+    await f.client.get(
+      `/api/conversations?cursor=${encodeURIComponent(second.nextCursor ?? "")}`,
+    )
+  ).status;
+  assert.equal(third, 400);
+  const tenant = await fixture();
+  const other = (await tenant.client.get("/api/bootstrap")).body;
+  assert.equal(other.conversations.length, 0);
+  assert.equal(other.nextCursor, null);
 });

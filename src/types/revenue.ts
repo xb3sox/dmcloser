@@ -4,7 +4,8 @@ export type Industry =
   | "medical"
   | "automotive"
   | "beauty"
-  | "ecommerce";
+  | "ecommerce"
+  | "custom";
 export type BrainKind =
   | "product"
   | "service"
@@ -20,10 +21,17 @@ export type DealStage =
   | "negotiation"
   | "won"
   | "lost";
+export interface SectorField {
+  key: string;
+  label: string;
+  type: "text" | "number" | "date";
+  required: boolean;
+}
 export interface BusinessProfile {
   industry: Industry;
   currency: string;
   autoStage: boolean;
+  sectorFields: SectorField[];
 }
 export interface BrainEntry {
   id: string;
@@ -47,6 +55,8 @@ export interface Qualification {
   authority: "unknown" | "decision_maker" | "influencer";
   need: string;
   timelineDate: string | null;
+  /** Custom sector field values, keyed by the sector field key. */
+  custom?: Record<string, string>;
 }
 export interface Deal {
   id: string;
@@ -147,12 +157,25 @@ export interface DealDetail {
     occurredAt: number;
   }[];
 }
+export interface VerifiedReceipt {
+  id: string;
+  dealId: string;
+  name: string;
+  amountMinor: number;
+  kind: "payment" | "refund";
+  reference: string;
+  occurredAt: number;
+}
 export interface RevenueOverview {
   currency: string;
   from: string;
   to: string;
   forecastTo: string;
   revenueMinor: number;
+  /** Refunds reversed inside the same period as revenueMinor. */
+  reversedMinor: number;
+  /** Owner-confirmed receipts behind revenueMinor, one row per ledger event. */
+  verifiedReceipts: VerifiedReceipt[];
   wonMinor: number;
   pipelineMinor: number;
   forecastMinor: number;
@@ -189,6 +212,30 @@ export interface RevenueOverview {
     lessons: string[];
   };
 }
+/**
+ * One open opportunity waiting on a person. The recovery list is a human
+ * worklist: it never sends anything by itself.
+ */
+export interface RecoveryEntry {
+  dealId: string;
+  conversationId: string;
+  name: string;
+  platform: string;
+  stage: DealStage;
+  daysStale: number;
+  reason: string;
+  nextAction: string;
+  valueMinor: number | null;
+  currency: string;
+  insight?: SalesInsight;
+}
+export interface RecoveryList {
+  /** Stale open opportunities, most stale first. */
+  entries: RecoveryEntry[];
+  /** Entries an operator dismissed. They can be restored. */
+  dismissed: RecoveryEntry[];
+  notice: string;
+}
 export const industryLabels: Record<Industry, string> = {
   general: "General",
   real_estate: "Real Estate",
@@ -196,6 +243,7 @@ export const industryLabels: Record<Industry, string> = {
   automotive: "Automotive",
   beauty: "Beauty",
   ecommerce: "Ecommerce",
+  custom: "Custom",
 };
 export const stageLabels: Record<DealStage, string> = {
   new: "New lead",
@@ -214,9 +262,18 @@ export const brainLabels: Record<BrainKind, string> = {
   playbook: "Sales playbook",
   voice: "Brand voice",
 };
-export function money(minor: number | null, currency: string) {
+/**
+ * Display-only money format. The locale parameter is for the client; server
+ * call sites keep the default en-US because the AI grounding check compares
+ * the formatted string against approved facts verbatim.
+ */
+export function money(
+  minor: number | null,
+  currency: string,
+  locale = "en-US",
+) {
   if (minor === null) return "Not set";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     maximumFractionDigits: 2,

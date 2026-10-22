@@ -40,6 +40,20 @@
         document.documentElement.classList.add("light");
       }
     </script>
+    <script>
+      // Locale is applied before the first paint so the layout never flips
+      // direction after render. English is the default; the visitor chooses
+      // Arabic from the workspace navigation.
+      try {
+        var locale = localStorage.getItem("dmcloser-locale");
+        if (locale !== "ar") locale = "en";
+        document.documentElement.lang = locale;
+        document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+      } catch (error) {
+        document.documentElement.lang = "en";
+        document.documentElement.dir = "ltr";
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -13,7 +13,7 @@ Implementation is available for local/staging review. No production authorizatio
 
 - Credentialed OpenAI/Meta/Stripe/SMTP contract and delivery checks. Automated provider tests use fakes; they do not send messages, charge cards, or prove deliverability.
 - Model confidence is self-reported, not a calibrated probability. Deterministic safety checks are conservative heuristics, not proof against hallucination. Review real conversation evals before enabling automation.
-- UI snapshots intentionally limit conversation/history volume. Full export is independent of those limits; pagination is needed before a large-inbox rollout.
+- UI snapshots limit conversation/history volume to one page. Cursor pagination is available on `GET /api/conversations` and the client loads more on demand; full export is independent of any window.
 - Single API/worker topology only until shared rate limiting/pub-sub and multi-instance load tests are approved. Local PGlite requires one process per data directory.
 - Register the signed Instagram deletion/deauthorization callbacks; review the privacy policy, lawful data processing, retention and automated-experience disclosures.
 - Rehearse the supplied Docker deployment and backup/restore/rollback procedures on the actual host. Configure branch protection, production environment approval, metrics scheduling and on-call ownership.
@@ -30,7 +30,17 @@ Review also checks frozen editor versions, old-opportunity navigation beyond the
 
 ### Increment Verification
 
-- 49 API/security tests pass in the PGlite and external PostgreSQL runs, including the migration-upgrade and revenue suites.
-- 58 browser tests pass, including preserved landing/demo/inbox flows, Revenue/Brain workflows, concurrent-editor protection and automated light/dark/mobile accessibility checks.
+- 76 API/security tests pass in the PGlite and external PostgreSQL runs, including the migration-upgrade, safety, revenue, recovery and quality-lab suites.
+- 66 browser tests pass (58 pre-existing plus 8 Arabic/RTL), including preserved landing/demo/inbox flows, Revenue/Brain/Quality-Lab workflows, concurrent-editor protection and automated light/dark/mobile accessibility checks in both locales.
 - Two deterministic monitoring tests, strict frontend/backend TypeScript, production frontend build and compiled API bundle pass. Dependency audit reports zero vulnerabilities.
-- Populated desktop/mobile Revenue, Brain and deal-panel layouts were reviewed using synthetic local data; no runtime errors or horizontal overflow were observed. These checks do not verify live Meta/OpenAI/payment/calendar services, calibration, legal compliance or hosted deployment.
+- Populated desktop/mobile Revenue, Brain, deal-panel and Quality-Lab layouts were reviewed using synthetic local data; no runtime errors or horizontal overflow were observed. These checks do not verify live Meta/OpenAI/payment/calendar services, calibration, legal compliance or hosted deployment.
+
+## Bilingual, Quality and Scale Review Boundary
+
+- **The Arabic phrase set is an engineering artefact.** It is validated against a no-false-positive table and covers formal Arabic, not dialect or transliterated Arabic. It has not been reviewed by a native speaker, and the customer-facing Arabic copy has not either.
+- **English remains the default locale.** Arabic is a switch in the workspace chrome, not an auto-detected default. A visitor is never routed into Arabic without choosing it.
+- **A blocked prompt version stops automatic sends** at the same server boundary that enforces escalation and opt-out. The lab itself never sends, drafts or escalates.
+- **The recovery list is a human worklist.** It ranks and explains; it never acts. Dismissal is recorded with the operator's reason and is reversible.
+- **The three revenue blocks are not interchangeable.** Verified is owner-confirmed receipts net of refunds; Potential is an estimate and is never presented as cash; Attributed is descriptive and never claims that AI or an ad caused a sale. Win chance is a labelled, uncalibrated heuristic.
+- **Cursor pagination and the lead-status and time-range filters are client-side over a paged snapshot.** The owner export is still complete, independently of any UI window.
+- **The assignee filter is not implemented and was not invented.** Conversation assignment touches the team/roles model and is a separate feature.

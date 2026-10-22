@@ -1,18 +1,40 @@
-# Agent Instructions
+# Agent Instructions (upstream proposal)
 > Owner: Founder (BRNGT LLC, founder-reported) | Version: 0.5 (working draft) | Updated: 2026-10-20 | Approval: not granted
+> **Status: superseded.** This document was written against an *uninspected* repository and
+> describes a product to be built. The repository is now built. **The
+> [root `AGENTS.md`](../AGENTS.md) is the authoritative agent guide** — read it first.
 
-## Project Context
-DMCloser 2.0 is an Arabic/English SaaS workspace for Instagram/WhatsApp conversational sales and verified outcomes, across all sectors. Founder has some UI screens only; this documentation specifies proposed future behavior. Do not assume deployed services or root commands.
+## Correction
+
+The previous revision of this file stated: *"Founder has some UI screens only"* and *"no
+version-controlled repository or executable project files were supplied."* Both are false.
+The repository is a complete, working, tested product. This file is kept as the **upstream
+proposal** it is — its requirement identifiers, its engineering rules, and its completion
+criteria are still the standard the implementation is measured against — but its project
+context and command section are superseded.
+
+Actual commands, layout, gates and hard rules: **[root `AGENTS.md`](../AGENTS.md)**.
+
+## Project Context (as proposed)
+DMCloser 2.0 is an Arabic/English SaaS workspace for Instagram/WhatsApp conversational sales and verified outcomes, across all sectors.
 
 ## Source of Truth
-1. [Product Brief](docs/BRIEF.md) is authoritative for identity, verified founder decisions and business/product boundaries.
-2. [Business Plan](docs/BUSINESS.md) owns market, competitors, revenue, financial and legal/commercial assumptions.
-3. [PRD](docs/PRD.md) owns roles, functionality, permissions, acceptance and release behavior.
-4. [Technical Design](docs/TECH.md) owns proposed architecture, data flows, API conventions and deployment constraints.
-5. [Visual Design](docs/DESIGN.md) owns normative design tokens and visual component styling; reused UI prevails until inspected.
+1. [Product Brief](BRIEF.md) is authoritative for identity, verified founder decisions and business/product boundaries.
+2. [Business Plan](BUSINESS.md) owns market, competitors, revenue, financial and legal/commercial assumptions.
+3. [PRD](PRD.md) owns roles, functionality, permissions, acceptance and release behavior.
+4. [Technical Design](TECH.md) owns proposed architecture, data flows, API conventions and deployment constraints.
+5. [Visual Design](DESIGN.md) owns the upstream provisional token set. **Its colour palette is
+   rejected** — the [root `DESIGN.md`](../DESIGN.md) is the normative brand and identity
+   contract, and the shipped tokens in `src/styles/system.css` prevail.
+
+**Shipped and authoritative instead:** [root `AGENTS.md`](../AGENTS.md) · [`spec.md`](../spec.md) ·
+[root `SPEC.md`](../SPEC.md) (requirement status index) · [root `DESIGN.md`](../DESIGN.md) ·
+[ARCHITECTURE.md](ARCHITECTURE.md) · [API.md](API.md) · [OPERATIONS.md](OPERATIONS.md) ·
+[REVENUE_OS.md](REVENUE_OS.md) · [REVIEW.md](REVIEW.md)
 
 ## Commands and Project Structure
-**Pre-implementation; no version-controlled repository or executable project files were supplied.** No install, dev, lint, test, build or deployment commands have been verified and none should be invented. The existing UI may use another stack; inspect its package manifests and scripts with the founder before choosing commands. Proposed logical areas: workspace identity, Meta adapter, inbox, business knowledge, AI orchestration, deal/evidence, analytics, usage/billing and tests. These are architecture modules, not asserted actual directories.
+Superseded — see the [root `AGENTS.md`](../AGENTS.md) for the verified stack, the repo
+layout table, and the single gate entry point (`node scripts/check.mjs`).
 
 ## Engineering Rules
 Always link code/tasks to a stable `FEAT`, `FR`, `NFR` and `AC` identifier. Prefer smallest vertical slice and preserve original UI asset quality. Use official provider connectors, validate and deduplicate signed webhooks, tenant-scope databases/jobs, store secrets outside source, never expose messages or phone numbers in logs. Any AI-suggested outbound message needs enforced policy rule and human control at declared gate. Handle missing data, stale sources, timeout, opt-out, retry and cancel. Provide accessible 360px mobile flow and Arabic RTL. Favor a minimal deployable monolith and reversible DB migrations; document deviations as ADR amendments. No prototype may claim paid outcomes without proof.
@@ -24,4 +46,4 @@ For every changed feature: record the requirement ID, tests run and results, rev
 Do not rewrite or delete current UI without owner review. Never read, copy, commit or display `.env`, private keys, third-party tokens or customer conversation dumps in docs or testing. Do not purge production data, modify permissions, incur vendor billing, send live messages, activate autonomous AI, or deploy to production without explicit founder authorization. Synthetic-only sandbox work is allowed after infrastructure choices and keys are supplied. Human counsel/accountant approvals cannot be simulated.
 
 ## References
-Consult [PRD](docs/PRD.md) for acceptance and [TECH](docs/TECH.md) for proposed integration contracts. [README](README.md) holds readiness and unresolved external actions.
+Consult [PRD](PRD.md) for acceptance and [TECH](TECH.md) for proposed integration contracts. [README](README.md) holds readiness and unresolved external actions.

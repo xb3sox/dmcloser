@@ -9,6 +9,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useLocale, useStrings } from "@/context/LocaleContext";
+import { workspaceStrings } from "@/i18n/surfaces/workspace";
 import { DialogShell } from "../ui/Dialog";
 import { InstagramIcon, WhatsAppIcon } from "../landing/Brand";
 import type { Platform } from "@/types";
@@ -43,6 +45,8 @@ export default function AccountSettings() {
     { id: string; name: string; role: string }[] | null
   >(null);
   const [billingInterval, setBillingInterval] = useState("monthly");
+  const t = useStrings(workspaceStrings);
+  const { formatDate, formatDateTime, formatNumber } = useLocale();
   if (!live) return null;
   const { snapshot, request, refresh } = live;
   const owner = snapshot.user.role === "owner";
@@ -56,7 +60,9 @@ export default function AccountSettings() {
       await refresh();
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : "Please try again.",
+        failure instanceof Error
+          ? failure.message
+          : t("workspace.common.tryAgain"),
       );
     } finally {
       setPending(false);
@@ -70,15 +76,14 @@ export default function AccountSettings() {
         aria-labelledby="live-account-heading"
       >
         <div className="settings-section-intro">
-          <h2 id="live-account-heading">Messaging accounts</h2>
-          <p>
-            Connect your approved business account. Messages appear here as soon
-            as your webhook is active.
-          </p>
+          <h2 id="live-account-heading">
+            {t("workspace.account.messaging.title")}
+          </h2>
+          <p>{t("workspace.account.messaging.description")}</p>
         </div>
         {!snapshot.user.verified && (
           <p className="app-field-help">
-            Email not verified.
+            {t("workspace.account.messaging.emailUnverified")}
             {snapshot.capabilities.email && (
               <button
                 className="app-text-button"
@@ -89,11 +94,13 @@ export default function AccountSettings() {
                       method: "POST",
                       body: {},
                     });
-                    setNotice("Verification email sent. Check your inbox.");
+                    setNotice(
+                      t("workspace.account.messaging.verificationSent"),
+                    );
                   });
                 }}
               >
-                Send verification email
+                {t("workspace.account.messaging.sendVerification")}
                 <ArrowRight size={13} />
               </button>
             )}
@@ -121,8 +128,10 @@ export default function AccountSettings() {
                     {connected
                       ? `${connected.label} · ${connected.status}`
                       : snapshot.capabilities[platform]
-                        ? "Ready to connect"
-                        : "Server configuration required"}
+                        ? t("workspace.account.messaging.readyToConnect")
+                        : t(
+                            "workspace.account.messaging.serverConfigurationRequired",
+                          )}
                   </span>
                   {connected?.error && (
                     <p className="workspace-inline-error">{connected.error}</p>
@@ -137,7 +146,9 @@ export default function AccountSettings() {
                     setError("");
                   }}
                 >
-                  {connected ? "Manage" : "Connect"}
+                  {connected
+                    ? t("workspace.account.messaging.manage")
+                    : t("workspace.account.messaging.connect")}
                   <ArrowUpRight size={14} />
                 </button>
               </div>
@@ -145,40 +156,47 @@ export default function AccountSettings() {
           })}
         </div>
         <p className="app-field-help">
-          Free-form replies are limited to 24 hours after the latest customer
-          message. Automatic replies never bypass Meta's service window.
+          {t("workspace.account.messaging.serviceWindow")}
         </p>
       </section>
 
       <section className="settings-section" aria-labelledby="usage-heading">
         <div className="settings-section-intro">
-          <h2 id="usage-heading">Plan & usage</h2>
+          <h2 id="usage-heading">{t("workspace.account.usage.title")}</h2>
           <p>
             {snapshot.workspace.plan === "trial"
-              ? `Your trial ends ${new Date(snapshot.workspace.trialUntil).toLocaleDateString()}.`
-              : `${snapshot.workspace.plan === "growth" ? "Growth" : "Starter"} plan · ${snapshot.workspace.billingStatus}`}
+              ? t("workspace.account.usage.trialEnds", {
+                  date: formatDate(snapshot.workspace.trialUntil),
+                })
+              : t("workspace.account.usage.planLine", {
+                  plan: t(
+                    snapshot.workspace.plan === "growth"
+                      ? "workspace.account.usage.plan.growth"
+                      : "workspace.account.usage.plan.starter",
+                  ),
+                  status: snapshot.workspace.billingStatus,
+                })}
           </p>
         </div>
         <dl className="workspace-usage">
           <div>
-            <dt>AI requests this month</dt>
+            <dt>{t("workspace.account.usage.aiRequests")}</dt>
             <dd>
-              {snapshot.usage.aiReplies.toLocaleString()} /{" "}
-              {snapshot.workspace.aiLimit.toLocaleString()}
+              {formatNumber(snapshot.usage.aiReplies)} /{" "}
+              {formatNumber(snapshot.workspace.aiLimit)}
             </dd>
           </div>
           <div>
-            <dt>New conversations</dt>
+            <dt>{t("workspace.account.usage.newConversations")}</dt>
             <dd>
-              {snapshot.usage.conversations.toLocaleString()} /{" "}
-              {snapshot.workspace.conversationLimit.toLocaleString()}
+              {formatNumber(snapshot.usage.conversations)} /{" "}
+              {formatNumber(snapshot.workspace.conversationLimit)}
             </dd>
           </div>
         </dl>
         {!snapshot.workspace.active && (
           <p className="workspace-inline-error">
-            Automation is paused until your subscription is active. Your inbox
-            and export remain available.
+            {t("workspace.account.usage.automationPaused")}
           </p>
         )}
         {owner && (
@@ -187,14 +205,18 @@ export default function AccountSettings() {
               className="workspace-billing-frequency"
               htmlFor="billing-frequency"
             >
-              Billing frequency
+              {t("workspace.account.billing.frequency")}
               <select
                 id="billing-frequency"
                 value={billingInterval}
                 onChange={(event) => setBillingInterval(event.target.value)}
               >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
+                <option value="monthly">
+                  {t("workspace.account.billing.monthly")}
+                </option>
+                <option value="yearly">
+                  {t("workspace.account.billing.yearly")}
+                </option>
               </select>
             </label>
             <div className="workspace-billing-actions">
@@ -215,7 +237,7 @@ export default function AccountSettings() {
                   });
                 }}
               >
-                Choose Starter
+                {t("workspace.account.billing.chooseStarter")}
                 <ArrowUpRight size={14} />
               </button>
               <button
@@ -235,7 +257,7 @@ export default function AccountSettings() {
                   });
                 }}
               >
-                Choose Growth
+                {t("workspace.account.billing.chooseGrowth")}
                 <ArrowUpRight size={14} />
               </button>
               <button
@@ -251,7 +273,7 @@ export default function AccountSettings() {
                   });
                 }}
               >
-                Manage billing
+                {t("workspace.account.billing.manage")}
                 <ArrowUpRight size={14} />
               </button>
             </div>
@@ -259,19 +281,19 @@ export default function AccountSettings() {
         )}
         {!snapshot.capabilities.billing && (
           <p className="app-field-help">
-            Payments are not configured by the service owner. No payment will be
-            collected here.
+            {t("workspace.account.billing.notConfigured")}
           </p>
         )}
       </section>
 
       <section className="settings-section" aria-labelledby="team-heading">
         <div className="settings-section-intro">
-          <h2 id="team-heading">Your team</h2>
+          <h2 id="team-heading">{t("workspace.account.team.title")}</h2>
           <p>
-            {snapshot.members.length} of{" "}
-            {snapshot.workspace.plan === "growth" ? 5 : 2} seats. Only the owner
-            can change billing, integrations, or workspace policy.
+            {t("workspace.account.team.seats", {
+              count: snapshot.members.length,
+              seats: snapshot.workspace.plan === "growth" ? 5 : 2,
+            })}
           </p>
         </div>
         <ul className="workspace-team">
@@ -286,7 +308,9 @@ export default function AccountSettings() {
               {owner && member.role !== "owner" && (
                 <button
                   className="app-icon-button"
-                  aria-label={`Remove ${member.name}`}
+                  aria-label={t("workspace.account.team.removeMember", {
+                    name: member.name,
+                  })}
                   disabled={pending}
                   onClick={() => {
                     void run(async () => {
@@ -294,7 +318,7 @@ export default function AccountSettings() {
                         method: "DELETE",
                         body: {},
                       });
-                      setNotice("Team member removed.");
+                      setNotice(t("workspace.account.team.memberRemoved"));
                     });
                   }}
                 >
@@ -317,15 +341,15 @@ export default function AccountSettings() {
                 setInviteLink(value.url);
                 setNotice(
                   value.emailed
-                    ? "Invitation email sent."
-                    : "Email is not configured. Share this private invitation link directly.",
+                    ? t("workspace.account.team.invitationSent")
+                    : t("workspace.account.team.emailNotConfigured"),
                 );
                 setInviteEmail("");
               });
             }}
           >
             <label htmlFor="team-email">
-              Invite by email
+              {t("workspace.account.team.inviteByEmail")}
               <input
                 type="email"
                 id="team-email"
@@ -335,23 +359,20 @@ export default function AccountSettings() {
               />
             </label>
             <button className="app-small-button" disabled={pending}>
-              Create invitation
+              {t("workspace.account.team.createInvitation")}
               <ArrowRight size={13} />
             </button>
           </form>
         )}
         {inviteLink && (
           <label className="workspace-invite-link">
-            Private invite link
+            {t("workspace.account.team.inviteLinkLabel")}
             <input
               readOnly
               value={inviteLink}
               onFocus={(event) => event.target.select()}
             />
-            <span>
-              Expires in 48 hours. The recipient must sign in with the invited
-              email.
-            </span>
+            <span>{t("workspace.account.team.inviteLinkHelp")}</span>
           </label>
         )}
       </section>
@@ -362,11 +383,10 @@ export default function AccountSettings() {
           aria-labelledby="operations-heading"
         >
           <div className="settings-section-intro">
-            <h2 id="operations-heading">Activity & reliability</h2>
-            <p>
-              Review failures before retrying. Provider timeouts are never
-              blindly resent.
-            </p>
+            <h2 id="operations-heading">
+              {t("workspace.account.operations.title")}
+            </h2>
+            <p>{t("workspace.account.operations.description")}</p>
           </div>
           <button
             className="app-text-button"
@@ -378,22 +398,27 @@ export default function AccountSettings() {
             }}
           >
             <RefreshCw size={14} />
-            Check background work
+            {t("workspace.account.operations.check")}
           </button>
           {operations && (
             <div className="workspace-operations">
               <p>
                 {operations.latency.count
-                  ? `AI p95: ${Math.round(operations.latency.p95_ms || 0)}ms across ${operations.latency.count} replies in the last 24 hours.`
-                  : "No AI latency samples yet."}{" "}
-                Target: under two seconds, not a guaranteed result.
+                  ? t("workspace.account.operations.latency", {
+                      ms: Math.round(operations.latency.p95_ms || 0),
+                      count: operations.latency.count,
+                    })
+                  : t("workspace.account.operations.noLatency")}{" "}
+                {t("workspace.account.operations.target")}
               </p>
               {operations.jobs.length ? (
                 operations.jobs.map((job) => (
                   <div key={job.id}>
                     <span>
-                      <strong>{job.kind}</strong> · {job.state} · attempt{" "}
-                      {job.attempts}
+                      <strong>{job.kind}</strong> · {job.state} ·{" "}
+                      {t("workspace.account.operations.attempt", {
+                        attempts: job.attempts,
+                      })}
                     </span>
                     <p>{job.error}</p>
                     {job.state === "dead" && job.kind !== "deliver" && (
@@ -406,29 +431,31 @@ export default function AccountSettings() {
                               `/operations/${encodeURIComponent(job.id)}/retry`,
                               { method: "POST", body: {} },
                             );
-                            setNotice("Retry scheduled.");
+                            setNotice(
+                              t("workspace.account.operations.retryScheduled"),
+                            );
                             setOperations(null);
                           });
                         }}
                       >
-                        Retry safely
+                        {t("workspace.account.operations.retrySafely")}
                         <RefreshCw size={13} />
                       </button>
                     )}
                   </div>
                 ))
               ) : (
-                <p>No pending or failed jobs.</p>
+                <p>{t("workspace.account.operations.noJobs")}</p>
               )}
             </div>
           )}
           <details className="workspace-audit">
-            <summary>Recent workspace activity</summary>
+            <summary>{t("workspace.account.operations.auditSummary")}</summary>
             <ul>
               {snapshot.audit.map((event, index) => (
                 <li key={`${event.created_at}-${index}`}>
                   <span>{event.action.replace(/\./g, " ")}</span>
-                  <time>{new Date(event.created_at).toLocaleString()}</time>
+                  <time>{formatDateTime(event.created_at)}</time>
                 </li>
               ))}
             </ul>
@@ -441,10 +468,13 @@ export default function AccountSettings() {
         aria-labelledby="account-security-heading"
       >
         <div className="settings-section-intro">
-          <h2 id="account-security-heading">Account & data</h2>
+          <h2 id="account-security-heading">
+            {t("workspace.account.security.title")}
+          </h2>
           <p>
-            Signed in as {snapshot.user.email}. Your workspace is stored on the
-            server, not in browser local storage.
+            {t("workspace.account.security.signedInAs", {
+              email: snapshot.user.email,
+            })}
           </p>
         </div>
         <button
@@ -455,7 +485,7 @@ export default function AccountSettings() {
             });
           }}
         >
-          Switch workspace
+          {t("workspace.account.security.switchWorkspace")}
           <ArrowRight size={13} />
         </button>
         {workspaces && (
@@ -486,7 +516,7 @@ export default function AccountSettings() {
           </div>
         )}
         <details className="workspace-password">
-          <summary>Change password</summary>
+          <summary>{t("workspace.account.security.changePassword")}</summary>
           <form
             className="business-settings-form"
             onSubmit={(event) => {
@@ -498,12 +528,12 @@ export default function AccountSettings() {
                 });
                 setCurrentPassword("");
                 setNewPassword("");
-                setNotice("Password updated. Other sessions were signed out.");
+                setNotice(t("workspace.account.security.passwordUpdated"));
               });
             }}
           >
             <label htmlFor="current-password">
-              Current password
+              {t("workspace.account.security.currentPassword")}
               <input
                 type="password"
                 id="current-password"
@@ -515,7 +545,7 @@ export default function AccountSettings() {
               />
             </label>
             <label htmlFor="new-password">
-              New password
+              {t("workspace.account.security.newPassword")}
               <input
                 type="password"
                 id="new-password"
@@ -528,7 +558,7 @@ export default function AccountSettings() {
               />
             </label>
             <button className="app-small-button" disabled={pending}>
-              Update password
+              {t("workspace.account.security.updatePassword")}
               <Check size={14} />
             </button>
           </form>
@@ -551,12 +581,12 @@ export default function AccountSettings() {
                   link.download = "dmcloser-workspace.json";
                   link.click();
                   URL.revokeObjectURL(url);
-                  setNotice("Workspace export downloaded.");
+                  setNotice(t("workspace.account.security.exportDownloaded"));
                 });
               }}
             >
               <Download size={14} />
-              Export workspace
+              {t("workspace.account.security.exportWorkspace")}
             </button>
           )}
           <button
@@ -569,7 +599,7 @@ export default function AccountSettings() {
             }}
           >
             <LogOut size={14} />
-            Sign out
+            {t("workspace.account.security.signOut")}
           </button>
           {owner && (
             <button
@@ -581,7 +611,7 @@ export default function AccountSettings() {
               }}
             >
               <Trash2 size={14} />
-              Delete workspace
+              {t("workspace.account.security.deleteWorkspace")}
             </button>
           )}
         </div>
@@ -597,7 +627,9 @@ export default function AccountSettings() {
 
       {connection && (
         <DialogShell
-          title={`Connect ${connection === "instagram" ? "Instagram" : "WhatsApp"}`}
+          title={t("workspace.account.connect.title", {
+            platform: connection === "instagram" ? "Instagram" : "WhatsApp",
+          })}
           onClose={() => {
             setConnection(null);
             setToken("");
@@ -608,9 +640,15 @@ export default function AccountSettings() {
             <p>
               {snapshot.capabilities[connection]
                 ? connection === "instagram"
-                  ? "Instagram will ask you to approve messaging access. Your account must be professional, and the service owner needs approved Meta permissions."
-                  : "Use the phone number ID and a system-user token from your Meta Business account. The token is encrypted on the server and is never returned to this browser."
-                : `The service owner must configure ${connection === "instagram" ? "Instagram Business Login and webhook credentials" : "the Meta app secret and webhook verification token"} before this account can connect.`}
+                  ? t("workspace.account.connect.instagramInfo")
+                  : t("workspace.account.connect.whatsappInfo")
+                : t("workspace.account.connect.notConfigured", {
+                    what: t(
+                      connection === "instagram"
+                        ? "workspace.account.connect.instagramRequirement"
+                        : "workspace.account.connect.whatsappRequirement",
+                    ),
+                  })}
             </p>
             {connection === "instagram" ? (
               <button
@@ -626,7 +664,7 @@ export default function AccountSettings() {
                   });
                 }}
               >
-                Continue with Instagram
+                {t("workspace.account.connect.continueWithInstagram")}
                 <ArrowUpRight size={15} />
               </button>
             ) : (
@@ -641,14 +679,12 @@ export default function AccountSettings() {
                     });
                     setToken("");
                     setConnection(null);
-                    setNotice(
-                      "WhatsApp credentials verified and connected. Configure the webhook subscription in Meta before sending a test message.",
-                    );
+                    setNotice(t("workspace.account.connect.whatsappVerified"));
                   });
                 }}
               >
                 <label htmlFor="wa-phone-id">
-                  Phone number ID
+                  {t("workspace.account.connect.phoneNumberId")}
                   <input
                     id="wa-phone-id"
                     value={phoneId}
@@ -659,7 +695,7 @@ export default function AccountSettings() {
                   />
                 </label>
                 <label htmlFor="wa-access-token">
-                  System-user access token
+                  {t("workspace.account.connect.accessToken")}
                   <input
                     id="wa-access-token"
                     type="password"
@@ -675,7 +711,7 @@ export default function AccountSettings() {
                   className="closer-button closer-button-primary"
                   disabled={pending || !snapshot.capabilities.whatsapp}
                 >
-                  Verify & connect
+                  {t("workspace.account.connect.verifyAndConnect")}
                   <Check size={15} />
                 </button>
               </form>
@@ -694,13 +730,11 @@ export default function AccountSettings() {
                     });
                     setToken("");
                     setConnection(null);
-                    setNotice(
-                      "Account disconnected. Automatic sends for this channel are disabled.",
-                    );
+                    setNotice(t("workspace.account.connect.disconnected"));
                   });
                 }}
               >
-                Disconnect account
+                {t("workspace.account.connect.disconnect")}
               </button>
             )}
             {error && (
@@ -713,15 +747,11 @@ export default function AccountSettings() {
       )}
       {deleting && (
         <DialogShell
-          title="Delete this workspace?"
+          title={t("workspace.account.delete.title")}
           onClose={() => setDeleting(false)}
         >
           <div className="legal-copy">
-            <p>
-              All conversations, lead memory, drafts, connections, and team
-              access in this workspace will be permanently deleted. Any active
-              subscription will be cancelled first.
-            </p>
+            <p>{t("workspace.account.delete.warning")}</p>
             <form
               className="setup-form"
               onSubmit={(event) => {
@@ -736,7 +766,7 @@ export default function AccountSettings() {
               }}
             >
               <label htmlFor="delete-password">
-                Confirm your password
+                {t("workspace.account.delete.confirmPassword")}
                 <input
                   id="delete-password"
                   type="password"
@@ -753,13 +783,13 @@ export default function AccountSettings() {
                   onChange={(event) => setConfirmed(event.target.checked)}
                   required
                 />
-                I understand this cannot be undone.
+                {t("workspace.account.delete.understood")}
               </label>
               <button
                 className="closer-button closer-button-primary"
                 disabled={pending || !confirmed}
               >
-                Permanently delete workspace
+                {t("workspace.account.delete.submit")}
                 <Trash2 size={14} />
               </button>
             </form>
@@ -779,24 +809,25 @@ export function WorkspaceNotices() {
   const { live } = useApp();
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
+  const t = useStrings(workspaceStrings);
   const params = new URLSearchParams(window.location.search);
   useEffect(() => {
     const result = params.get("connection");
     if (result)
       setNotice(
         result === "connected"
-          ? "Messaging account connected."
+          ? t("workspace.notice.connected")
           : result === "cancelled"
-            ? "Account connection was cancelled."
-            : "Connection could not be completed. Review account permissions and try again.",
+            ? t("workspace.notice.cancelled")
+            : t("workspace.notice.failed"),
       );
     if (params.get("billing"))
       setNotice(
         params.get("billing") === "processing"
-          ? "Checkout returned. Your plan changes only after the verified billing webhook arrives."
-          : "Checkout cancelled. No plan change was made.",
+          ? t("workspace.notice.checkoutReturned")
+          : t("workspace.notice.checkoutCancelled"),
       );
-  }, []);
+  }, [t]);
   if (!live) return null;
   const invitation = params.get("invite");
   const verification = params.get("verify");
@@ -806,8 +837,8 @@ export function WorkspaceNotices() {
         <div className="workspace-banner">
           <span>
             {invitation
-              ? "You have a workspace invitation. Accepting switches this session to the invited workspace."
-              : "Confirm the email for this account."}
+              ? t("workspace.notice.invitation")
+              : t("workspace.notice.verifyEmail")}
           </span>
           <button
             className="app-text-button"
@@ -826,14 +857,18 @@ export function WorkspaceNotices() {
                 window.location.reload();
               } catch (error) {
                 setNotice(
-                  error instanceof Error ? error.message : "Please try again.",
+                  error instanceof Error
+                    ? error.message
+                    : t("workspace.common.tryAgain"),
                 );
               } finally {
                 setPending(false);
               }
             }}
           >
-            {invitation ? "Accept invitation" : "Verify email"}
+            {invitation
+              ? t("workspace.notice.acceptInvitation")
+              : t("workspace.notice.verify")}
             <ArrowRight size={13} />
           </button>
         </div>
@@ -844,9 +879,7 @@ export function WorkspaceNotices() {
           role={live.error ? "alert" : "status"}
         >
           <span>
-            {live.error ||
-              notice ||
-              "Reconnecting to live updates. Your draft is preserved."}
+            {live.error || notice || t("workspace.notice.reconnecting")}
           </span>
           <button
             className="app-text-button"
@@ -856,7 +889,7 @@ export function WorkspaceNotices() {
               void live.refresh();
             }}
           >
-            Refresh
+            {t("workspace.common.refresh")}
             <RefreshCw size={13} />
           </button>
         </div>

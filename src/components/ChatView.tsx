@@ -11,6 +11,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useLocale, useStrings } from "@/context/LocaleContext";
+import {
+  chatDeliveryStatusKeys,
+  chatStatusLabelKeys,
+  chatStrings,
+} from "@/i18n/surfaces/chat";
 import { CloserMark, InstagramIcon, WhatsAppIcon } from "./landing/Brand";
 import Switch from "./ui/Switch";
 import { statusLabels } from "@/utils/conversation";
@@ -27,6 +33,8 @@ function MessageBubble({
 }) {
   const incoming = message.sender === "contact";
   const { live } = useApp();
+  const t = useStrings(chatStrings);
+  const { formatTime } = useLocale();
   const [resolving, setResolving] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [resolution, setResolution] = useState("");
@@ -43,7 +51,7 @@ function MessageBubble({
       setResolving(false);
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : "Please try again.",
+        failure instanceof Error ? failure.message : t("chat.error.tryAgain"),
       );
     } finally {
       setBusy(false);
@@ -51,35 +59,28 @@ function MessageBubble({
   }
   return (
     <div className={`chat-message ${incoming ? "incoming" : "outgoing"}`}>
-      <span className="sr-only">{incoming ? contactName : "You"}:</span>
+      <span className="sr-only">
+        {incoming ? contactName : t("chat.message.you")}:
+      </span>
       <p>{message.text}</p>
       <div className="chat-message-time">
         <time dateTime={new Date(message.timestamp).toISOString()}>
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {formatTime(message.timestamp)}
         </time>
         {!incoming && (
           <>
             <span>
               {live
-                ? {
-                    queued: "Queued",
-                    sending: "Sending",
-                    sent: "Accepted",
-                    delivered: "Delivered",
-                    read: "Read",
-                    failed: "Failed",
-                    uncertain: "Check delivery",
-                    cancelled: "Paused",
-                    received: "Received",
-                  }[message.deliveryStatus || "received"]
+                ? t(
+                    chatDeliveryStatusKeys[message.deliveryStatus || "received"],
+                  )
                 : ""}
             </span>
             <CheckCheck
               size={13}
-              aria-label={live ? "Provider delivery status" : "Saved in demo"}
+              aria-label={
+                live ? t("chat.delivery.providerStatus") : t("chat.delivery.savedInDemo")
+              }
             />
           </>
         )}
@@ -90,7 +91,7 @@ function MessageBubble({
           message.deliveryStatus || "",
         ) && (
           <details className="reply-feedback">
-            <summary>Reply feedback</summary>
+            <summary>{t("chat.feedback.summary")}</summary>
             <div>
               <button
                 onClick={async () => {
@@ -99,19 +100,17 @@ function MessageBubble({
                       method: "POST",
                       body: { label: "helpful" },
                     });
-                    setFeedback(
-                      "Marked helpful. This is feedback, not proof of conversion.",
-                    );
+                    setFeedback(t("chat.feedback.markedHelpful"));
                   } catch (failure) {
                     setFeedback(
                       failure instanceof Error
                         ? failure.message
-                        : "Could not save feedback.",
+                        : t("chat.error.feedbackSave"),
                     );
                   }
                 }}
               >
-                Helpful
+                {t("chat.feedback.helpful")}
               </button>
               <button
                 onClick={async () => {
@@ -120,17 +119,17 @@ function MessageBubble({
                       method: "POST",
                       body: { label: "unhelpful" },
                     });
-                    setFeedback("Feedback saved for review.");
+                    setFeedback(t("chat.feedback.saved"));
                   } catch (failure) {
                     setFeedback(
                       failure instanceof Error
                         ? failure.message
-                        : "Could not save feedback.",
+                        : t("chat.error.feedbackSave"),
                     );
                   }
                 }}
               >
-                Not helpful
+                {t("chat.feedback.notHelpful")}
               </button>
             </div>
             <span role="status">{feedback}</span>
@@ -142,7 +141,7 @@ function MessageBubble({
           message.deliveryStatus || "",
         ) && (
           <div className="message-delivery-problem">
-            <p>{message.deliveryError || "Delivery needs review."}</p>
+            <p>{message.deliveryError || t("chat.delivery.needsReview")}</p>
             <div className="message-delivery-actions">
               {message.deliveryStatus === "failed" && (
                 <button
@@ -152,7 +151,7 @@ function MessageBubble({
                     void deliveryAction(`/messages/${message.id}/retry`, {});
                   }}
                 >
-                  Retry delivery
+                  {t("chat.delivery.retry")}
                 </button>
               )}
               {message.deliveryStatus === "uncertain" &&
@@ -165,7 +164,7 @@ function MessageBubble({
                       setResolution("");
                     }}
                   >
-                    Resolve delivery
+                    {t("chat.delivery.resolve")}
                   </button>
                 )}
             </div>
@@ -174,14 +173,11 @@ function MessageBubble({
         )}
       {resolving && (
         <DialogShell
-          title="Check the provider inbox first"
+          title={t("chat.resolve.title")}
           onClose={() => setResolving(false)}
         >
           <div className="legal-copy">
-            <p>
-              The provider may have accepted this message before the connection
-              failed. Resending without checking could send it twice.
-            </p>
+            <p>{t("chat.resolve.explain")}</p>
             <form
               className="setup-form"
               onSubmit={(event) => {
@@ -193,19 +189,19 @@ function MessageBubble({
               }}
             >
               <label htmlFor={`resolve-${message.id}`}>
-                What happened?
+                {t("chat.resolve.question")}
                 <select
                   id={`resolve-${message.id}`}
                   value={resolution}
                   onChange={(event) => setResolution(event.target.value)}
                   required
                 >
-                  <option value="">Choose after checking</option>
+                  <option value="">{t("chat.resolve.chooseAfterChecking")}</option>
                   <option value="sent">
-                    The message is in the provider inbox
+                    {t("chat.resolve.messageInInbox")}
                   </option>
                   <option value="not-sent">
-                    The provider confirms it was not sent
+                    {t("chat.resolve.notSent")}
                   </option>
                 </select>
               </label>
@@ -216,13 +212,13 @@ function MessageBubble({
                   onChange={(event) => setConfirmed(event.target.checked)}
                   required
                 />
-                I checked the real provider inbox.
+                {t("chat.resolve.checked")}
               </label>
               <button
                 className="closer-button closer-button-primary"
                 disabled={!confirmed || !resolution || busy}
               >
-                Confirm delivery outcome
+                {t("chat.resolve.confirm")}
                 <Check size={14} />
               </button>
             </form>
@@ -248,6 +244,8 @@ export default function ChatView() {
     live,
     update,
   } = useApp();
+  const t = useStrings(chatStrings);
+  const { formatMonthDay } = useLocale();
   const [editing, setEditing] = useState(false);
   const [editedReply, setEditedReply] = useState("");
   const [notice, setNotice] = useState("");
@@ -316,12 +314,10 @@ export default function ChatView() {
         conversationId: conversation.id,
         text: aiSuggestion.text,
       });
-      setNotice(
-        "Suggested reply auto-sent in this demo. No real message was sent.",
-      );
+      setNotice(t("chat.notice.autoSentDemo"));
     }, 2800);
     return () => window.clearTimeout(timer);
-  }, [canAutoSend, conversation?.id, aiSuggestion?.text, dispatch]);
+  }, [canAutoSend, conversation?.id, aiSuggestion?.text, dispatch, t]);
 
   async function send(text: string, suggested = false) {
     if (!conversation || !text.trim()) return;
@@ -335,8 +331,8 @@ export default function ChatView() {
     setEditedReply("");
     setNotice(
       mode === "live"
-        ? "Reply queued. Provider delivery status appears with the message."
-        : "Reply saved in this demo. No real message was sent.",
+        ? t("chat.notice.queuedLive")
+        : t("chat.notice.savedDemo"),
     );
     composerRef.current?.focus();
   }
@@ -357,13 +353,16 @@ export default function ChatView() {
 
   if (!conversation)
     return (
-      <section className="chat-panel chat-idle" aria-label="Conversation">
+      <section
+        className="chat-panel chat-idle"
+        aria-label={t("chat.idle.ariaLabel")}
+      >
         <CloserMark />
-        <h2>A little closer to your next sale.</h2>
-        <p>Choose a conversation. Your next reply is already one step ahead.</p>
+        <h2>{t("chat.idle.heading")}</h2>
+        <p>{t("chat.idle.subheading")}</p>
         <span>
           <MessageSquare size={14} />
-          Your voice. Your control.
+          {t("chat.idle.tagline")}
         </span>
       </section>
     );
@@ -374,7 +373,7 @@ export default function ChatView() {
         <button
           className="app-icon-button chat-back-button"
           onClick={() => dispatch({ type: "SET_VIEW", view: "inbox" })}
-          aria-label="Back to conversations"
+          aria-label={t("chat.back.label")}
         >
           <ArrowLeft size={19} />
         </button>
@@ -400,13 +399,13 @@ export default function ChatView() {
             <span className="chat-channel-divider" />
             <span className="chat-sample-label">
               {mode === "live"
-                ? "Business conversation"
-                : "Sample conversation"}
+                ? t("chat.channel.business")
+                : t("chat.channel.sample")}
             </span>
           </span>
         </div>
         <div className="chat-auto-send">
-          <span>Auto-send</span>
+          <span>{t("chat.autoSend.label")}</span>
           <Switch
             checked={conversation.autoSendEnabled}
             onChange={async () => {
@@ -417,28 +416,32 @@ export default function ChatView() {
               if (!success) return;
               setNotice(
                 conversation.autoSendEnabled
-                  ? "Auto-send disabled for this contact."
+                  ? t("chat.autoSend.disabled")
                   : state.settings.autoReplyEnabled
-                    ? "Auto-send enabled for this contact."
-                    : "Contact auto-send enabled. Enable workspace auto-reply in Settings to activate it.",
+                    ? t("chat.autoSend.enabled")
+                    : t("chat.autoSend.contactEnabled"),
               );
             }}
-            label={`Auto-send replies to ${conversation.contactName}`}
+            label={t("chat.autoSend.switchLabel", {
+              name: conversation.contactName,
+            })}
             disabled={conversation.intent === "spam" || !!live?.pending}
           />
         </div>
       </header>
       <details className="lead-memory">
         <summary>
-          <span>Lead memory</span>
+          <span>{t("chat.memory.heading")}</span>
           <span className="lead-memory-preview">
-            {conversation.leadNotes || "Add context for your next reply"}
+            {conversation.leadNotes || t("chat.memory.emptyHint")}
           </span>
           <ChevronDown size={15} />
         </summary>
         <div className="lead-memory-content">
           <div className="lead-status-field">
-            <label htmlFor="lead-status">Conversion status</label>
+            <label htmlFor="lead-status">
+              {t("chat.memory.conversionStatus")}
+            </label>
             <select
               id="lead-status"
               value={conversation.conversionStatus}
@@ -448,17 +451,17 @@ export default function ChatView() {
                   conversationId: conversation.id,
                   status: event.target.value as ConversionStatus,
                 });
-                if (success) setMemoryNotice("Conversion status saved.");
+                if (success) setMemoryNotice(t("chat.memory.statusSaved"));
               }}
             >
-              {Object.entries(statusLabels).map(([value, label]) => (
+              {Object.entries(statusLabels).map(([value]) => (
                 <option value={value} key={value}>
-                  {label}
+                  {t(chatStatusLabelKeys[value])}
                 </option>
               ))}
             </select>
           </div>
-          <label htmlFor="lead-notes">Notes for this contact</label>
+          <label htmlFor="lead-notes">{t("chat.memory.notesLabel")}</label>
           <textarea
             id="lead-notes"
             rows={2}
@@ -481,10 +484,10 @@ export default function ChatView() {
                 });
                 if (!success) return;
                 setNotes(notes.trim());
-                setMemoryNotice("Lead memory saved.");
+                setMemoryNotice(t("chat.memory.saved"));
               }}
             >
-              Save memory
+              {t("chat.memory.save")}
               <Check size={13} />
             </button>
             <span role="status">{memoryNotice}</span>
@@ -492,7 +495,9 @@ export default function ChatView() {
         </div>
         {conversation.leadMemory && (
           <p className="app-field-help">
-            Conversation memory: {conversation.leadMemory}
+            {t("chat.memory.conversationMemory", {
+              memory: conversation.leadMemory,
+            })}
           </p>
         )}
       </details>
@@ -502,15 +507,17 @@ export default function ChatView() {
         ref={messagesRef}
         tabIndex={0}
         role="log"
-        aria-label={`Messages with ${conversation.contactName}`}
+        aria-label={t("chat.messages.ariaLabel", {
+          name: conversation.contactName,
+        })}
         aria-live="polite"
         aria-relevant="additions"
       >
         <div className="chat-messages-inner">
           <span className="chat-date">
-            {new Date(
+            {formatMonthDay(
               conversation.messages[0]?.timestamp ?? Date.now(),
-            ).toLocaleDateString([], { month: "short", day: "numeric" })}
+            )}
           </span>
           {conversation.messages.map((message) => (
             <MessageBubble
@@ -537,27 +544,23 @@ export default function ChatView() {
                     .then(live.refresh);
                 }}
               >
-                Try generation again
+                {t("chat.ai.tryAgain")}
               </button>
             )}
           </div>
         )}
         {mode === "live" && (conversation.windowUntil || 0) < Date.now() && (
-          <p className="chat-quiet-note">
-            The reply window has closed. Wait for a new customer message.
-          </p>
+          <p className="chat-quiet-note">{t("chat.window.closed")}</p>
         )}
         {conversation.intent === "spam" && (
-          <p className="chat-quiet-note">
-            Marked as spam. Automatic replies are disabled.
-          </p>
+          <p className="chat-quiet-note">{t("chat.spam.notice")}</p>
         )}
         {aiSuggestion && (
           <div className="chat-suggestion">
             <div className="chat-suggestion-heading">
               <span>
                 <Sparkles size={14} />
-                Suggested reply
+                {t("chat.suggestion.heading")}
               </span>
               <span
                 className={
@@ -567,7 +570,9 @@ export default function ChatView() {
                     : "confidence-review"
                 }
               >
-                {aiSuggestion.confidence}% confidence
+                {t("chat.suggestion.confidence", {
+                  confidence: aiSuggestion.confidence,
+                })}
               </span>
             </div>
             {editing ? (
@@ -578,7 +583,7 @@ export default function ChatView() {
                 onChange={(event) => setEditedReply(event.target.value)}
                 rows={3}
                 onKeyDown={(event) => onEnter(event, () => send(editedReply))}
-                aria-label="Edit suggested reply"
+                aria-label={t("chat.suggestion.editLabel")}
               />
             ) : (
               <p tabIndex={0}>{aiSuggestion.text}</p>
@@ -591,7 +596,7 @@ export default function ChatView() {
                   send(editing ? editedReply : aiSuggestion.text, !editing)
                 }
               >
-                Send reply
+                {t("chat.suggestion.send")}
                 <Send size={13} />
               </button>
               <button
@@ -602,23 +607,23 @@ export default function ChatView() {
                 }}
               >
                 {editing ? (
-                  "Cancel"
+                  t("chat.suggestion.cancel")
                 ) : (
                   <>
                     <Pencil size={13} />
-                    Edit
+                    {t("chat.suggestion.edit")}
                   </>
                 )}
               </button>
               <span className="auto-send-message">
                 {mode === "live" && "safe" in aiSuggestion && !aiSuggestion.safe
-                  ? "Review before sending"
+                  ? t("chat.suggestion.reviewBeforeSending")
                   : canAutoSend
-                    ? "Auto-sending shortly..."
+                    ? t("chat.suggestion.autoSending")
                     : aiSuggestion.confidence <
                         state.settings.autoSendConfidenceThreshold
-                      ? "Review before sending"
-                      : "Ready when you are"}
+                      ? t("chat.suggestion.reviewBeforeSending")
+                      : t("chat.suggestion.ready")}
               </span>
             </div>
           </div>
@@ -631,7 +636,7 @@ export default function ChatView() {
           }}
         >
           <label htmlFor="chat-reply" className="sr-only">
-            Message {conversation.contactName}
+            {t("chat.composer.label", { name: conversation.contactName })}
           </label>
           <textarea
             id="chat-reply"
@@ -647,7 +652,7 @@ export default function ChatView() {
             }
             maxLength={4000}
             rows={1}
-            placeholder="Write your reply..."
+            placeholder={t("chat.composer.placeholder")}
             onKeyDown={(event) => onEnter(event, () => send(draft))}
           />
           <button
@@ -659,7 +664,7 @@ export default function ChatView() {
               !!live?.pending ||
               (mode === "live" && (conversation.windowUntil || 0) < Date.now())
             }
-            aria-label="Send message"
+            aria-label={t("chat.composer.sendLabel")}
           >
             <Send size={17} />
           </button>
@@ -668,10 +673,10 @@ export default function ChatView() {
           <span>
             {notice ||
               (mode === "live"
-                ? "Server-backed inbox. Check provider delivery status."
-                : "Demo workspace. Replies stay in this browser.")}
+                ? t("chat.composer.liveFooter")
+                : t("chat.composer.demoFooter"))}
           </span>
-          <span>Enter to send</span>
+          <span>{t("chat.composer.enterToSend")}</span>
         </div>
       </div>
       <span className="sr-only" role="status">

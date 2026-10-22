@@ -5,6 +5,7 @@ import {
   type SalesInsight,
   type LeadSignal,
 } from "../types/revenue.ts";
+import { isClinical, isOptOut, isRefund, isUnsafe } from "./safety.ts";
 
 export const scoringVersion = "revenue-rules-v1";
 export const industryGuidance: Record<
@@ -46,6 +47,12 @@ export const industryGuidance: Record<
     boundary:
       "Only approved catalog prices, stock and policies. Never invent checkout links or discounts.",
   },
+  custom: {
+    question: "What would a good outcome look like for you?",
+    next: "Agree on the next step",
+    boundary:
+      "Never invent a price, availability, policy or completed action.",
+  },
 };
 export const stagePrior: Record<string, number> = {
   new: 0.1,
@@ -79,10 +86,10 @@ export function scoreLead(
   const text = incoming.map((message) => message.text).join("\n");
   const latest = incoming[incoming.length - 1];
   const signals: LeadSignal[] = [];
-  const matched = (pattern: RegExp, label: string) => {
+  const matchedTest = (test: (value: string) => boolean, label: string) => {
     const message = [...incoming]
       .reverse()
-      .find((item) => pattern.test(item.text));
+      .find((item) => test(item.text));
     if (message)
       signals.push({
         label,
@@ -91,18 +98,14 @@ export function scoreLead(
       });
     return !!message;
   };
-  const unsafe =
-    /ignore.*instructions|system prompt|reveal.*secret|password|credit card|medical records/i.test(
-      text,
-    );
-  const optOut = matched(
-    /\b(unsubscribe|stop messaging|do not contact|don't contact|no more messages)\b/i,
-    "Contact opted out",
-  );
+  const matched = (pattern: RegExp, label: string) =>
+    matchedTest((value) => pattern.test(value), label);
+  const unsafe = isUnsafe(text);
+  const optOut = matchedTest(isOptOut, "Contact opted out");
   const sensitive =
     unsafe ||
-    matched(
-      /\b(refund|chargeback|legal action|diagnos\w*|symptoms?|chest pain|medical advice)\b/i,
+    matchedTest(
+      (value) => isRefund(value) || isClinical(value),
       "Human review required",
     );
   const buying =

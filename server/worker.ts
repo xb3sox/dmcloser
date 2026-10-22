@@ -6,6 +6,7 @@ import { decrypt, encrypt, HttpError } from "./security.ts";
 export class Worker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private lastTick = 0;
   constructor(
     public service: ProductService,
     private billing: Billing,
@@ -77,7 +78,9 @@ export class Worker {
               throw error;
           }
         }
-      } else if (job.kind === "billing")
+      } else if (job.kind === "ai-eval")
+        await this.service.quality.runVersion(job.workspace_id, payload.versionId);
+      else if (job.kind === "billing")
         await this.billing.process(payload.event);
       else if (job.kind === "refresh-token") {
         const [connection] = await this.service.db.query(
@@ -178,6 +181,7 @@ export class Worker {
     if (this.timer) return;
     this.timer = setInterval(() => {
       if (this.running) return;
+      this.lastTick = Date.now();
       this.running = true;
       this.once()
         .catch(() =>
@@ -188,6 +192,13 @@ export class Worker {
         });
     }, 150);
     this.timer.unref();
+  }
+  /** True while the poll loop is alive; background work stops without it. */
+  healthy() {
+    // The heartbeat must tolerate a long, legitimate job: the poll loop runs
+    // every 150ms but one generation/maintenance pass can take a few seconds,
+    // so 15 seconds risked a false "degraded" during heavy maintenance.
+    return this.lastTick > 0 && Date.now() - this.lastTick < 30000;
   }
   async maintenance() {
     await this.service.db.query("DELETE FROM sessions WHERE expires_at<$1", [

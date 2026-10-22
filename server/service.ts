@@ -4,6 +4,7 @@ import type { Database } from "./db.ts";
 import type { Config } from "./config.ts";
 import { decrypt, digest, encrypt, HttpError } from "./security.ts";
 import { detectRisk, guardReply, type AIEngine, type AIInput } from "./ai.ts";
+import { isClinical, isOptOut } from "../src/domain/safety.ts";
 import {
   MetaProvider,
   ProviderError,
@@ -12,6 +13,7 @@ import {
 } from "./providers.ts";
 import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
+import { QualityService } from "./quality.ts";
 
 export interface Actor {
   userId: string;
@@ -44,6 +46,33 @@ export const contextHash = (settings: BusinessSettings) =>
   );
 const fullContextHash = (settings: BusinessSettings, fingerprint: string) =>
   digest(contextHash(settings) + fingerprint);
+export const PAGE_SIZE = 200;
+export interface PageCursor {
+  lastAt: number;
+  lastId: string;
+  excludeId: string | null;
+}
+export function encodeCursor(cursor: PageCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+export function decodeCursor(value: string): PageCursor {
+  let parsed: Partial<PageCursor> = {};
+  try {
+    parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+  } catch {
+    throw new HttpError(400, "The page cursor is not valid.");
+  }
+  const excludeId = parsed.excludeId ?? null;
+  if (
+    typeof parsed.lastAt !== "number" ||
+    !Number.isFinite(parsed.lastAt) ||
+    typeof parsed.lastId !== "string" ||
+    !parsed.lastId ||
+    (excludeId !== null && typeof excludeId !== "string")
+  )
+    throw new HttpError(400, "The page cursor is not valid.");
+  return { lastAt: parsed.lastAt, lastId: parsed.lastId, excludeId };
+}
 export function entitlement(workspace: any) {
   const active =
     ["active", "trialing"].includes(workspace.billing_status) &&
@@ -67,6 +96,7 @@ export function entitlement(workspace: any) {
 
 export class ProductService {
   revenue: RevenueService;
+  quality: QualityService;
   events = new EventEmitter();
   metrics = {
     received: 0,
@@ -87,6 +117,7 @@ export class ProductService {
     this.revenue = new RevenueService(db, (workspaceId) =>
       this.changed(workspaceId),
     );
+    this.quality = new QualityService(this);
   }
   changed(workspaceId: string) {
     this.events.emit(workspaceId);
@@ -160,6 +191,97 @@ export class ProductService {
     );
   }
 
+  async conversationPage(
+    actor: Actor,
+    options: {
+      includeId?: string | null;
+      cursor?: PageCursor | null;
+      limit?: number;
+    } = {},
+  ) {
+    const limit = Math.min(
+      Math.max(options.limit ?? PAGE_SIZE, 1),
+      PAGE_SIZE,
+    );
+    const includeId = options.includeId ?? null;
+    const cursor = options.cursor ?? null;
+    // The promoted conversation already shipped on the first page; skipping it
+    // later keeps every conversation in the stream exactly once.
+    const excludeId = cursor ? cursor.excludeId : includeId;
+    const rows = cursor
+      ? await this.db.query(
+          "SELECT * FROM conversations WHERE workspace_id=$1 AND (last_at,id) < ($2::bigint,$3::text) AND ($4::text IS NULL OR id <> $4::text) ORDER BY last_at DESC, id DESC LIMIT $5",
+          [
+            actor.workspaceId,
+            cursor.lastAt,
+            cursor.lastId,
+            excludeId,
+            limit + 1,
+          ],
+        )
+      : await this.db.query(
+          "SELECT * FROM conversations WHERE workspace_id=$1 ORDER BY (id=$2) DESC NULLS LAST, last_at DESC, id DESC LIMIT $3",
+          [actor.workspaceId, includeId, limit + 1],
+        );
+    const display = rows.slice(0, limit);
+    const boundary =
+      [...display].reverse().find((row) => row.id !== includeId) ?? null;
+    const nextCursor =
+      rows.length > limit && boundary
+        ? encodeCursor({
+            lastAt: Number(boundary.last_at),
+            lastId: String(boundary.id),
+            excludeId,
+          })
+        : null;
+    const ids = display.map((row) => String(row.id));
+    const messages = ids.length
+      ? await this.db.query(
+          "SELECT * FROM (SELECT m.*,row_number() OVER (PARTITION BY conversation_id ORDER BY timestamp DESC,id DESC) AS n FROM messages m WHERE workspace_id=$1 AND conversation_id IN (SELECT jsonb_array_elements_text($2::jsonb))) limited WHERE n<=100 ORDER BY timestamp,id",
+          [actor.workspaceId, JSON.stringify(ids)],
+        )
+      : [];
+    const conversations = display.map((conversation) => {
+      const history = messages
+        .filter((message) => message.conversation_id === conversation.id)
+        .map((message) => ({
+          id: message.id,
+          conversationId: conversation.id,
+          sender: message.sender,
+          text: message.text,
+          timestamp: Number(message.timestamp),
+          deliveryStatus: message.status,
+          deliveryError: message.error,
+          automatic: message.automatic,
+        }));
+      const last = history[history.length - 1];
+      return {
+        id: conversation.id,
+        contactName: conversation.name,
+        contactAvatar: conversation.name
+          .split(/\s+/)
+          .map((word: string) => word[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase(),
+        platform: conversation.platform,
+        lastMessage: last?.text || "",
+        lastMessageTime: Number(conversation.last_at),
+        intent: conversation.intent,
+        conversionStatus: conversation.status,
+        messages: history,
+        unread: conversation.unread,
+        autoSendEnabled: conversation.auto_send,
+        leadNotes: conversation.notes,
+        leadMemory: conversation.memory,
+        windowUntil: Number(conversation.window_until),
+        aiError: conversation.ai_error,
+        connectionId: conversation.connection_id,
+      };
+    });
+    return { conversations, nextCursor };
+  }
+
   async snapshot(actor: Actor, includeId: string | null = null) {
     const [workspace] = await this.db.query(
       "SELECT * FROM workspaces WHERE id=$1",
@@ -167,49 +289,34 @@ export class ProductService {
     );
     if (!workspace)
       throw new HttpError(401, "This workspace is no longer available.");
-    const [
-      conversations,
-      messages,
-      drafts,
-      suggestions,
-      connections,
-      usage,
-      members,
-      audit,
-    ] = await Promise.all([
-      this.db.query(
-        "SELECT * FROM conversations WHERE workspace_id=$1 ORDER BY (id=$2) DESC NULLS LAST,last_at DESC LIMIT 200",
-        [actor.workspaceId, includeId],
-      ),
-      this.db.query(
-        "SELECT * FROM (SELECT m.*,row_number() OVER (PARTITION BY conversation_id ORDER BY timestamp DESC,id DESC) AS n FROM messages m WHERE workspace_id=$1) limited WHERE n<=100 ORDER BY timestamp,id",
-        [actor.workspaceId],
-      ),
-      this.db.query(
-        "SELECT conversation_id,text FROM drafts WHERE workspace_id=$1 AND user_id=$2",
-        [actor.workspaceId, actor.userId],
-      ),
-      this.db.query(
-        "SELECT * FROM suggestions WHERE workspace_id=$1 AND status='ready' ORDER BY created_at DESC",
-        [actor.workspaceId],
-      ),
-      this.db.query(
-        "SELECT id,platform,account_id,label,status,error,expires_at FROM connections WHERE workspace_id=$1",
-        [actor.workspaceId],
-      ),
-      this.db.query(
-        "SELECT ai_replies FROM usage WHERE workspace_id=$1 AND month=$2",
-        [actor.workspaceId, monthKey()],
-      ),
-      this.db.query(
-        "SELECT u.id,u.email,u.name,m.role FROM members m JOIN users u ON m.user_id=u.id WHERE m.workspace_id=$1 ORDER BY m.role,u.name",
-        [actor.workspaceId],
-      ),
-      this.db.query(
-        "SELECT action,resource_id,detail,created_at FROM audit_events WHERE workspace_id=$1 ORDER BY created_at DESC LIMIT 20",
-        [actor.workspaceId],
-      ),
-    ]);
+    const page = await this.conversationPage(actor, { includeId });
+    const [drafts, suggestions, connections, usage, members, audit] =
+      await Promise.all([
+        this.db.query(
+          "SELECT conversation_id,text FROM drafts WHERE workspace_id=$1 AND user_id=$2",
+          [actor.workspaceId, actor.userId],
+        ),
+        this.db.query(
+          "SELECT * FROM suggestions WHERE workspace_id=$1 AND status='ready' ORDER BY created_at DESC",
+          [actor.workspaceId],
+        ),
+        this.db.query(
+          "SELECT id,platform,account_id,label,status,error,expires_at FROM connections WHERE workspace_id=$1",
+          [actor.workspaceId],
+        ),
+        this.db.query(
+          "SELECT ai_replies FROM usage WHERE workspace_id=$1 AND month=$2",
+          [actor.workspaceId, monthKey()],
+        ),
+        this.db.query(
+          "SELECT u.id,u.email,u.name,m.role FROM members m JOIN users u ON m.user_id=u.id WHERE m.workspace_id=$1 ORDER BY m.role,u.name",
+          [actor.workspaceId],
+        ),
+        this.db.query(
+          "SELECT action,resource_id,detail,created_at FROM audit_events WHERE workspace_id=$1 ORDER BY created_at DESC LIMIT 20",
+          [actor.workspaceId],
+        ),
+      ]);
     const [count] = await this.db.query(
       "SELECT count(*)::integer AS count FROM conversations WHERE workspace_id=$1 AND created_at>=date_trunc('month',now())",
       [actor.workspaceId],
@@ -237,44 +344,8 @@ export class ProductService {
         ...limits,
       },
       settings: workspace.settings,
-      conversations: conversations.map((conversation) => {
-        const history = messages
-          .filter((message) => message.conversation_id === conversation.id)
-          .map((message) => ({
-            id: message.id,
-            conversationId: conversation.id,
-            sender: message.sender,
-            text: message.text,
-            timestamp: Number(message.timestamp),
-            deliveryStatus: message.status,
-            deliveryError: message.error,
-            automatic: message.automatic,
-          }));
-        const last = history[history.length - 1];
-        return {
-          id: conversation.id,
-          contactName: conversation.name,
-          contactAvatar: conversation.name
-            .split(/\s+/)
-            .map((word: string) => word[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase(),
-          platform: conversation.platform,
-          lastMessage: last?.text || "",
-          lastMessageTime: Number(conversation.last_at),
-          intent: conversation.intent,
-          conversionStatus: conversation.status,
-          messages: history,
-          unread: conversation.unread,
-          autoSendEnabled: conversation.auto_send,
-          leadNotes: conversation.notes,
-          leadMemory: conversation.memory,
-          windowUntil: Number(conversation.window_until),
-          aiError: conversation.ai_error,
-          connectionId: conversation.connection_id,
-        };
-      }),
+      conversations: page.conversations,
+      nextCursor: page.nextCursor,
       drafts: Object.fromEntries(
         drafts.map((draft) => [draft.conversation_id, draft.text]),
       ),
@@ -520,10 +591,7 @@ export class ProductService {
       brain.profile.industry === "medical" &&
       messages.some(
         (message) =>
-          message.sender === "contact" &&
-          /symptom|chest pain|medicat|diagnos|pregnan|emergency|bleeding|suicid/i.test(
-            message.text,
-          ),
+          message.sender === "contact" && isClinical(message.text),
       )
     )
       throw new HttpError(
@@ -551,6 +619,7 @@ export class ProductService {
       settings: workspace.settings,
       notes: conversation.notes,
       memory: conversation.memory,
+      instructions: await this.quality.publishedInstructions(workspaceId),
       businessFacts: brain.facts,
       industry: brain.profile.industry,
       industryBoundary: brain.boundary,
@@ -568,7 +637,16 @@ export class ProductService {
         .map((message) => ({ sender: message.sender, text: message.text })),
     };
     const started = performance.now();
-    const result = guardReply(await this.ai.generate(input), input);
+    let result;
+    try {
+      result = guardReply(await this.ai.generate(input), input);
+    } catch (error) {
+      await this.db.query(
+        "UPDATE usage SET ai_replies=GREATEST(ai_replies-1,0) WHERE workspace_id=$1 AND month=$2",
+        [workspaceId, monthKey()],
+      );
+      throw error;
+    }
     const latency = Math.round(performance.now() - started);
     const [currentWorkspace] = await this.db.query(
       "SELECT settings FROM workspaces WHERE id=$1",
@@ -579,16 +657,27 @@ export class ProductService {
       !currentWorkspace ||
       fullContextHash(currentWorkspace.settings, currentBrain.fingerprint) !==
         fullContextHash(input.settings, brain.fingerprint)
-    )
+    ) {
+      await this.db.query(
+        "UPDATE usage SET ai_replies=GREATEST(ai_replies-1,0) WHERE workspace_id=$1 AND month=$2",
+        [workspaceId, monthKey()],
+      );
       throw new HttpError(
         409,
         "Business context changed during generation. Generate a new reply.",
       );
+    }
     const [latest] = await this.db.query(
       "SELECT id FROM messages WHERE conversation_id=$1 AND workspace_id=$2 ORDER BY timestamp DESC,id DESC LIMIT 1",
       [conversationId, workspaceId],
     );
-    if (latest?.id !== sourceId) return;
+    if (latest?.id !== sourceId) {
+      await this.db.query(
+        "UPDATE usage SET ai_replies=GREATEST(ai_replies-1,0) WHERE workspace_id=$1 AND month=$2",
+        [workspaceId, monthKey()],
+      );
+      return;
+    }
     await this.db.transaction(async (tx) => {
       await tx.query(
         "INSERT INTO suggestions(id,workspace_id,conversation_id,source_id,text,confidence,safe,reason,model,latency_ms,context_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (source_id) DO NOTHING",
@@ -771,18 +860,13 @@ export class ProductService {
     );
     if (opportunity?.escalated || ["won", "lost"].includes(opportunity?.stage))
       return false;
+    // A prompt version that failed a blocking evaluation stops automation here.
+    if (await this.quality.isBlocked(workspaceId, tx)) return false;
     const inbound = await tx.query(
       "SELECT text FROM messages WHERE workspace_id=$1 AND conversation_id=$2 AND sender='contact' ORDER BY timestamp DESC LIMIT 30",
       [workspaceId, conversation.id],
     );
-    if (
-      inbound.some((message) =>
-        /unsubscribe|stop messaging|do not contact|don't contact/i.test(
-          message.text,
-        ),
-      )
-    )
-      return false;
+    if (inbound.some((message) => isOptOut(message.text))) return false;
     const [workspace] = await tx.query("SELECT * FROM workspaces WHERE id=$1", [
       workspaceId,
     ]);
@@ -791,7 +875,7 @@ export class ProductService {
       [sourceId, workspaceId],
     );
     const brainProfile = await tx.query(
-      "SELECT industry,currency,auto_stage FROM business_profiles WHERE workspace_id=$1",
+      "SELECT * FROM business_profiles WHERE workspace_id=$1",
       [workspaceId],
     );
     const activeEntries = await tx.query(
@@ -803,21 +887,27 @@ export class ProductService {
       [workspaceId],
     );
     const entryIds = new Set(activeEntries.map((entry) => entry.id));
+    // The shape must match RevenueService.profile() exactly: the fingerprint
+    // below is compared with the one stored on the suggestion.
     const profile = brainProfile[0]
       ? {
           industry: brainProfile[0].industry,
           currency: brainProfile[0].currency,
           autoStage: brainProfile[0].auto_stage,
+          sectorFields: Array.isArray(brainProfile[0].sector_fields)
+            ? brainProfile[0].sector_fields
+            : [],
         }
-      : { industry: "general", currency: "USD", autoStage: false };
+      : {
+          industry: "general",
+          currency: "USD",
+          autoStage: false,
+          sectorFields: [],
+        };
     if (inbound.some((message) => detectRisk(message.text))) return false;
     if (
       profile.industry === "medical" &&
-      inbound.some((message) =>
-        /symptom|chest pain|medicat|diagnos|pregnan|emergency|bleeding|suicid/i.test(
-          message.text,
-        ),
-      )
+      inbound.some((message) => isClinical(message.text))
     )
       return false;
     const brainFingerprint = digest(

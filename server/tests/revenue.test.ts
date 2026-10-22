@@ -750,6 +750,9 @@ test("industry agents preserve administrative boundaries and opt-out overrides h
   );
   assert.equal(data.insight.hot, false);
   assert.equal(data.insight.nextDraft, null);
+  const arabic = await lead(f, "اريد الشراء لكن توقف عن مراسلتي");
+  assert.equal(arabic.insight.hot, false);
+  assert.equal(arabic.insight.nextDraft, null);
   const input: AIInput = {
     settings: {
       businessName: "Clinic",
@@ -783,6 +786,85 @@ test("industry agents preserve administrative boundaries and opt-out overrides h
       input,
     ).safe,
     false,
+  );
+});
+
+test("custom sector fields round-trip, stay tenant-scoped and keep scoring valid", async () => {
+  const f = await fixture();
+  const other = await fixture();
+  const sectorFields = [
+    { key: "field_1", label: "Property type", type: "text", required: true },
+    { key: "field_2", label: "Monthly budget", type: "number", required: false },
+  ];
+  const updated = await f
+    .mutate("patch", "/api/brain/profile")
+    .send({
+      industry: "custom",
+      currency: "USD",
+      autoStage: false,
+      sectorFields,
+    });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.industry, "custom");
+  assert.deepEqual(updated.body.sectorFields, sectorFields);
+  const brain = (await f.client.get("/api/brain")).body;
+  assert.deepEqual(brain.profile.sectorFields, sectorFields);
+  assert.ok(brain.guidance.boundary.length > 10);
+  const otherBrain = (await other.client.get("/api/brain")).body;
+  assert.deepEqual(otherBrain.profile.sectorFields, []);
+  assert.notEqual(otherBrain.profile.industry, "custom");
+
+  const data = await lead(f);
+  const saved = await patch(f, data, {
+    qualification: {
+      budgetMinor: null,
+      authority: "unknown",
+      need: "",
+      timelineDate: null,
+      custom: { field_1: "Villa", field_2: "8000" },
+    },
+  });
+  assert.deepEqual(saved.qualification.custom, {
+    field_1: "Villa",
+    field_2: "8000",
+  });
+  assert.equal(saved.qualification.need, "");
+  const insight = scoreLead(
+    saved,
+    {
+      intent: "buy",
+      messages: [
+        {
+          id: "m1",
+          sender: "contact",
+          text: "I want a villa with a pool",
+          timestamp: Date.now(),
+        },
+      ],
+    },
+    [],
+    "custom",
+  );
+  assert.ok(insight.score >= 0 && insight.score <= 100);
+  assert.equal(insight.bant.budget, "unknown");
+  assert.equal(typeof insight.nextAction, "string");
+
+  await db.query(
+    "UPDATE members SET role='member' WHERE user_id=$1 AND workspace_id=$2",
+    [other.snapshot.user.id, other.snapshot.workspace.id],
+  );
+  assert.equal(
+    (
+      await other
+        .mutate("patch", "/api/brain/profile")
+        .send({
+          industry: "custom",
+          currency: "USD",
+          autoStage: false,
+          sectorFields,
+        })
+    ).status,
+    403,
   );
 });
 
@@ -851,7 +933,7 @@ test("numbered migration upgrades a version-one database without replacing its e
           "SELECT version FROM schema_migrations ORDER BY version",
         )
       ).map((row) => row.version),
-      [1, 2],
+      [1, 2, 3, 4],
     );
     await old.query("SELECT * FROM deals LIMIT 1");
   } finally {
@@ -932,6 +1014,26 @@ test("medical clinical content is escalated before any external AI request or sp
     .mutate("patch", "/api/brain/profile")
     .send({ industry: "medical", currency: "USD", autoStage: false });
   const data = await lead(f, "I have chest pain and need a diagnosis.");
+  const source = (await f.client.get("/api/bootstrap")).body.conversations[0]
+    .messages[0].id;
+  await assert.rejects(
+    f.service.generate(
+      f.snapshot.workspace.id,
+      data.deal.conversationId,
+      source,
+    ),
+    /Clinical content requires a qualified human/,
+  );
+  assert.equal(f.input(), null);
+  assert.equal((await f.client.get("/api/bootstrap")).body.usage.aiReplies, 0);
+});
+
+test("Arabic clinical content is escalated before any external AI request or spend", async () => {
+  const f = await fixture();
+  await f
+    .mutate("patch", "/api/brain/profile")
+    .send({ industry: "medical", currency: "USD", autoStage: false });
+  const data = await lead(f, "اشعر بألم شديد في صدري واريد تشخيص");
   const source = (await f.client.get("/api/bootstrap")).body.conversations[0]
     .messages[0].id;
   await assert.rejects(
