@@ -309,6 +309,20 @@ export class QualityService {
     if (version.status === "published") return version;
     if (version.status !== "draft")
       throw new HttpError(409, "Only a draft version can be published.");
+    const [latestRun] = await this.db.query(
+      "SELECT status FROM ai_eval_runs WHERE workspace_id=$1 AND version_id=$2 ORDER BY created_at DESC LIMIT 1",
+      [actor.workspaceId, id],
+    );
+    if (!latestRun)
+      throw new HttpError(
+        409,
+        "This version has never been evaluated. Run the evaluation before publishing.",
+      );
+    if (latestRun.status !== "passed")
+      throw new HttpError(
+        409,
+        "The latest evaluation did not pass. Fix the findings, run it again, then publish.",
+      );
     const failed = await this.failedBlockingCases(actor.workspaceId, id);
     if (failed.length)
       throw new HttpError(
@@ -395,10 +409,15 @@ export class QualityService {
     const blocked = results.some(
       (result) => !result.passed && blockingIds.has(result.caseId),
     );
+    // A run with no enabled cases (or one that threw before running a case)
+    // leaves no evidence, so it cannot be "passed" — and it never unblocks a
+    // version. This also keeps the publish gate from accepting an empty run.
+    const runStatus =
+      cases.length === 0 ? "failed" : blocked ? "failed" : "passed";
     await this.db.query(
       "UPDATE ai_eval_runs SET status=$1,passed=$2,failed=$3,results=$4,finished_at=now() WHERE id=$5 AND workspace_id=$6",
       [
-        blocked ? "failed" : "passed",
+        runStatus,
         passed,
         failed,
         JSON.stringify(results),
@@ -415,11 +434,12 @@ export class QualityService {
           "A blocking evaluation case failed. Fix it and run the evaluation again.",
         ],
       );
-    else
+    else if (cases.length > 0) {
       await this.db.query(
         "UPDATE ai_prompt_versions SET status='draft' WHERE id=$1 AND workspace_id=$2 AND status='blocked'",
         [versionId, workspaceId],
       );
+    }
     await this.service.audit(
       workspaceId,
       null,

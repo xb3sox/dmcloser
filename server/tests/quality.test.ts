@@ -457,6 +457,15 @@ test("an evaluation run records the result of every case", async () => {
 test("a version can be edited while it is a draft only", async () => {
   const f = await fixture();
   const draft = await version(f);
+  // A prompt cannot be published without evidence. Run one passing case first.
+  await evalCase(f, {
+    name: "A buying question gets a grounded answer",
+    kind: "grounding",
+    text: "I want to buy the olive set.",
+    expected: { intent: "buy", safe: true, contains: ["olive set"] },
+  });
+  const run = await runEvaluation(f, draft.id);
+  assert.equal(run.status, "passed");
   const edited = await f
     .mutate("patch", `/api/quality/versions/${draft.id}`)
     .send({ instructions: `${draft.instructions} Never mention competitors.` });
@@ -470,4 +479,13 @@ test("a version can be edited while it is a draft only", async () => {
     .mutate("patch", `/api/quality/versions/${draft.id}`)
     .send({ instructions: "Changed after publishing." });
   assert.equal(rejected.status, 409);
+});
+
+test("a version cannot be published without an evaluation run", async () => {
+  const f = await fixture();
+  const draft = await version(f);
+  const published = await f
+    .mutate("post", `/api/quality/versions/${draft.id}/publish`)
+    .send({});
+  assert.equal(published.status, 409);
 });

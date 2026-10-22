@@ -45,6 +45,15 @@ export function normalizeText(text: string): string {
  * The body is normalized too, because the text is: a pattern written `شكوى` would
  * never match text normalized to `شكاي` (the `ى` → `ي` fold).
  */
+/**
+ * INVARIANT: `body` is an intentional regular-expression fragment, not plain
+ * text. The wrappers add boundaries/proclitics and do NOT escape metacharacters,
+ * so authors must follow RegExp syntax (escape `\`, use `\d`, `\s`, groups,
+ * alternation) exactly as they intend to be matched. Maintain the bilingual
+ * parity: every guard that exists in `re` needs an equivalent guard in `ar`
+ * or `arPhrase` behind the same file, and tests must include samples that
+ * contain the regex metacharacters they rely on.
+ */
 const ar = (body: string) =>
   new RegExp(
     String.raw`(^|[^\p{L}])(?:[وفب])?(?:ال)?${normalizeText(body)}(?:$|[^\p{L}])`,

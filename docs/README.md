@@ -19,16 +19,16 @@ DMCloser is a mobile-first sales inbox that converts Instagram/WhatsApp inquirie
 | `server/tests/product.test.ts` | 30/30 pass |
 | `server/tests/revenue.test.ts` | 23/23 pass |
 | `server/tests/safety.test.ts` | 11/11 pass |
-| `server/tests/quality.test.ts` | 6/6 pass |
+| `server/tests/quality.test.ts` | 7/7 pass |
 | `server/tests/recovery.test.ts` | 5/5 pass |
 | `scripts/control-bands.test.mjs` | 2/2 pass |
 | `npx playwright test` | 66/66 pass (58 pre-existing + 8 Arabic/RTL) |
-| the same 75 server tests on an external Postgres 17 | 75/75 pass |
+| the same 76 server tests on an external Postgres 17 | 76/76 pass |
 | compose stack boot, readiness probe, backup and restore rehearsal | pass |
 | `npm run build` | pass, 714 kB single-file bundle |
 | `npm audit --audit-level=moderate` | 0 vulnerabilities |
 
-75 API/security tests in total. `node scripts/check.mjs` runs every gate above in one command and is the CI entry point.
+76 API/security tests in total. `node scripts/check.mjs` runs every gate above in one command and is the CI entry point.
 
 **Inspected and present:** a full Express 5 + PostgreSQL back end (PGlite on the filesystem for local development); signed webhook ingestion with deduplication; a durable job queue with `FOR UPDATE SKIP LOCKED` leasing and 3-attempt dead-lettering; server-only OpenAI generation with a strict schema and a verbatim grounding gate; encrypted provider tokens at rest; session + CSRF auth with workspace-scoped SQL on every query; a durable outbox with an explicit approval and takeover path; Stripe checkout/portal with idempotent signed events; workspace export and erasure; the full Revenue OS increment (11 tables, 22 routes, 24 service methods); a React 19 client with marketing, isolated demo, and authenticated workspace surfaces; a Playwright + axe accessibility matrix in light and dark mode; a complete English + Arabic interface with a real RTL layout (CSS logical properties, bidi isolation, locale-aware money and dates); bilingual safety guards that detect Arabic opt-outs, injections, secrets, refunds, spam and clinical content; a versioned, owner-published AI prompt with a deterministic evaluation gate that blocks automatic sends; a configurable custom sector on top of the fixed industry profiles; separate Potential / Attributed / Verified revenue blocks; a human recovery worklist; cursor pagination on the conversation list; and `scripts/backup.sh` / `scripts/restore.sh` for the compose stack.
 

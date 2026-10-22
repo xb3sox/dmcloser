@@ -251,11 +251,12 @@ export default function BusinessBrain() {
   );
   const sectorFields = draftFields ?? data?.profile.sectorFields ?? [];
   function updateField(index: number, patch: Partial<SectorField>) {
-    setDraftFields(
-      sectorFields.map((field, position) =>
+    setDraftFields((current) => {
+      const base = current ?? data?.profile.sectorFields ?? [];
+      return base.map((field, position) =>
         position === index ? { ...field, ...patch } : field,
-      ),
-    );
+      );
+    });
   }
   return (
     <section

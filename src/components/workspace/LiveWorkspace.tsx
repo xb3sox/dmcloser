@@ -23,13 +23,13 @@ function mergeConversations(
   existing: Conversation[],
   incoming: Conversation[],
 ): Conversation[] {
-  const seen = new Set(existing.map((conversation) => conversation.id));
-  const extra = incoming.filter((conversation) => {
-    if (seen.has(conversation.id)) return false;
-    seen.add(conversation.id);
-    return true;
-  });
-  return [...existing, ...extra];
+  // Refresh rows that already exist instead of dropping the newer payload: a
+  // sync event must replace stale previews, unread counts and last-message data.
+  const updates = new Map(incoming.map((conversation) => [conversation.id, conversation]));
+  const merged = existing.map((conversation) => updates.get(conversation.id) ?? conversation);
+  const existingIds = new Set(existing.map((conversation) => conversation.id));
+  const extra = incoming.filter((conversation) => !existingIds.has(conversation.id));
+  return [...merged, ...extra];
 }
 
 function AuthScreen({

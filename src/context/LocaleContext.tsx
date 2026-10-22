@@ -65,7 +65,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   );
   const formatDateTime = useCallback(
     (value: number | string | Date) =>
-      new Intl.DateTimeFormat(localeTag[locale]).format(new Date(value)),
+      new Intl.DateTimeFormat(localeTag[locale], {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value)),
     [locale],
   );
   const formatTime = useCallback(

@@ -195,7 +195,10 @@ export class Worker {
   }
   /** True while the poll loop is alive; background work stops without it. */
   healthy() {
-    return this.lastTick > 0 && Date.now() - this.lastTick < 15000;
+    // The heartbeat must tolerate a long, legitimate job: the poll loop runs
+    // every 150ms but one generation/maintenance pass can take a few seconds,
+    // so 15 seconds risked a false "degraded" during heavy maintenance.
+    return this.lastTick > 0 && (this.running || Date.now() - this.lastTick < 30000);
   }
   async maintenance() {
     await this.service.db.query("DELETE FROM sessions WHERE expires_at<$1", [
