@@ -84,16 +84,13 @@ function AuthScreen({
   return (
     <main className="workspace-auth">
       <header>
-        <a
-          href="/"
-          onClick={(event) => {
-            event.preventDefault();
-            onHome();
-          }}
+        <button
+          className="app-text-button"
+          onClick={onHome}
           aria-label={t("workspace.auth.homeLabel")}
         >
           <Brand />
-        </a>
+        </button>
         <a href="/app">
           {t("workspace.auth.exploreDemo")}
           <ArrowRight size={14} />
@@ -281,7 +278,10 @@ function AuthScreen({
           )}
         </div>
         <p className="workspace-auth-note">{t("workspace.auth.note")}</p>
-        <button className="app-text-button" onClick={onHome}>
+        <button
+          className="app-text-button"
+          onClick={onHome}
+        >
           <ArrowLeft size={14} />
           {t("workspace.auth.backToSite")}
         </button>
@@ -689,7 +689,7 @@ export default function LiveWorkspace({
         <h1>{t("workspace.service.unavailableTitle")}</h1>
         <p role="alert">{failure}</p>
         <button
-          className="closer-button closer-button-primary"
+          className="app-text-button"
           onClick={() => {
             void load();
           }}
