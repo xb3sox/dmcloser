@@ -3,6 +3,19 @@
 `scripts/loadtest/run.mjs` measures the part of dmcloser a customer feels: a message
 arrives and the app has to answer it. No dependencies, plain Node.
 
+## Scope — read this before quoting the numbers
+
+Every figure below was measured against a **development-mode** server. In production mode
+`POST /api/development/inbound` throws 404 by design (`server/app.ts:1363`), so the harness
+has no inbound path and falls back to rejection: a production-mode run against the compose
+stack measured 343 × 429 and 162 × 404 out of 600 requests, i.e. it fails itself rather than
+the product.
+
+The supported production measurement is the loader's **webhook mode**: it probes a signed
+Meta webhook first and only uses it when the server accepts the signature, which requires
+`META_APP_SECRET` to be set. That path has never been run — the production inbound baseline
+is unmeasured, and the numbers in this file must not be presented as production capacity.
+
 ## What it does
 
 1. Registers N throwaway workspaces, one owner each, each from its own loopback source
