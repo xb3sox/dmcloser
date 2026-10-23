@@ -60,7 +60,14 @@ export default function MobileNav({ onHome }: { onHome: () => void }) {
         >
           <Inbox size={19} />
           <span>{t("nav.inbox")}</span>
-          {unread > 0 && <span className="nav-count">{unread}</span>}
+          {unread > 0 && (
+            <span
+              className="nav-count"
+              aria-label={t("nav.unreadCount", { count: unread })}
+            >
+              {unread}
+            </span>
+          )}
         </button>
         {mode === "live" && (
           <>
