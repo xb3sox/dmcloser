@@ -1250,3 +1250,22 @@ test("cursor pagination returns every conversation exactly once and rejects a ba
   assert.equal(other.conversations.length, 0);
   assert.equal(other.nextCursor, null);
 });
+
+test("team invite endpoint enforces rate limits", async () => {
+  const owner = await fixture();
+  for (let i = 0; i < 10; i++) {
+    const res = await owner
+      .mutate("post", "/api/team/invites")
+      .send({ email: `member${i}@example.com` });
+    assert.equal(res.status, 200);
+    await owner.service.db.query("DELETE FROM tokens WHERE purpose='invite'");
+  }
+  const limited = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: "member10@example.com" });
+  assert.equal(limited.status, 429);
+  assert.equal(
+    limited.body.error,
+    "Too many team invitations. Please try again later.",
+  );
+});

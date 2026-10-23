@@ -478,6 +478,13 @@ export async function createApp(
     legacyHeaders: false,
     message: { error: "Too many recovery requests. Please try later." },
   });
+  const inviteLimit = rateLimit({
+    windowMs: 3600000,
+    limit: 10,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many team invitations. Please try again later." },
+  });
 
   app.get("/api/health", async (_req, res) => {
     await db.query("SELECT 1");
@@ -1161,7 +1168,7 @@ export async function createApp(
     res.json({ url: await billing.portal(req.actor!.workspaceId) }),
   );
 
-  app.post("/api/team/invites", owner, async (req, res) => {
+  app.post("/api/team/invites", owner, inviteLimit, async (req, res) => {
     const { email } = z.object({ email: emailSchema }).strict().parse(req.body);
     const [workspace] = await db.query(
       "SELECT plan FROM workspaces WHERE id=$1",
