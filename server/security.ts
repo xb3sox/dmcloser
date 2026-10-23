@@ -23,9 +23,9 @@ export const randomToken = () => randomBytes(32).toString("base64url");
 export const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 export function equal(first: string, second: string): boolean {
-  const a = Buffer.from(first);
-  const b = Buffer.from(second);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const h1 = createHash("sha256").update(first).digest();
+  const h2 = createHash("sha256").update(second).digest();
+  return timingSafeEqual(h1, h2);
 }
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");

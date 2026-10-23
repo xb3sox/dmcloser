@@ -19,6 +19,7 @@ import {
   decrypt,
   digest,
   encrypt,
+  equal,
   hashPassword,
   validMetaSignature,
   verifyPassword,
@@ -148,6 +149,9 @@ async function configureFacts(f: Awaited<ReturnType<typeof fixture>>) {
 }
 
 test("password hashes, token encryption, and constant-time signature guards", async () => {
+  assert.equal(equal("abc", "abc"), true);
+  assert.equal(equal("abc", "def"), false);
+  assert.equal(equal("abc", "abcd"), false);
   const hash = await hashPassword(password);
   assert.notEqual(hash, password);
   assert.equal(await verifyPassword(password, hash), true);
