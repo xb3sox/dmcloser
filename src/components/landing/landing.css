@@ -269,7 +269,8 @@ body.marketing-page {
 }
 .dark .hero-actions .closer-button-primary {
   background: var(--land-green);
-  color: var(--land-ink) !important;
+  /* Was var(--land-ink): light on light, 1.45:1. */
+  color: var(--land-button-text) !important;
 }
 .dark .closer-button-ghost {
   color: var(--land-bg) !important;
@@ -656,7 +657,8 @@ body.marketing-page {
 }
 .intent-question {
   background: color-mix(in srgb, var(--land-bg), var(--land-ink) 10%);
-  color: color-mix(in srgb, var(--land-ink), var(--land-bg) 30%);
+  /* 30% page colour behind 10px text measured 4.37:1 — under the floor. */
+  color: color-mix(in srgb, var(--land-ink), var(--land-bg) 12%);
 }
 .demo-list-footer {
   margin-top: auto;
@@ -767,8 +769,16 @@ body.marketing-page {
   border-radius: 6px;
 }
 .dark .demo-suggestion {
+  /* Inverted card: light background, so the text accents must be the dark ones.
+     --land-green itself stays light because it is also a chip background here. */
+  --land-muted: #46523f;
+  --land-line: #c3cfba;
   background: var(--land-ink);
   border-color: var(--land-line);
+}
+.dark .demo-suggestion .demo-suggestion-heading,
+.dark .demo-suggestion .demo-suggestion-heading > small {
+  color: #2f5736;
 }
 .demo-suggestion-heading {
   display: flex;
@@ -947,8 +957,56 @@ body.marketing-page {
 }
 
 .voice-section {
-  background: var(--land-ink);
-  color: var(--land-bg);
+  /* The band inverts the page, so every token describing "ink on page" points
+     the wrong way inside it and axe caught the result (2.28:1). Swap the whole
+     palette for this subtree instead of patching one child at a time. */
+  --land-bg: #242d23;
+  --land-surface: #2c372a;
+  --land-soft: #1e2620;
+  --land-ink: #f3f7ee;
+  --land-muted: #c9d4c3;
+  --land-line: #3f4b3a;
+  --land-green: #b1d39d;
+  --land-button: #bed7aa;
+  --land-button-text: #1b321e;
+  background: var(--land-bg);
+  color: var(--land-ink);
+}
+.dark .voice-section {
+  --land-bg: #e8eee1;
+  --land-surface: #ffffff;
+  --land-soft: #dde5d5;
+  --land-ink: #17211a;
+  --land-muted: #46523f;
+  --land-line: #c3cfba;
+  --land-green: #2f5736;
+  --land-button: #294c31;
+  --land-button-text: #ffffff;
+}
+.closing-section {
+  /* Same inversion as .voice-section, same fix. */
+  --land-bg: #242d23;
+  --land-surface: #2c372a;
+  --land-soft: #1e2620;
+  --land-ink: #f3f7ee;
+  --land-muted: #c9d4c3;
+  --land-line: #3f4b3a;
+  --land-green: #b1d39d;
+  --land-button: #bed7aa;
+  --land-button-text: #1b321e;
+  background: var(--land-bg);
+  color: var(--land-ink);
+}
+.dark .closing-section {
+  --land-bg: #e8eee1;
+  --land-surface: #ffffff;
+  --land-soft: #dde5d5;
+  --land-ink: #17211a;
+  --land-muted: #46523f;
+  --land-line: #c3cfba;
+  --land-green: #2f5736;
+  --land-button: #294c31;
+  --land-button-text: #ffffff;
 }
 .voice-grid {
   display: grid;
@@ -1043,7 +1101,7 @@ body.marketing-page {
   line-height: 1.8;
   font-weight: 400;
   margin-top: 15px;
-  color: #eef2e4;
+  color: var(--land-ink);
   letter-spacing: -0.2px;
 }
 .tone-footer {
@@ -1051,8 +1109,8 @@ body.marketing-page {
   gap: 6px;
   align-items: center;
   padding-top: 19px;
-  border-top: 1px solid #59704e80;
-  color: #b7cc9c;
+  border-top: 1px solid var(--land-line);
+  color: var(--land-muted);
   font-size: 11px;
 }
 
@@ -1254,8 +1312,6 @@ body.marketing-page {
 
 .closing-section {
   padding-block: 80px;
-  background: var(--land-ink);
-  color: var(--land-bg);
 }
 .closing-inner {
   display: flex;
