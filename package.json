@@ -1,12 +1,18 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "dmcloser",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "serve": "tsx server/index.ts",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/check.mjs",
+    "test:server": "tsx --test server/tests/*.test.ts",
+    "test:e2e": "playwright test",
+    "load": "node scripts/loadtest/run.mjs",
+    "check:prisma": "node scripts/prisma/verify-parity.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",

@@ -17,7 +17,9 @@ const server = app.listen(config.port, "0.0.0.0", () =>
 );
 server.requestTimeout = 30000;
 server.headersTimeout = 15000;
-worker.start();
+// A dedicated worker process sets WORKER_ENABLED=false. It then serves health
+// but claims no jobs, so exactly one process owns the queue per deployment.
+if (config.workerEnabled) worker.start();
 const maintenance = setInterval(
   () =>
     worker

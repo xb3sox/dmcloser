@@ -529,7 +529,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   <h3>{t("landing.pricing.starterName")}</h3>
                   <p>{t("landing.pricing.starterTagline")}</p>
                 </div>
-                <div className="plan-price">
+                <div className="plan-price ltr-isolate">
                   <span>$</span>
                   {annual ? "24" : "29"}
                   <small>{t("landing.pricing.priceSuffix")}</small>
@@ -575,7 +575,7 @@ export default function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   </h3>
                   <p>{t("landing.pricing.growthTagline")}</p>
                 </div>
-                <div className="plan-price">
+                <div className="plan-price ltr-isolate">
                   <span>$</span>
                   {annual ? "64" : "79"}
                   <small>{t("landing.pricing.priceSuffix")}</small>

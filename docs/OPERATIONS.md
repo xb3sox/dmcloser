@@ -6,6 +6,8 @@
 2. `npx tsx server/index.ts` starts API/worker on 3001; `npm run dev` starts UI on 5173.
 3. `/workspace` creates a server-backed account; `/app` remains the isolated browser demo. No credentials are needed for local persistence, auth, or the development inbound simulator. Missing AI is an explicit review state.
 4. Without `DATABASE_URL`, local PGlite stores Postgres data in `.data/postgres`; preserve `.data/encryption.key`. This is a single-process developer database, never the production fallback.
+5. `npm run load` measures the inbound path against a running API; the method, the ceiling and the measured baseline live in [LOAD-LAB.md](LOAD-LAB.md).
+6. `npm run check:prisma` proves `prisma/schema.prisma` still matches the SQL migrations. It needs an empty database and is not part of `npm test`; see [../scripts/prisma/README.md](../scripts/prisma/README.md).
 
 ## Live Integration
 

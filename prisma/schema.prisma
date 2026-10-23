@@ -1,0 +1,568 @@
+// Prisma schema for dmcloser.
+//
+// Mechanical 1:1 translation of the four hand-written SQL migrations in
+// server/migrations/ (001.sql, 002_revenue.sql, 003_sector.sql, 004_ai_quality.sql).
+// Column names are preserved verbatim (snake_case) and every table keeps its physical
+// name through @@map, so existing raw SQL keeps working unchanged.
+//
+// Two categories of database object cannot be expressed in Prisma's DSL and are kept
+// as hand-managed SQL (see scripts/prisma/README.md):
+//   * CHECK constraints (role/platform/kind/stage/status/industry allow-lists,
+//     price + amount range checks, brain_links.from_id <> to_id, valid_days range)
+//   * the partial unique index messages_one_reply_per_source
+//
+// Referential actions mirror the SQL: ON DELETE CASCADE / SET NULL where declared and
+// NO ACTION (Postgres default) everywhere else, including ON UPDATE.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SchemaMigration {
+  version    Int      @id
+  applied_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("schema_migrations")
+}
+
+model User {
+  id            String   @id
+  email         String   @unique
+  name          String
+  password_hash String
+  verified      Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  owned_workspaces Workspace[] @relation("WorkspaceOwner")
+  memberships      Member[]
+  sessions         Session[]
+  tokens           Token[]
+  drafts           Draft[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id                  String   @id
+  owner_id            String
+  settings            Json
+  plan                String   @default("trial")
+  billing_status      String   @default("trialing")
+  trial_until         BigInt
+  stripe_customer     String?  @unique
+  stripe_subscription String?  @unique
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  owner             User               @relation("WorkspaceOwner", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  members           Member[]
+  sessions          Session[]
+  tokens            Token[]
+  connections       Connection[]
+  conversations     Conversation[]
+  messages          Message[]
+  drafts            Draft[]
+  suggestions       Suggestion[]
+  jobs              Job[]
+  usage             Usage[]
+  audit_events      AuditEvent[]
+  business_profile  BusinessProfile?
+  brain_entries     BrainEntry[]
+  brain_links       BrainLink[]
+  deals             Deal[]
+  deal_events       DealEvent[]
+  deal_outcomes     DealOutcome[]
+  revenue_events    RevenueEvent[]
+  deal_quotes       DealQuote[]
+  appointments      Appointment[]
+  sales_tasks       SalesTask[]
+  reply_feedback    ReplyFeedback[]
+  ai_prompt_versions AiPromptVersion[]
+  ai_eval_cases     AiEvalCase[]
+  ai_eval_runs      AiEvalRun[]
+
+  @@map("workspaces")
+}
+
+model Member {
+  workspace_id String
+  user_id      String
+  role         String
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([workspace_id, user_id])
+  @@map("members")
+}
+
+model Session {
+  hash         String   @id
+  user_id      String
+  workspace_id String
+  csrf         String
+  expires_at   BigInt
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("sessions")
+}
+
+model Token {
+  hash         String  @id
+  user_id      String?
+  workspace_id String?
+  purpose      String
+  email        String?
+  expires_at   BigInt
+  data         Json    @default("{}")
+
+  user      User?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("tokens")
+}
+
+model Connection {
+  id           String   @id
+  workspace_id String
+  platform     String
+  account_id   String
+  label        String
+  token_cipher String
+  expires_at   BigInt?
+  status       String   @default("connected")
+  error        String?
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace     Workspace      @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversations Conversation[]
+
+  @@unique([platform, account_id])
+  @@unique([workspace_id, platform])
+  @@map("connections")
+}
+
+model Conversation {
+  id           String   @id
+  workspace_id String
+  connection_id String?
+  platform     String
+  external_id  String
+  name         String
+  intent       String   @default("question")
+  status       String   @default("new")
+  auto_send    Boolean  @default(false)
+  unread       Boolean  @default(true)
+  notes        String   @default("")
+  memory       String   @default("")
+  ai_error     String?
+  last_at      BigInt
+  window_until BigInt
+  hold_until   BigInt   @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace   Workspace    @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  connection  Connection?  @relation(fields: [connection_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  messages    Message[]
+  drafts      Draft[]
+  suggestions Suggestion[]
+  deals       Deal[]
+
+  @@unique([workspace_id, platform, external_id])
+  @@unique([workspace_id, id], map: "conversations_tenant_id")
+  @@map("conversations")
+}
+
+model Message {
+  id              String  @id
+  workspace_id    String
+  conversation_id String
+  sender          String
+  text            String
+  timestamp       BigInt
+  provider_id     String?
+  connection_id   String?
+  status          String  @default("received")
+  error           String?
+  client_key      String?
+  source_id       String?
+  automatic       Boolean @default(false)
+
+  workspace      Workspace       @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversation   Conversation    @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  suggestions    Suggestion[]
+  reply_feedback ReplyFeedback[]
+
+  @@unique([connection_id, provider_id])
+  @@unique([workspace_id, client_key])
+  @@index([workspace_id, conversation_id, timestamp], map: "messages_conversation")
+  @@map("messages")
+}
+
+model Draft {
+  workspace_id    String
+  conversation_id String
+  user_id         String
+  text            String
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace    Workspace    @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([conversation_id, user_id])
+  @@map("drafts")
+}
+
+model Suggestion {
+  id           String   @id
+  workspace_id String
+  conversation_id String
+  source_id    String   @unique
+  text         String
+  confidence   Int
+  safe         Boolean
+  reason       String
+  model        String
+  latency_ms   Int
+  context_hash String   @default("")
+  status       String   @default("ready")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace    Workspace    @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  source       Message      @relation(fields: [source_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("suggestions")
+}
+
+model WebhookReceipt {
+  id         String   @id
+  platform   String
+  payload    Json
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("webhook_receipts")
+}
+
+model Job {
+  id           String   @id
+  workspace_id String?
+  kind         String
+  payload      Json
+  state        String   @default("pending")
+  attempts     Int      @default(0)
+  available_at BigInt
+  lease_until  BigInt   @default(0)
+  error        String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([state, available_at], map: "jobs_available")
+  @@map("jobs")
+}
+
+model Usage {
+  workspace_id String
+  month        String
+  ai_replies   Int    @default(0)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([workspace_id, month])
+  @@map("usage")
+}
+
+model AuditEvent {
+  id           String   @id
+  workspace_id String?
+  actor_id     String?
+  action       String
+  resource_id  String?
+  detail       Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("audit_events")
+}
+
+model DeletionRequest {
+  code         String   @id
+  request_hash String   @unique
+  completed_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("deletion_requests")
+}
+
+model BusinessProfile {
+  workspace_id  String   @id
+  industry      String   @default("general")
+  currency      String   @default("USD")
+  auto_stage    Boolean  @default(false)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  sector_fields Json     @default("[]")
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("business_profiles")
+}
+
+model BrainEntry {
+  id           String   @id
+  workspace_id String
+  kind         String
+  title        String
+  content      String
+  price_minor  BigInt?
+  currency     String   @default("USD")
+  approved     Boolean  @default(false)
+  expires_at   BigInt?
+  version      Int      @default(1)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace      Workspace   @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  outgoing_links BrainLink[] @relation("BrainLinkFrom")
+  incoming_links BrainLink[] @relation("BrainLinkTo")
+
+  @@unique([workspace_id, id])
+  @@map("brain_entries")
+}
+
+model BrainLink {
+  id           String @id
+  workspace_id String
+  from_id      String
+  to_id        String
+  relation     String
+
+  workspace  Workspace  @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  from_entry BrainEntry @relation("BrainLinkFrom", fields: [workspace_id, from_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+  to_entry   BrainEntry @relation("BrainLinkTo", fields: [workspace_id, to_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, from_id, to_id, relation])
+  @@map("brain_links")
+}
+
+model Deal {
+  id                String    @id
+  workspace_id      String
+  conversation_id   String    @unique
+  stage             String    @default("new")
+  value_minor       BigInt?
+  currency          String    @default("USD")
+  expected_close    DateTime? @db.Date
+  product_id        String?
+  qualification     Json      @default("{\"budgetMinor\":null,\"authority\":\"unknown\",\"need\":\"\",\"timelineDate\":null}")
+  campaign          String    @default("")
+  source            String
+  escalated         Boolean   @default(false)
+  escalation_reason String    @default("")
+  version           Int       @default(1)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+
+  workspace      Workspace     @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversation   Conversation  @relation(fields: [workspace_id, conversation_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+  events         DealEvent[]
+  outcomes       DealOutcome[]
+  revenue_events RevenueEvent[]
+  quotes         DealQuote[]
+  appointments   Appointment[]
+  sales_tasks    SalesTask[]
+
+  @@unique([workspace_id, id])
+  @@index([workspace_id, stage, currency, expected_close], map: "deals_pipeline")
+  @@map("deals")
+}
+
+model DealEvent {
+  id           String   @id
+  workspace_id String
+  deal_id      String
+  actor_id     String?
+  kind         String
+  data         Json
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("deal_events")
+}
+
+model DealOutcome {
+  id           String   @id
+  workspace_id String
+  deal_id      String   @unique
+  outcome      String
+  reason       String
+  note         String   @default("")
+  value_minor  BigInt?
+  currency     String
+  snapshot     Json
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("deal_outcomes")
+}
+
+model RevenueEvent {
+  id           String @id
+  workspace_id String
+  deal_id      String
+  kind         String
+  amount_minor BigInt
+  currency     String
+  reference    String
+  occurred_at  BigInt
+  client_key   String
+  actor_id     String
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, client_key])
+  @@unique([workspace_id, kind, reference])
+  @@map("revenue_events")
+}
+
+model DealQuote {
+  id           String   @id
+  workspace_id String
+  deal_id      String
+  lines        Json
+  total_minor  BigInt
+  valid_days   Int      @default(7)
+  currency     String
+  status       String   @default("draft")
+  expires_at   BigInt
+  client_key   String
+  text         String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, client_key])
+  @@map("deal_quotes")
+}
+
+model Appointment {
+  id           String   @id
+  workspace_id String
+  deal_id      String
+  title        String
+  start_at     BigInt
+  end_at       BigInt
+  resource     String   @default("Business")
+  status       String   @default("confirmed")
+  client_key   String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, client_key])
+  @@index([workspace_id, resource, start_at, end_at], map: "appointments_resource")
+  @@map("appointments")
+}
+
+model SalesTask {
+  id           String   @id
+  workspace_id String
+  deal_id      String
+  kind         String
+  due_at       BigInt
+  status       String   @default("scheduled")
+  text         String
+  reason       String   @default("")
+  anchor_id    String?
+  client_key   String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal      Deal      @relation(fields: [workspace_id, deal_id], references: [workspace_id, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, client_key])
+  @@map("sales_tasks")
+}
+
+model ReplyFeedback {
+  workspace_id String
+  message_id   String
+  label        String
+  actor_id     String
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  message   Message   @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([workspace_id, message_id])
+  @@map("reply_feedback")
+}
+
+model AiPromptVersion {
+  id           String    @id
+  workspace_id String
+  version      Int
+  instructions String
+  status       String    @default("draft")
+  notes        String    @default("")
+  actor_id     String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  published_at DateTime? @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, version])
+  @@index([workspace_id, status], map: "ai_prompt_versions_workspace")
+  @@map("ai_prompt_versions")
+}
+
+model AiEvalCase {
+  id           String   @id
+  workspace_id String
+  name         String
+  kind         String
+  input        Json
+  expected     Json
+  blocking     Boolean  @default(true)
+  enabled      Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id, enabled], map: "ai_eval_cases_workspace")
+  @@map("ai_eval_cases")
+}
+
+model AiEvalRun {
+  id           String    @id
+  workspace_id String
+  version_id   String
+  status       String
+  passed       Int       @default(0)
+  failed       Int       @default(0)
+  results      Json      @default("[]")
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at  DateTime? @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id, version_id, created_at], map: "ai_eval_runs_workspace")
+  @@map("ai_eval_runs")
+}

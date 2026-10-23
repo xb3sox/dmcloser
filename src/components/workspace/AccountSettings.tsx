@@ -120,11 +120,11 @@ export default function AccountSettings() {
                     <WhatsAppIcon />
                   )}
                 </span>
-                <div>
+                <div className="ltr-isolate">
                   <strong>
                     {platform === "instagram" ? "Instagram" : "WhatsApp"}
                   </strong>
-                  <span>
+                  <span className="ltr-isolate">
                     {connected
                       ? `${connected.label} · ${connected.status}`
                       : snapshot.capabilities[platform]
@@ -134,7 +134,7 @@ export default function AccountSettings() {
                           )}
                   </span>
                   {connected?.error && (
-                    <p className="workspace-inline-error">{connected.error}</p>
+                    <p className="workspace-inline-error ltr-isolate">{connected.error}</p>
                   )}
                 </div>
                 <button
@@ -299,9 +299,9 @@ export default function AccountSettings() {
         <ul className="workspace-team">
           {snapshot.members.map((member) => (
             <li key={member.id}>
-              <div>
-                <strong>{member.name}</strong>
-                <span>
+              <div className="ltr-isolate">
+                <strong className="ltr-isolate">{member.name}</strong>
+                <span className="ltr-isolate">
                   {member.email} · {member.role}
                 </span>
               </div>
@@ -493,7 +493,7 @@ export default function AccountSettings() {
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
-                className="app-text-button"
+                className="app-text-button ltr-isolate"
                 disabled={pending || workspace.id === snapshot.workspace.id}
                 onClick={() => {
                   void run(async () => {
@@ -505,7 +505,7 @@ export default function AccountSettings() {
                   });
                 }}
               >
-                {workspace.name} · {workspace.role}
+                <span className="ltr-isolate">{workspace.name}</span> · {workspace.role}
                 {workspace.id === snapshot.workspace.id ? (
                   <Check size={13} />
                 ) : (

@@ -8,8 +8,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 5%;
-  gap: 20px;
+  padding-block: 28px;
+  padding-inline: 5%;
+  gap: 16px;
 }
 .workspace-auth > header > a:last-child {
   display: flex;
@@ -20,10 +21,11 @@
 }
 .workspace-auth-content {
   width: min(430px, calc(100% - 40px));
-  margin: 55px auto 70px;
+  margin-block: 56px 72px;
+  margin-inline: auto;
 }
 .workspace-auth-content h1 {
-  font: 500 38px/1.2 var(--heading-font);
+  font: 500 28px/1.2 var(--heading-font);
   letter-spacing: -1.7px;
   margin-top: 16px;
 }
@@ -31,12 +33,12 @@
   color: var(--land-muted);
   font-size: 14px;
   line-height: 1.8;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 .workspace-auth-content form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   margin-top: 29px;
 }
 .workspace-auth-content form label,
@@ -44,7 +46,7 @@
 .workspace-invite-link {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
   font-size: 12px;
 }
 .workspace-auth-content input,
@@ -221,7 +223,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   padding-block: 13px;
   border-bottom: 1px solid var(--land-line);
 }
@@ -285,7 +287,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   padding-block: 10px;
   border-bottom: 1px solid var(--land-line);
   font-size: 11px;

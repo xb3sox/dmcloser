@@ -3,28 +3,108 @@ import type { Billing } from "./billing.ts";
 import { normalizeWebhook } from "./providers.ts";
 import { decrypt, encrypt, HttpError } from "./security.ts";
 
+/** Default lease a processing job holds before another worker may reclaim it. */
+const BASE_LEASE_MS = 60000;
+const LONG_LEASE_MS = 4 * 60000;
+/** Upper bound, so a wedged handler is still recoverable by another worker. */
+const MAX_LEASE_MS = 15 * 60000;
+
+export interface WorkerOptions {
+  /**
+   * Job kinds this worker is allowed to touch. Empty means every kind.
+   * Two workers sharing one database never take the same row — the claim uses
+   * FOR UPDATE SKIP LOCKED — but kind isolation keeps the web process off slow
+   * AI work when a dedicated worker is deployed.
+   */
+  kinds?: string[];
+  /** Upper bound on jobs processed at the same time by this instance. */
+  concurrency?: number;
+}
+
 export class Worker {
   private timer: ReturnType<typeof setInterval> | null = null;
-  private running = false;
+  /** Jobs claimed and not yet finished on this instance. */
+  private inFlight = 0;
   private lastTick = 0;
+  private stopping = false;
+  private readonly kinds: Set<string>;
+  private readonly concurrency: number;
+  /** Live tasks, so stop() can drain instead of aborting work. */
+  private readonly running = new Set<Promise<void>>();
+  /** Serialises claim transactions; job bodies still run in parallel. */
+  private claimChain: Promise<void> = Promise.resolve();
+
   constructor(
     public service: ProductService,
     private billing: Billing,
-  ) {}
+    options: WorkerOptions = {},
+  ) {
+    this.kinds = new Set(options.kinds ?? []);
+    this.concurrency = Math.max(1, options.concurrency ?? 1);
+  }
+
+  /**
+   * Claim at most one job and run it to a terminal state.
+   * Returns true when a job was processed, false when there was nothing to do
+   * or this instance is already at its concurrency limit.
+   */
   async once(): Promise<boolean> {
-    const job: any = await this.service.db.transaction(async (tx) => {
+    if (this.stopping || this.inFlight >= this.concurrency) return false;
+    const job = await this.claim();
+    if (!job) return false;
+    this.inFlight++;
+    const task = this.run(job)
+      .catch(() =>
+        console.error(JSON.stringify({ event: "worker.tick_failure" })),
+      )
+      .finally(() => {
+        this.inFlight--;
+        this.running.delete(task);
+      });
+    this.running.add(task);
+    await task;
+    return true;
+  }
+
+  /**
+   * A lease that outlives a slow handler. AI work is bounded by
+   * config.aiTimeout, so a job finishing inside that window must never have its
+   * row stolen mid-flight and run twice by another worker.
+   */
+  leaseFor(kind: string): number {
+    const aiWork = kind === "generate" || kind === "ai-eval";
+    const base = aiWork
+      ? Math.max(
+          LONG_LEASE_MS,
+          this.service.config.aiTimeout * 2 + 30000,
+        )
+      : BASE_LEASE_MS;
+    return Math.min(MAX_LEASE_MS, Math.max(BASE_LEASE_MS, base));
+  }
+
+  private async claim(): Promise<any | null> {
+    const kinds = [...this.kinds];
+    return this.service.db.transaction(async (tx) => {
+      const params: unknown[] = [Date.now()];
+      let kindFilter = "";
+      if (kinds.length) {
+        params.push(kinds);
+        kindFilter = ` AND kind = ANY($${params.length})`;
+      }
       const [row] = await tx.query(
-        "SELECT * FROM jobs WHERE (state='pending' AND available_at<=$1) OR (state='processing' AND lease_until<$1) ORDER BY available_at LIMIT 1 FOR UPDATE SKIP LOCKED",
-        [Date.now()],
+        `SELECT * FROM jobs WHERE ((state='pending' AND available_at<=$1) OR (state='processing' AND lease_until<$1))${kindFilter} ORDER BY available_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
+        params,
       );
       if (!row) return null;
       await tx.query(
         "UPDATE jobs SET state='processing',attempts=attempts+1,lease_until=$1,updated_at=now() WHERE id=$2",
-        [Date.now() + 60000, row.id],
+        [Date.now() + this.leaseFor(row.kind), row.id],
       );
       return { ...row, attempts: row.attempts + 1 };
     });
-    if (!job) return false;
+  }
+
+  private async run(job: any): Promise<void> {
     try {
       const payload = job.payload;
       if (job.kind === "webhook") {
@@ -175,24 +255,67 @@ export class Worker {
     } finally {
       if (job.workspace_id) this.service.changed(job.workspace_id);
     }
-    return true;
   }
+
+  /**
+   * Poll loop. Each tick tops the instance back up to `concurrency` claims, so a
+   * burst of inbound messages is absorbed by parallel work instead of queueing
+   * behind one claim per tick. The slot is reserved synchronously before the
+   * claim transaction opens, which stops the loop from over-claiming while a row
+   * lock is still being taken.
+   */
   start() {
     if (this.timer) return;
+    this.stopping = false;
     this.timer = setInterval(() => {
-      if (this.running) return;
       this.lastTick = Date.now();
-      this.running = true;
-      this.once()
-        .catch(() =>
-          console.error(JSON.stringify({ event: "worker.unavailable" })),
-        )
-        .finally(() => {
-          this.running = false;
-        });
+      if (this.stopping) return;
+      // Fill every free slot, not just one. A single claim per tick capped the
+      // whole process at ~6 jobs/s, which is far below one inbound message per
+      // customer action and let the queue grow without bound under load.
+      for (let i = this.inFlight; i < this.concurrency; i++) this.pump();
     }, 150);
     this.timer.unref();
   }
+
+  /** Issue one claim, reserving its slot until the job finishes. */
+  private pump() {
+    this.inFlight++;
+    let claimed = false;
+    // Claims are serialised through this chain: a claim is a short transaction,
+    // so serialising costs microseconds, while issuing several at once opens
+    // parallel transactions that a single-writer engine (PGlite, a small pool)
+    // slows down or deadlocks on. The jobs themselves still run in parallel.
+    const claimable = this.claimChain.then(() => this.claim());
+    this.claimChain = claimable.then(
+      () => undefined,
+      () => undefined,
+    );
+    void claimable
+      .then((job) => {
+        if (!job) return;
+        claimed = true;
+        const task = this.run(job)
+          .catch(() =>
+            console.error(JSON.stringify({ event: "worker.tick_failure" })),
+          )
+          .finally(() => {
+            this.inFlight--;
+            this.running.delete(task);
+          });
+        this.running.add(task);
+        return task;
+      })
+      .catch(() =>
+        console.error(JSON.stringify({ event: "worker.unavailable" })),
+      )
+      .finally(() => {
+        // Nothing claimable: release the reserved slot so the next tick can try
+        // again. A claimed job releases its slot when the job ends.
+        if (!claimed) this.inFlight--;
+      });
+  }
+
   /** True while the poll loop is alive; background work stops without it. */
   healthy() {
     // The heartbeat must tolerate a long, legitimate job: the poll loop runs
@@ -200,6 +323,12 @@ export class Worker {
     // so 15 seconds risked a false "degraded" during heavy maintenance.
     return this.lastTick > 0 && Date.now() - this.lastTick < 30000;
   }
+
+  /** Jobs in flight on this instance — surfaced on /api/ready. */
+  active() {
+    return this.inFlight;
+  }
+
   async maintenance() {
     await this.service.db.query("DELETE FROM sessions WHERE expires_at<$1", [
       Date.now(),
@@ -225,10 +354,14 @@ export class Worker {
         `refresh:${connection.id}:${new Date().toISOString().slice(0, 10)}`,
       );
   }
+
+  /** Stop polling, then let in-flight jobs finish so no row is left leased. */
   async stop() {
+    this.stopping = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    while (this.running)
-      await new Promise((resolve) => setTimeout(resolve, 25));
+    // A claim may still be in flight; wait for it so no row is left leased.
+    await this.claimChain.catch(() => undefined);
+    while (this.running.size) await Promise.allSettled([...this.running]);
   }
 }

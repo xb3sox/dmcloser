@@ -15,6 +15,12 @@ export interface Config {
   openaiKey?: string;
   openaiModel: string;
   aiTimeout: number;
+  /** Jobs one process runs at the same time. Keep AI work small. */
+  workerConcurrency: number;
+  /** Job kinds this process may claim. Empty means every kind. */
+  workerKinds: string[];
+  /** Run the poll loop in this process; false for a dedicated worker process. */
+  workerEnabled: boolean;
   graphVersion: string;
   metaAppId?: string;
   metaSecret?: string;
@@ -77,6 +83,18 @@ export async function loadConfig(): Promise<Config> {
     openaiKey: env.OPENAI_API_KEY,
     openaiModel: env.OPENAI_MODEL || "gpt-4.1-mini",
     aiTimeout: Number(env.AI_TIMEOUT_MS || 8000),
+    // Default 2: one inbound message can need two model calls, and a burst of
+    // parallel calls is the fastest way to hit a provider rate limit. Raise it
+    // only after the load lab shows p99 still under AI_TIMEOUT_MS.
+    workerConcurrency: Math.max(
+      1,
+      Math.min(16, Number(env.WORKER_CONCURRENCY || 2)),
+    ),
+    workerKinds: (env.WORKER_KINDS || "")
+      .split(",")
+      .map((kind) => kind.trim())
+      .filter(Boolean),
+    workerEnabled: env.WORKER_ENABLED !== "false",
     graphVersion: env.META_GRAPH_VERSION || "v26.0",
     metaAppId: env.META_APP_ID,
     metaSecret: env.META_APP_SECRET,

@@ -127,4 +127,8 @@ jobs:
           name: release-candidate
           path: release/
           retention-days: 30
-      - run: echo "Owner approval gate passed. The image above is verified and content-addressed. Deployment stays manual: load the artifact on the host and run the runbook in docs/OPERATIONS.md. No automatic deployment is configured."
+      - name: Deployment stays manual
+        run: |
+          echo "Owner approval gate passed. The image above is verified and content-addressed."
+          echo "Deployment stays manual: load the artifact on the host and run the runbook in docs/OPERATIONS.md."
+          echo "No automatic deployment is configured."
