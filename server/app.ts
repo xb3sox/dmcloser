@@ -81,7 +81,10 @@ export async function createApp(
     overrides.meta || new MetaProvider(config),
   );
   const billing = new Billing(service);
-  const worker = new Worker(service, billing);
+  const worker = new Worker(service, billing, {
+    concurrency: config.workerConcurrency,
+    kinds: config.workerKinds,
+  });
   const cookieName = config.production ? "__Host-dmcloser" : "dmcloser_session";
   const origins = new Set([
     config.appUrl,
@@ -490,6 +493,8 @@ export async function createApp(
       service: "dmcloser",
       storage: db.kind,
       worker: ready ? "polling" : "stopped",
+      activeJobs: worker.active(),
+      workerConcurrency: config.workerConcurrency,
     });
   });
   app.get("/internal/metrics", async (req, res) => {
