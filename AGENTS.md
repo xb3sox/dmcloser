@@ -135,8 +135,16 @@ not finished.
     actual evidence.** A claim without a row in `docs/EVIDENCE.md` is not evidence. Agents
     may prepare releases; **only the owner authorizes production.**
 14. **PR first. Never merge or push `main` without Basem's review.**
-15. **A claim without a row in `docs/EVIDENCE.md` is not evidence.** All test counts, gate
-    results and rehearsal evidence must live in `docs/EVIDENCE.md`.
+
+## Agent policy
+
+- One issue per pull request. Branch as `agent/<issue>-<slug>`.
+- A maximum of two open agent PRs per repository. Finish or close before starting more.
+- Agents never merge, never force-push, never touch `main`.
+- npm only: update `package-lock.json`; never commit `pnpm-lock.yaml` or `yarn.lock`.
+- Keep the PR at 400 changed lines or fewer, excluding `package-lock.json`.
+- Run `node scripts/check.mjs`, and `npx playwright test` when UI or tests change.
+- No secrets, no live provider calls, no deployment, no new dependency unless the issue names it.
 
 ## Identifiers
 
