@@ -40,7 +40,12 @@ export async function verifyPassword(password: string, stored: string) {
 }
 export function encrypt(token: string, secret: string) {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", Buffer.from(secret, "hex"), iv);
+  const cipher = createCipheriv(
+    "aes-256-gcm",
+    Buffer.from(secret, "hex"),
+    iv,
+    { authTagLength: 16 },
+  );
   const body = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
   return `${iv.toString("hex")}.${cipher.getAuthTag().toString("hex")}.${body.toString("hex")}`;
 }
@@ -50,6 +55,7 @@ export function decrypt(value: string, secret: string) {
     "aes-256-gcm",
     Buffer.from(secret, "hex"),
     Buffer.from(iv, "hex"),
+    { authTagLength: 16 },
   );
   cipher.setAuthTag(Buffer.from(tag, "hex"));
   return Buffer.concat([

@@ -9,6 +9,28 @@
 5. `npm run load` measures the inbound path against a running API; the method, the ceiling and the measured baseline live in [LOAD-LAB.md](LOAD-LAB.md).
 6. `npm run check:prisma` proves `prisma/schema.prisma` still matches the SQL migrations. It needs an empty database and is not part of `npm test`; see [../scripts/prisma/README.md](../scripts/prisma/README.md).
 
+### Local Security Scanning
+
+To run security checks locally:
+
+- **Gitleaks** (secret detection across git history):
+  ```sh
+  gitleaks detect --verbose
+  ```
+- **Trivy** (filesystem and container image vulnerability, secret, and misconfiguration scan):
+  ```sh
+  # Filesystem scan
+  trivy fs . --scanners vuln,secret,config --severity HIGH,CRITICAL --exit-code 1
+
+  # Container image scan
+  docker build -t dmcloser:local .
+  trivy image dmcloser:local --scanners vuln,secret,config --severity HIGH,CRITICAL --exit-code 1
+  ```
+- **Semgrep** (SAST scan for TypeScript/Node.js injection & OWASP issues):
+  ```sh
+  semgrep scan --config p/typescript --config p/nodejs --config p/owasp-top-ten --error
+  ```
+
 ## Live Integration
 
 - Set `OPENAI_API_KEY` and `OPENAI_MODEL`. Customer text, business context, and lead memory are sent to OpenAI with `store:false`; assess provider retention and your DPA separately. No tools or arbitrary fetches are available to the model.
