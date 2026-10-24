@@ -40,6 +40,7 @@ async function shutdown() {
   await worker.stop();
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await service.close();
   await db.close();
 }
 process.on("SIGTERM", () => {

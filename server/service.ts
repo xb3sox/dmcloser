@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import pg from "pg";
 import type { Database } from "./db.ts";
 import type { Config } from "./config.ts";
 import { decrypt, digest, encrypt, HttpError } from "./security.ts";
@@ -98,6 +99,7 @@ export class ProductService {
   revenue: RevenueService;
   quality: QualityService;
   events = new EventEmitter();
+  private notifyClient: pg.Client | null = null;
   metrics = {
     received: 0,
     generated: 0,
@@ -119,9 +121,71 @@ export class ProductService {
       this.changed(workspaceId),
     );
     this.quality = new QualityService(this);
+    if (this.db.kind === "postgres" && this.db.connectionString) {
+      const client = new pg.Client({
+        connectionString: this.db.connectionString,
+        ssl: this.db.ssl ? { rejectUnauthorized: true } : undefined,
+      });
+      client.on("error", (err) => {
+        console.error(
+          JSON.stringify({
+            event: "sse.pubsub_error",
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      });
+      client
+        .connect()
+        .then(() => client.query("LISTEN workspace_events"))
+        .then(() => {
+          this.notifyClient = client;
+          client.on("notification", (msg) => {
+            if (msg.channel === "workspace_events" && msg.payload) {
+              this.events.emit(msg.payload);
+            }
+          });
+        })
+        .catch((err) => {
+          console.error(
+            JSON.stringify({
+              event: "sse.pubsub_error",
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        });
+    } else if (this.db.listen) {
+      this.db
+        .listen("workspace_events", (payload) => {
+          if (payload) this.events.emit(payload);
+        })
+        .catch((err) => {
+          console.error(
+            JSON.stringify({
+              event: "sse.pubsub_error",
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        });
+    }
   }
   changed(workspaceId: string) {
-    this.events.emit(workspaceId);
+    this.db
+      .query("SELECT pg_notify('workspace_events', $1)", [workspaceId])
+      .catch((err) => {
+        console.error(
+          JSON.stringify({
+            event: "sse.notify_error",
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+        this.events.emit(workspaceId);
+      });
+  }
+  async close() {
+    if (this.notifyClient) {
+      await this.notifyClient.end().catch(() => {});
+      this.notifyClient = null;
+    }
   }
   async redactAccountReceipts(
     platform: string,
