@@ -131,8 +131,11 @@ not finished.
     verbatim; Arabic patterns are added beside them, never substituted. A guard that
     exists in one language and not the other is a safety defect, not a gap.
 13. **Do not claim live integration, latency SLO, backups, or compliance verified without
-    actual evidence.** Agents may prepare releases; **only the owner authorizes production.**
+    actual evidence.** A claim without a row in `docs/EVIDENCE.md` is not evidence. Agents
+    may prepare releases; **only the owner authorizes production.**
 14. **PR first. Never merge or push `main` without Basem's review.**
+15. **A claim without a row in `docs/EVIDENCE.md` is not evidence.** All test counts, gate
+    results and rehearsal evidence must live in `docs/EVIDENCE.md`.
 
 ## Identifiers
 

@@ -42,4 +42,4 @@ Exact gaps, revenue rationale, DB/API/AI/UI contracts and implementation order: 
 
 Calibrated conversion/time-to-close models; processor-verified sales payments; external calendars; real campaign ingestion; multilingual semantic signals; consented outbound follow-up sequences; outcome correction/voiding; conversation assignment and an assignee filter; WhatsApp Embedded Signup; policy-approved templates/media; shared limiting/pub-sub before horizontal scale.
 
-**Evidence boundary:** local tests do not verify live credentials, approvals, latency targets, legal compliance, hosted CI, Docker deployment or production recovery. Details: `docs/OPERATIONS.md`, `docs/REVIEW.md`.
+**Evidence boundary:** local tests do not verify live credentials, approvals, latency targets, legal compliance, hosted CI, Docker deployment or production recovery. Detailed evidence ledger: `docs/EVIDENCE.md`.

@@ -30,10 +30,7 @@ Review also checks frozen editor versions, old-opportunity navigation beyond the
 
 ### Increment Verification
 
-- 76 API/security tests pass in the PGlite and external PostgreSQL runs, including the migration-upgrade, safety, revenue, recovery and quality-lab suites.
-- 66 browser tests pass (58 pre-existing plus 8 Arabic/RTL), including preserved landing/demo/inbox flows, Revenue/Brain/Quality-Lab workflows, concurrent-editor protection and automated light/dark/mobile accessibility checks in both locales.
-- Two deterministic monitoring tests, strict frontend/backend TypeScript, production frontend build and compiled API bundle pass. Dependency audit reports zero vulnerabilities.
-- Populated desktop/mobile Revenue, Brain, deal-panel and Quality-Lab layouts were reviewed using synthetic local data; no runtime errors or horizontal overflow were observed. These checks do not verify live Meta/OpenAI/payment/calendar services, calibration, legal compliance or hosted deployment.
+For exact test execution counts, commands, dates and verifiers, see the single authoritative source: [Evidence Ledger (`docs/EVIDENCE.md`)](EVIDENCE.md).
 
 ## Bilingual, Quality and Scale Review Boundary
 
