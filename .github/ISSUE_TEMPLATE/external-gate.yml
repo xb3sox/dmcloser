@@ -1,0 +1,40 @@
+name: External Gate Report
+description: Report or update status on an external verification or approval gate
+title: "[Gate]: "
+labels: ["gate"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit evidence or status updates for external verification gates.
+  - type: input
+    id: requirement_id
+    attributes:
+      label: Requirement or Gate ID
+      description: The ID of the requirement or gate (e.g., FEAT-001, FR-002, META-APP-REVIEW).
+    validations:
+      required: true
+  - type: textarea
+    id: gate_description
+    attributes:
+      label: Gate Description
+      description: Describe the scope and context of the external gate.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence Attached / Results
+      description: Attach screenshots, logs, or command output demonstrating gate completion.
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Gate Status
+      options:
+        - Pending Review
+        - Passed / Approved
+        - Blocked / Failed
+    validations:
+      required: true

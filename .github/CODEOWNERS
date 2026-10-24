@@ -1,0 +1,7 @@
+# Code Owners routing for critical components
+# Syntax: pattern owner
+
+server/security.ts @xb3sox
+server/billing.ts @xb3sox
+server/ai.ts @xb3sox
+server/migrations/ @xb3sox
