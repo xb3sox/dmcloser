@@ -63,18 +63,7 @@ Dependabot is configured in `.github/dependabot.yml` to automatically surface de
 
 ### Rehearsal Evidence
 
-What has actually been run, and what has not. Everything in the "not verified" list below needs a
-real deployment host and the owner's credentials; no local run substitutes for it.
-
-| Check | Status | Evidence |
-|---|---|---|
-| Production image builds and boots against real Postgres 17 | **Verified** | `docker compose up -d --build` built the image and booted the stack; `/api/ready` returned `{"status":"ready","service":"dmcloser","storage":"postgres","worker":"polling"}` and `/api/health` returned `{"status":"ok",...,"storage":"postgres"}` against the compose `postgres:17-alpine` service. The probe ran from inside the app container: on this host the Docker daemon is in a separate network namespace, so a published port is not reachable from the shell. |
-| Migrations apply forward-only in the production image | **Verified** | `schema_migrations` contained versions 1, 2, 3 and 4 after first boot of the image against an empty database, and held the same four versions after a restore. |
-| Registration refuses to run without mail delivery | **Verified** | `POST /api/auth/register` returned `503 {"error":"Registration is temporarily unavailable until email delivery is configured."}`. This is the correct behaviour with SMTP unset, not a defect. |
-| Container healthcheck reports the running port | **Verified** | The healthcheck hard-coded `3001` while the container ran on another port and reported `unhealthy`; it now reads `process.env.PORT`. The compose stack reported `dmcloser-app-1 running (healthy)`. |
-| Docker compose stack on the deployment host | **Verified on this development host only** | `docker compose up -d --build` was run here: the app and database came up healthy, migrations 1–4 applied, `/api/ready` reported ready, and `POST /api/auth/register` returned 503 with SMTP unset. The stack has **not** been run on the target deployment host, and the credentials used here were generated for the rehearsal only. |
-| Restore rehearsal from a `scripts/backup.sh` archive | **Verified** | `scripts/backup.sh` wrote a gzipped `pg_dump` archive plus a `.sha256` sidecar under `backups/`, and `sha256sum -c` verified it. A marker row was inserted into `users` **after** the backup; `scripts/restore.sh` restored the archive over the live database and the marker row was gone afterwards (`count = 0`), with migrations 1–4 intact and the app reporting ready again. The rehearsed database was a fresh compose Postgres, not a production-shaped dataset with real volume. |
-| Multi-instance deployment | **Not supported** | The in-memory rate limiter and the single-instance job lease assume one instance. |
+For all operational rehearsal evidence, execution results and unverified deployment gates, see the single authoritative source: [Evidence Ledger (`docs/EVIDENCE.md`)](EVIDENCE.md).
 
 ### Revenue Increment
 

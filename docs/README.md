@@ -8,33 +8,13 @@ DMCloser is a mobile-first sales inbox that converts Instagram/WhatsApp inquirie
 
 **Correction to the previous revision of this document.** It stated: *"Owner reports some existing UI screens only, not a functioning MVP."* That was wrong. The repository is a **complete, working, tested product**, and this document set was written against it without inspecting it. The upstream milestone below ("M0 UI repo audit") is **done** — the repository *is* the audited source.
 
-## Product Status — what is actually verified
+## Product Status — Evidence & Verification
 
-**Verified by execution** (gate results as of the `feature/bilingual-safety-guards` branch, PR #1):
-
-| Gate | Result |
-|---|---|
-| `npx tsc --noEmit` | pass |
-| `npx tsc -p tsconfig.server.json` | pass |
-| `server/tests/product.test.ts` | 30/30 pass |
-| `server/tests/revenue.test.ts` | 23/23 pass |
-| `server/tests/safety.test.ts` | 11/11 pass |
-| `server/tests/quality.test.ts` | 7/7 pass |
-| `server/tests/recovery.test.ts` | 5/5 pass |
-| `scripts/control-bands.test.mjs` | 2/2 pass |
-| `npx playwright test` | 66/66 pass (58 pre-existing + 8 Arabic/RTL) |
-| the same 76 server tests on an external Postgres 17 | 76/76 pass |
-| compose stack boot, readiness probe, backup and restore rehearsal | pass |
-| `npm run build` | pass, 714 kB single-file bundle |
-| `npm audit --audit-level=moderate` | 0 vulnerabilities |
-
-76 API/security tests in total. `node scripts/check.mjs` runs every gate above in one command and is the CI entry point.
+For all test counts, gate results, rehearsal details and unverified external gates, see the single authoritative source: [Evidence Ledger (`docs/EVIDENCE.md`)](EVIDENCE.md).
 
 **Inspected and present:** a full Express 5 + PostgreSQL back end (PGlite on the filesystem for local development); signed webhook ingestion with deduplication; a durable job queue with `FOR UPDATE SKIP LOCKED` leasing and 3-attempt dead-lettering; server-only OpenAI generation with a strict schema and a verbatim grounding gate; encrypted provider tokens at rest; session + CSRF auth with workspace-scoped SQL on every query; a durable outbox with an explicit approval and takeover path; Stripe checkout/portal with idempotent signed events; workspace export and erasure; the full Revenue OS increment (11 tables, 22 routes, 24 service methods); a React 19 client with marketing, isolated demo, and authenticated workspace surfaces; a Playwright + axe accessibility matrix in light and dark mode; a complete English + Arabic interface with a real RTL layout (CSS logical properties, bidi isolation, locale-aware money and dates); bilingual safety guards that detect Arabic opt-outs, injections, secrets, refunds, spam and clinical content; a versioned, owner-published AI prompt with a deterministic evaluation gate that blocks automatic sends; a configurable custom sector on top of the fixed industry profiles; separate Potential / Attributed / Verified revenue blocks; a human recovery worklist; cursor pagination on the conversation list; and `scripts/backup.sh` / `scripts/restore.sh` for the compose stack.
 
-**Still unvalidated — and not verifiable by any local test:** BRNGT LLC incorporation evidence; Meta app approval and channel permissions; live SMTP/OpenAI/Stripe credentials; production Postgres and TLS; cross-border privacy and legal applicability; load-test latency; subscribed customers, real costs, and market demand. Saudi-market-first and globally-planned is **not** worldwide regulatory clearance. The manual-approval requirement and the USD 25–50/mo development spending ceiling remain **provisional recommendations**, not deployed controls or verified quotations.
-
-The compose stack and a backup/restore rehearsal **were** run on a development host — image built, `/api/ready` reported ready, migrations 1–4 applied, registration refused with 503 without SMTP, and a marker row inserted after the backup was gone after the restore. That database was fresh, not production-shaped, and the stack has not been run on the deployment host; the evidence is in `docs/OPERATIONS.md`.
+**External Gates & Unverified Items:** External provider approvals, live credentials, production deployment rehearsals, and legal/compliance postures remain explicitly unverified until linked artifacts exist in [docs/EVIDENCE.md](EVIDENCE.md).
 
 **Known product gaps** (mapped to requirements in the root `SPEC-INDEX.md`): the **assignee filter** is the only one of the ten upstream gaps still open — there is no assignee column in any migration, and conversation assignment is a separate feature that touches the team/roles model, so it is not invented here. Every other gap named by the upstream PRD is now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, and the lead-status filter.
 
