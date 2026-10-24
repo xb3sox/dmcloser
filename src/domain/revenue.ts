@@ -86,10 +86,10 @@ export function scoreLead(
   const text = incoming.map((message) => message.text).join("\n");
   const latest = incoming[incoming.length - 1];
   const signals: LeadSignal[] = [];
+  // Optimization: pre-reverse incoming messages once instead of re-copying and reversing on every signal check.
+  const incomingReversed = [...incoming].reverse();
   const matchedTest = (test: (value: string) => boolean, label: string) => {
-    const message = [...incoming]
-      .reverse()
-      .find((item) => test(item.text));
+    const message = incomingReversed.find((item) => test(item.text));
     if (message)
       signals.push({
         label,
