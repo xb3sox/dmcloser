@@ -96,11 +96,45 @@ The backlog is gone. Latency cost of the extra parallelism is inside noise at th
 All 600 dead jobs are `AI is not configured`, which is correct behaviour with no key: the
 job fails permanently and the operator can still reply by hand.
 
+## Instrument Stage Timings & Measured Baselines
+
+Instrumented per-stage timing breakdown recorded per reply in `suggestions`:
+- `ingest_ms`: Time from message arrival / timestamp to job start
+- `persistence_ms`: DB query time for conversation history, workspace settings, and business profile/brain context
+- `model_ms`: External AI model call latency
+- `draft_write_ms`: Time spent storing the draft suggestion and enqueuing auto-send
+
+### Baseline 1: Local Dev Environment (Fake Provider — Unconfigured AI)
+Environment: `node v22`, `PGlite`, single-process local server, `OPENAI_API_KEY` unset.
+Run shape: 10 workspaces, 10 in flight, 10s, cap 20 rps, `WORKER_CONCURRENCY=2`.
+- Requests: 200 total (20 req/s), 0 HTTP errors.
+- HTTP API Latency: p50 93.3 ms · p95 135.4 ms · p99 216.7 ms · max 223 ms.
+- Queue / AI layer: 0 suggestions (AI path fails fast with `AI_NOT_CONFIGURED`).
+
+### Baseline 2: Local Dev Environment (Mock AI Provider — Instrumented Stage Breakdown)
+Environment: `node v22`, `PGlite`, local API server with `WORKER_CONCURRENCY=4`, Mock AI server on port 4000 (350ms model latency).
+Run shape: 10 workspaces, 10 in flight, 15s, cap 20 rps.
+- Requests: 300 total (20 req/s), 0 HTTP errors.
+- HTTP API Latency: p50 79.9 ms · p95 174.3 ms · p99 200.9 ms · max 229.7 ms.
+- AI Generation Samples: 182 suggestions recorded.
+- Per-Stage Latency Breakdown (Mean / p95):
+  - `ingest_ms` (queue wait): Mean 2023 ms · p95 6609 ms (under load queue wait dominates total delay)
+  - `persistence_ms`: Mean 36 ms · p95 52 ms
+  - `model_ms`: Mean 381 ms · p95 468 ms
+  - `draft_write_ms`: Mean 2 ms · p95 2 ms
+- Histogram buckets (`/internal/metrics`):
+  - `<= 250ms`: 0
+  - `<= 500ms`: 174
+  - `<= 1000ms`: 195
+  - `<= 1500ms`: 202
+  - `<= 2000ms`: 211
+  - `<= 3000ms`: 236
+  - `<= 5000ms`: 291
+  - `> 5000ms`: 84
+
 ## Still unmeasured
 
-- The AI path itself: with no key, the 8 s timeout, the two-call worst case and the
-  provider rate limit were never exercised. Run the lab with a key before trusting any
-  claim about reply latency.
+- Real Live Credentials: Meta Business OAuth / production WhatsApp & OpenAI live accounts.
 - Real Postgres: PGlite is single-writer, so the claim transaction is serialised in a way
   production will not be. Expect better, verify anyway.
 - More than one process: `WORKER_KINDS` and `WORKER_ENABLED` allow a dedicated worker.

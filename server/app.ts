@@ -515,7 +515,13 @@ export async function createApp(
       "SELECT count(*) FILTER (WHERE state='dead')::integer AS dead_jobs,count(*) FILTER (WHERE state='pending')::integer AS pending_jobs,MIN(available_at) FILTER (WHERE state='pending') AS oldest_pending FROM jobs",
     );
     const [latency] = await db.query(
-      "SELECT count(*)::integer AS samples,percentile_cont(.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms FROM suggestions WHERE created_at>now()-interval '1 hour'",
+      "SELECT count(*)::integer AS samples,percentile_cont(.50) WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,percentile_cont(.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms,percentile_cont(.99) WITHIN GROUP (ORDER BY latency_ms) AS p99_ms FROM suggestions WHERE created_at>now()-interval '1 hour'",
+    );
+    const [stages] = await db.query(
+      "SELECT count(*)::integer AS samples,avg(ingest_ms)::integer AS avg_ingest_ms,percentile_cont(.95) WITHIN GROUP (ORDER BY ingest_ms) AS p95_ingest_ms,avg(persistence_ms)::integer AS avg_persistence_ms,percentile_cont(.95) WITHIN GROUP (ORDER BY persistence_ms) AS p95_persistence_ms,avg(model_ms)::integer AS avg_model_ms,percentile_cont(.95) WITHIN GROUP (ORDER BY model_ms) AS p95_model_ms,avg(draft_write_ms)::integer AS avg_draft_write_ms,percentile_cont(.95) WITHIN GROUP (ORDER BY draft_write_ms) AS p95_draft_write_ms FROM suggestions WHERE created_at>now()-interval '1 hour'",
+    );
+    const [histogram] = await db.query(
+      "SELECT count(*) FILTER (WHERE latency_ms <= 250)::integer AS le_250,count(*) FILTER (WHERE latency_ms <= 500)::integer AS le_500,count(*) FILTER (WHERE latency_ms <= 1000)::integer AS le_1000,count(*) FILTER (WHERE latency_ms <= 1500)::integer AS le_1500,count(*) FILTER (WHERE latency_ms <= 2000)::integer AS le_2000,count(*) FILTER (WHERE latency_ms <= 3000)::integer AS le_3000,count(*) FILTER (WHERE latency_ms <= 5000)::integer AS le_5000,count(*) FILTER (WHERE latency_ms > 5000)::integer AS gt_5000 FROM suggestions WHERE created_at>now()-interval '1 hour'",
     );
     res.json({
       status: "ok",
@@ -527,6 +533,8 @@ export async function createApp(
           : 0,
       },
       latency,
+      stages,
+      histogram,
     });
   });
   app.get("/api/session", async (req, res) => {
