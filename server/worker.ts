@@ -186,7 +186,7 @@ export class Worker {
           await sendEmail(mailer, this.service.config, payload as MailMessage);
         } catch (error) {
           // 5xx and auth failures never heal: fail the job now so the operator sees it
-          // instead of burning four attempts on a password the provider rejects.
+          // instead of burning the three attempts on credentials the provider rejects.
           if (!isTransientMailError(error))
             throw new HttpError(
               400,

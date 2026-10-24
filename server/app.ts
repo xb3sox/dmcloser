@@ -356,7 +356,11 @@ export async function createApp(
   });
 
   const mailer = createMailer(config);
-  async function emailToken(user: any, purpose: "verify" | "reset") {
+  async function emailToken(
+    user: any,
+    purpose: "verify" | "reset",
+    workspaceId?: string,
+  ) {
     if (!mailer)
       throw new HttpError(
         503,
@@ -370,10 +374,15 @@ export async function createApp(
     const url = `${config.appUrl}/workspace?${purpose}=${encodeURIComponent(token)}`;
     // Queue the send: SMTP latency must not sit in a signup or recovery request,
     // and a bounce has to reach the activity feed instead of a swallowed promise.
-    const [membership] = await db.query(
-      "SELECT workspace_id FROM members WHERE user_id=$1 ORDER BY created_at LIMIT 1",
-      [user.id],
-    );
+    const target =
+      workspaceId ??
+      (
+        await db.query(
+          "SELECT workspace_id FROM members WHERE user_id=$1 LIMIT 1",
+          [user.id],
+        )
+      )[0]?.workspace_id ??
+      null;
     await service.enqueue(
       "email",
       {
@@ -385,7 +394,7 @@ export async function createApp(
         text: `${purpose === "reset" ? "Reset your password" : "Verify your email"} using this single-use link (expires in one hour):\n${url}\n\nIf you did not request this, ignore this email.`,
         purpose,
       },
-      membership?.workspace_id ?? null,
+      target,
     );
   }
   async function readActor(req: Request): Promise<Actor | undefined> {
@@ -589,10 +598,15 @@ export async function createApp(
     await issueSession(res, userId, workspaceId);
     await service.audit(workspaceId, userId, "workspace.created");
     if (mailer)
-      emailToken({ id: userId, email: body.email }, "verify").catch(() =>
-        console.error(
-          JSON.stringify({ event: "email.delivery_failed", purpose: "verify" }),
-        ),
+      emailToken({ id: userId, email: body.email }, "verify", workspaceId).catch(
+        (error) =>
+          console.error(
+            JSON.stringify({
+              event: "email.enqueue_failed",
+              purpose: "verify",
+              reason: error instanceof Error ? error.message : "unknown",
+            }),
+          ),
       );
     res.status(201).json({ ok: true });
   });
@@ -780,6 +794,7 @@ export async function createApp(
     await emailToken(
       { id: req.actor!.userId, email: req.actor!.email },
       "verify",
+      req.actor!.workspaceId,
     );
     res.json({ message: "Verification email sent." });
   });

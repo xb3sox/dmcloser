@@ -690,6 +690,47 @@ test("team invites enforce recipient email, role permissions and tenant switch",
   assert.equal((await member.client.get("/api/workspace/export")).status, 403);
 });
 
+test("transactional mail is queued as a job, not sent inside the request", async () => {
+  // Port 2525 is deliberately unroutable: if the request ever tries to speak SMTP
+  // inline it fails here instead of silently costing a clinic two seconds.
+  const owner = await fixture({ smtpHost: "127.0.0.1", smtpPort: 2525 });
+  const guest = await fixture({ smtpHost: "127.0.0.1", smtpPort: 2525 });
+  const started = Date.now();
+  const invitation = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: guest.email });
+  assert.equal(invitation.status, 200);
+  assert.ok(
+    Date.now() - started < 2000,
+    "an invite must not wait on the mail server",
+  );
+  const [job] = await db.query(
+    "SELECT kind,state,payload FROM jobs WHERE workspace_id=$1 AND kind='email' ORDER BY created_at DESC LIMIT 1",
+    [owner.snapshot.workspace.id],
+  );
+  assert.equal(job.kind, "email");
+  assert.equal(job.state, "pending");
+  assert.equal(job.payload.to, guest.email);
+  assert.equal(job.payload.purpose, "invite");
+  const [verify] = await db.query(
+    "SELECT payload FROM jobs WHERE kind='email' AND payload->>'purpose'='verify' AND workspace_id=$1 ORDER BY created_at DESC LIMIT 1",
+    [owner.snapshot.workspace.id],
+  );
+  assert.match(verify.payload.text, /workspace\?verify=/);
+});
+
+test("no mail job is queued when the server has no SMTP host", async () => {
+  const owner = await fixture();
+  await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: `${randomUUID()}@example.com` });
+  const rows = await db.query(
+    "SELECT id FROM jobs WHERE workspace_id=$1 AND kind='email'",
+    [owner.snapshot.workspace.id],
+  );
+  assert.equal(rows.length, 0);
+});
+
 test("account deletion removes workspace data and sessions", async () => {
   const f = await fixture();
   await inbound(f);
