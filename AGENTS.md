@@ -139,7 +139,7 @@ not finished.
 Upstream requirements carry stable ids: `FEAT-001`…`FEAT-020` (features), `FR-nnn`
 (functional requirements), `NFR-nnn` (non-functional), `AC-nnn` (acceptance criteria).
 Reference them in code comments and commits so a change can be traced to a requirement.
-`SPEC.md` at the repo root maps each one to its implementation status and evidence path.
+`SPEC-INDEX.md` at the repo root maps each one to its implementation status and evidence path.
 
 ## Identity
 

@@ -1,3 +1,5 @@
+<!-- spec.md — Implementation Contract. For the specification index, see SPEC-INDEX.md. -->
+
 # DMCloser Implementation Contract
 
 Source: [AI-native SDLC playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook). Artifacts stay beside code; human approval is required for release and policy changes.

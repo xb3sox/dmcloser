@@ -1,3 +1,5 @@
+<!-- SPEC-INDEX.md — Specification Index. For the implementation contract, see spec.md. -->
+
 # DMCloser Specification Index
 
 **This file is an index, not a contract.** The contracts are:

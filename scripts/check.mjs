@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 const artifacts = [
   "intent.md",
   "spec.md",
+  "SPEC-INDEX.md",
   "plan.md",
   "CLAUDE.md",
   "ROADMAP.md",
@@ -19,6 +20,7 @@ const suites = readdirSync("server/tests")
   .sort()
   .map((name) => ["npx", ["tsx", "--test", `server/tests/${name}`]]);
 for (const [command, args] of [
+  ["node", ["scripts/check-file-case.mjs"]],
   ["npx", ["tsc", "--noEmit"]],
   ["npx", ["tsc", "-p", "tsconfig.server.json"]],
   ...suites,
