@@ -53,6 +53,14 @@ is configured, and the `production` environment approval is the owner's.
 
 Run `node scripts/check.mjs` and `npx playwright test`. CI also exercises external Postgres. Require PR review for auth, tenant queries, billing, secrets, prompts, and automation policy; protect `main` and require approval on the `production` environment. CI configuration is supplied, not proof it has run remotely.
 
+### Automated Dependency Updates
+
+Dependabot is configured in `.github/dependabot.yml` to automatically surface dependency updates:
+- **`npm` updates:** Weekly schedule grouping minor and patch version updates into single pull requests (`minor-and-patch`). Major updates remain ungrouped.
+- **`github-actions` updates:** Monthly schedule for GitHub Actions workflow actions.
+- **Security advisories:** Open individual PRs promptly as security advisories surface.
+- **Auto-merge:** No auto-merge is configured; required CI check gates (`node scripts/check.mjs`) must pass on every PR before human review.
+
 ### Rehearsal Evidence
 
 What has actually been run, and what has not. Everything in the "not verified" list below needs a
