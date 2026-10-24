@@ -26,7 +26,7 @@ invents a price.
 | `server/tests/` | `node:test` suites — `product.test.ts`, `revenue.test.ts`, `safety.test.ts`, `quality.test.ts`, `recovery.test.ts`. Pure + DB, no browser. |
 | `tests/` | Playwright browser + axe accessibility specs, including `arabic.spec.ts` for the RTL locale, plus `global-teardown.ts` which removes the suite's PGlite directory. |
 | `scripts/` | `check.mjs` (**the single gate entry point**), `control-bands.mjs`, `monitor.mjs`, `backup.sh`, `restore.sh`. |
-| `docs/` | `API.md`, `OPERATIONS.md`, `REVENUE_OS.md`, `REVIEW.md`, `PRD.md`, `TECH.md`, `DESIGN.md`, `BUSINESS.md`, `BRIEF.md`, `AGENTS.md` (upstream proposal set). |
+| `docs/` | `API.md`, `OPERATIONS.md`, `REVENUE_OS.md`, `REVIEW.md`, `PRD.md`, `TECH.md`, `DESIGN.md`, `BUSINESS.md`, `BRIEF.md`, `AGENTS.md` (upstream proposal set), [`adr/README.md`](docs/adr/README.md) (ADR index). |
 | `public/` | Favicon, marketing imagery. |
 
 **Three surfaces, one visual system:** `/` marketing landing, `/app` isolated browser-only
@@ -48,6 +48,7 @@ demo (no server, `localStorage`), `/workspace` the authenticated product.
 
 - **Read `intent.md`, `spec.md`, `plan.md` and `ROADMAP.md` before changing anything.**
   Follow the [AI-native SDLC playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook).
+- **Architecture decisions and rejected OSS:** Consult the [ADR Index](docs/adr/README.md) for architectural records, rejected OSS libraries, and Turbostarter reference patterns.
 - **Preserve the shared minimal ivory/forest-green UI, the mobile navigation, and the
   accessible light/dark modes.** They are the shipped identity — see `DESIGN.md`.
 - **TypeScript strict, no `any` in new code.** `src/types/` is the shared contract between
