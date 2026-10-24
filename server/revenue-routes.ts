@@ -377,8 +377,9 @@ export function mountRevenueRoutes(
         .toISOString()
         .replace(/[-:]/g, "")
         .replace(/\.\d{3}/, "");
-    const escape = (value: string) =>
-      value
+    const clean = (text: unknown) => String(text ?? "").replace(/[\r\n]/g, "");
+    const escape = (value: unknown) =>
+      String(value ?? "")
         .replace(/\\/g, "\\\\")
         .replace(/\r\n|\r|\n/g, "\\n")
         .replace(/,/g, "\\,")
@@ -390,13 +391,13 @@ export function mountRevenueRoutes(
         "VERSION:2.0",
         "PRODID:-//DMCloser//Internal Appointments//EN",
         "BEGIN:VEVENT",
-        `UID:${appointment.id}@dmcloser`,
+        `UID:${clean(appointment.id)}@dmcloser`,
         `DTSTAMP:${stamp(Date.now())}`,
         `DTSTART:${stamp(Number(appointment.start_at))}`,
         `DTEND:${stamp(Number(appointment.end_at))}`,
         `SUMMARY:${escape(appointment.title)}`,
         `DESCRIPTION:${escape("Internal booking; confirm the customer and external calendar separately.")}`,
-        `STATUS:${appointment.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
+        `STATUS:${clean(appointment.status) === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
         "END:VEVENT",
         "END:VCALENDAR",
         "",

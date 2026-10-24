@@ -510,12 +510,20 @@ test("appointments reject resource conflicts and export escaped internal calenda
     .set("Idempotency-Key", randomUUID())
     .send({ ...payload, resource: "taylor" });
   assert.equal(conflict.status, 409);
+
+  // Directly update appointment record ID and status to test clean() and escape() sanitization
+  await db.query(
+    "UPDATE appointments SET status='cancelled' WHERE id=$1",
+    [first.body.id],
+  );
+
   const file = await f.client.get(
     `/api/appointments/${first.body.id}/calendar`,
   );
   assert.equal(file.status, 200);
   assert.ok(file.body.content.includes("Viewing\\nX-TEST: invalid"));
   assert.ok(!file.body.content.includes("\r\nX-TEST:"));
+  assert.ok(file.body.content.includes("STATUS:CANCELLED"));
   assert.match(file.body.content, /Internal booking/);
   assert.equal(
     (
