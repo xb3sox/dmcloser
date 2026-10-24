@@ -31,6 +31,8 @@ const config: Config = {
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,
+  posthogHost: "https://us.i.posthog.com",
+  posthogEnabled: true,
 };
 let db: Database;
 before(async () => {

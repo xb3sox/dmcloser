@@ -29,6 +29,8 @@ const config: Config = {
   mailFrom: "test@example.com",
   trustProxy: 0,
   metricsToken: "internal-test-token",
+  posthogHost: "https://us.i.posthog.com",
+  posthogEnabled: true,
 };
 
 let db: Database;

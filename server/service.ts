@@ -14,6 +14,7 @@ import {
 import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
+import { AnalyticsService } from "./analytics.ts";
 
 export interface Actor {
   userId: string;
@@ -33,6 +34,7 @@ export const emptySettings: BusinessSettings = {
   tone: "friendly",
   autoReplyEnabled: false,
   autoSendConfidenceThreshold: 90,
+  analyticsConsent: false,
 };
 export const monthKey = () => new Date().toISOString().slice(0, 7);
 export const contextHash = (settings: BusinessSettings) =>
@@ -97,6 +99,7 @@ export function entitlement(workspace: any) {
 export class ProductService {
   revenue: RevenueService;
   quality: QualityService;
+  analytics: AnalyticsService;
   events = new EventEmitter();
   metrics = {
     received: 0,
@@ -115,8 +118,11 @@ export class ProductService {
     public meta: MetaProvider,
   ) {
     this.events.setMaxListeners(1000);
-    this.revenue = new RevenueService(db, (workspaceId) =>
-      this.changed(workspaceId),
+    this.analytics = new AnalyticsService(config);
+    this.revenue = new RevenueService(
+      db,
+      (workspaceId) => this.changed(workspaceId),
+      this.analytics,
     );
     this.quality = new QualityService(this);
   }
@@ -431,6 +437,13 @@ export class ProductService {
     await this.audit(workspaceId, null, "account.connected", accountId, {
       platform,
     });
+    const [ws] = await this.db.query("SELECT settings FROM workspaces WHERE id=$1", [workspaceId]);
+    await this.analytics.capture(
+      "channel_connected",
+      workspaceId,
+      !!ws?.settings?.analyticsConsent,
+      { platform },
+    );
     this.changed(workspaceId);
   }
 
@@ -721,6 +734,16 @@ export class ProductService {
         },
         tx,
       );
+      await this.analytics.capture(
+        "draft_generated",
+        workspaceId,
+        !!currentWorkspace?.settings?.analyticsConsent,
+        {
+          latencyMs: latency,
+          safe: result.safe,
+          confidence: result.confidence,
+        },
+      );
     });
     this.metrics.generated++;
     this.metrics.totalGenerationMs += latency;
@@ -844,6 +867,16 @@ export class ProductService {
         id,
         {},
         tx,
+      );
+      const [ws] = await tx.query("SELECT settings FROM workspaces WHERE id=$1", [workspaceId]);
+      await this.analytics.capture(
+        "reply_sent",
+        workspaceId,
+        !!ws?.settings?.analyticsConsent,
+        {
+          automatic,
+          sender: automatic || sourceId ? "ai" : "user",
+        },
       );
       return message;
     });

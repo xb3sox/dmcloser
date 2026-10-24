@@ -49,6 +49,8 @@ const config: Config = {
   mailFrom: "test@example.com",
   trustProxy: 0,
   metricsToken: "internal-test-token",
+  posthogHost: "https://us.i.posthog.com",
+  posthogEnabled: true,
 };
 const password = "correct horse battery staple";
 let db: Database;
@@ -143,6 +145,7 @@ async function configureFacts(f: Awaited<ReturnType<typeof fixture>>) {
   const response = await f.mutate("patch", "/api/settings").send({
     businessDescription: "The olive set is $80.",
     productsSold: "Olive linen sets",
+    analyticsConsent: false,
   });
   assert.equal(response.status, 200);
 }
@@ -850,6 +853,7 @@ test("continuous safety evals reject injection, spam, unknown claims, links and 
       tone: "friendly",
       autoReplyEnabled: true,
       autoSendConfidenceThreshold: 90,
+      analyticsConsent: false,
     },
     notes: "",
     memory: "",

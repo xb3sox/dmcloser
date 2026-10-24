@@ -39,6 +39,9 @@ export interface Config {
   mailFrom: string;
   trustProxy: number;
   metricsToken?: string;
+  posthogApiKey?: string;
+  posthogHost: string;
+  posthogEnabled: boolean;
 }
 
 export async function loadConfig(): Promise<Config> {
@@ -119,5 +122,8 @@ export async function loadConfig(): Promise<Config> {
     mailFrom: env.MAIL_FROM || "DMCloser <hello@example.com>",
     trustProxy: Number(env.TRUST_PROXY_HOPS || 0),
     metricsToken: env.METRICS_TOKEN,
+    posthogApiKey: env.POSTHOG_API_KEY,
+    posthogHost: (env.POSTHOG_HOST || "https://us.i.posthog.com").replace(/\/$/, ""),
+    posthogEnabled: env.POSTHOG_ENABLED !== "false",
   };
 }

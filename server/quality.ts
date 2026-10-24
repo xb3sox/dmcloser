@@ -54,6 +54,7 @@ const settingsSchema = z
     tone: z.enum(["friendly", "premium", "aggressive"]),
     autoReplyEnabled: z.boolean(),
     autoSendConfidenceThreshold: z.number().int().min(50).max(100),
+    analyticsConsent: z.boolean().optional().default(false),
   })
   .strict();
 /** Customer-shaped case input. It is data, never an instruction. */

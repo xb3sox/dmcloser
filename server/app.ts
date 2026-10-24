@@ -62,6 +62,7 @@ const settingsSchema = z
     tone: z.enum(["friendly", "premium", "aggressive"]),
     autoReplyEnabled: z.boolean(),
     autoSendConfidenceThreshold: z.number().int().min(50).max(100),
+    analyticsConsent: z.boolean(),
   })
   .partial()
   .strict();
@@ -597,6 +598,9 @@ export async function createApp(
     }
     await issueSession(res, userId, workspaceId);
     await service.audit(workspaceId, userId, "workspace.created");
+    // Registration analytics (consent is false on initial creation, so capture will evaluate consent=false)
+    await service.analytics.capture("signup", workspaceId, false);
+    await service.analytics.capture("workspace_created", workspaceId, false);
     if (mailer)
       emailToken({ id: userId, email: body.email }, "verify", workspaceId).catch(
         (error) =>

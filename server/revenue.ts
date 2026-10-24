@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Database } from "./db.ts";
 import { digest, HttpError } from "./security.ts";
 import type { Actor } from "./service.ts";
+import type { AnalyticsService } from "./analytics.ts";
 import {
   money,
   type Appointment,
@@ -93,6 +94,7 @@ export class RevenueService {
   constructor(
     public db: Database,
     private changed: (workspaceId: string) => void,
+    public analytics?: AnalyticsService,
   ) {}
   async profile(workspaceId: string, tx = this.db): Promise<BusinessProfile> {
     const [row] = await tx.query(
@@ -619,6 +621,14 @@ export class RevenueService {
         { reason: input.reason },
         tx,
       );
+      if (this.analytics) {
+        const [ws] = await tx.query("SELECT settings FROM workspaces WHERE id=$1", [actor.workspaceId]);
+        const consent = !!ws?.settings?.analyticsConsent;
+        await this.analytics.capture("outcome_recorded", actor.workspaceId, consent, {
+          outcome: input.outcome,
+          reason: input.reason,
+        });
+      }
     });
     this.changed(actor.workspaceId);
   }

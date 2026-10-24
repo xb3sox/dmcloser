@@ -35,6 +35,8 @@ const config: Config = {
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,
+  posthogHost: "https://us.i.posthog.com",
+  posthogEnabled: true,
 };
 let db: Database;
 before(async () => {
@@ -764,6 +766,7 @@ test("industry agents preserve administrative boundaries and opt-out overrides h
       tone: "friendly",
       autoReplyEnabled: true,
       autoSendConfidenceThreshold: 90,
+      analyticsConsent: false,
     },
     notes: "",
     memory: "",

@@ -12,6 +12,7 @@ export const defaultSettings: BusinessSettings = {
   tone: "friendly",
   autoReplyEnabled: false,
   autoSendConfidenceThreshold: 85,
+  analyticsConsent: false,
 };
 
 function message(
