@@ -5,7 +5,7 @@ import {
   type SalesInsight,
   type LeadSignal,
 } from "../types/revenue.ts";
-import { isClinical, isOptOut, isRefund, isUnsafe } from "./safety.ts";
+import { normalizeText, isClinical, isOptOut, isRefund, isUnsafe } from "./safety.ts";
 
 export const scoringVersion = "revenue-rules-v1";
 export const industryGuidance: Record<
@@ -86,10 +86,20 @@ export function scoreLead(
   const text = incoming.map((message) => message.text).join("\n");
   const latest = incoming[incoming.length - 1];
   const signals: LeadSignal[] = [];
-  // Optimization: pre-reverse incoming messages once instead of re-copying and reversing on every signal check.
-  const incomingReversed = [...incoming].reverse();
-  const matchedTest = (test: (value: string) => boolean, label: string) => {
-    const message = incomingReversed.find((item) => test(item.text));
+  // Optimization: pre-normalize and pre-reverse incoming messages once to avoid re-normalizing across signal checks.
+  const incomingReversed = incoming
+    .map((msg) => ({
+      ...msg,
+      normalized: normalizeText(msg.text),
+    }))
+    .reverse();
+  const matchedTest = (
+    test: (value: string, normalized: string) => boolean,
+    label: string,
+  ) => {
+    const message = incomingReversed.find((item) =>
+      test(item.text, item.normalized),
+    );
     if (message)
       signals.push({
         label,
@@ -101,11 +111,14 @@ export function scoreLead(
   const matched = (pattern: RegExp, label: string) =>
     matchedTest((value) => pattern.test(value), label);
   const unsafe = isUnsafe(text);
-  const optOut = matchedTest(isOptOut, "Contact opted out");
+  const optOut = matchedTest(
+    (text, norm) => isOptOut(text, norm),
+    "Contact opted out",
+  );
   const sensitive =
     unsafe ||
     matchedTest(
-      (value) => isRefund(value) || isClinical(value),
+      (value, norm) => isRefund(value, norm) || isClinical(value, norm),
       "Human review required",
     );
   const buying =
