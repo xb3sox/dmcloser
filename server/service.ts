@@ -835,6 +835,7 @@ export class ProductService {
         [workspaceId, conversationId],
       );
       if (inbound.some((m) => isOptOut(m.text))) {
+        if (automatic) return null;
         throw new HttpError(
           409,
           "Contact has opted out of messaging. Sending is blocked.",
