@@ -87,6 +87,7 @@ export default function InboxView() {
         <div className="inbox-title-row">
           <h1 id="inbox-heading">
             {t("inbox.title")}
+            <span className="sr-only"> ({filtered.length})</span>
             <span aria-hidden="true">{filtered.length}</span>
           </h1>
           <button
