@@ -1291,3 +1291,88 @@ test("cursor pagination returns every conversation exactly once and rejects a ba
   assert.equal(other.conversations.length, 0);
   assert.equal(other.nextCursor, null);
 });
+
+test("conversation assignment, reassignment, cross-tenant rejection, and assignee filter pagination", async () => {
+  const ownerWorkspace = await fixture();
+  const otherWorkspace = await fixture();
+
+  // Create a member in ownerWorkspace
+  const memberUser = await fixture();
+  const invite = await ownerWorkspace
+    .mutate("post", "/api/team/invites")
+    .send({ email: memberUser.email });
+  const token = new URL(invite.body.url).searchParams.get("invite");
+  await memberUser.mutate("post", "/api/team/accept").send({ token });
+
+  // Create conversation in ownerWorkspace
+  const conv = await inbound(ownerWorkspace);
+  assert.equal(conv.assigneeUserId, null);
+
+  // 1. Assign conversation to member
+  const assignRes = await ownerWorkspace
+    .mutate("patch", `/api/conversations/${conv.id}`)
+    .send({ assigneeUserId: memberUser.snapshot.user.id });
+  assert.equal(assignRes.status, 200);
+
+  const updatedConv = (await ownerWorkspace.client.get("/api/bootstrap")).body
+    .conversations[0];
+  assert.equal(updatedConv.assigneeUserId, memberUser.snapshot.user.id);
+
+  // Filter by assignee
+  const filteredMember = (
+    await ownerWorkspace.client.get(
+      `/api/conversations?assignee=${memberUser.snapshot.user.id}`,
+    )
+  ).body;
+  assert.equal(filteredMember.conversations.length, 1);
+  assert.equal(filteredMember.conversations[0].id, conv.id);
+
+  const filteredUnassigned = (
+    await ownerWorkspace.client.get("/api/conversations?assignee=unassigned")
+  ).body;
+  assert.equal(filteredUnassigned.conversations.length, 0);
+
+  // 2. Reassign conversation to unassigned
+  const unassignRes = await ownerWorkspace
+    .mutate("patch", `/api/conversations/${conv.id}`)
+    .send({ assigneeUserId: null });
+  assert.equal(unassignRes.status, 200);
+
+  const unassignedConv = (await ownerWorkspace.client.get("/api/bootstrap")).body
+    .conversations[0];
+  assert.equal(unassignedConv.assigneeUserId, null);
+
+  // 3. Cross-tenant rejection
+  const crossTenantRes = await ownerWorkspace
+    .mutate("patch", `/api/conversations/${conv.id}`)
+    .send({ assigneeUserId: otherWorkspace.snapshot.user.id });
+  assert.equal(crossTenantRes.status, 400);
+
+  // 4. Assignee filter pagination
+  const now = Date.now();
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,last_at,window_until,assignee_user_id) SELECT $1||'-m-'||n,$1,'whatsapp','pm-'||n,'Paged Member '||n,$2,$3,$4 FROM generate_series(1,205) AS n",
+    [
+      ownerWorkspace.snapshot.workspace.id,
+      now,
+      now + 86400000,
+      memberUser.snapshot.user.id,
+    ],
+  );
+
+  const paged1 = (
+    await ownerWorkspace.client.get(
+      `/api/conversations?assignee=${memberUser.snapshot.user.id}`,
+    )
+  ).body;
+  assert.equal(paged1.conversations.length, 200);
+  assert.equal(typeof paged1.nextCursor, "string");
+
+  const paged2 = (
+    await ownerWorkspace.client.get(
+      `/api/conversations?assignee=${memberUser.snapshot.user.id}&cursor=${encodeURIComponent(paged1.nextCursor)}`,
+    )
+  ).body;
+  assert.equal(paged2.conversations.length, 5);
+  assert.equal(paged2.nextCursor, null);
+});

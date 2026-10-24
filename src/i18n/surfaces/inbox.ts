@@ -81,6 +81,19 @@ export const inboxStrings = {
     ar: "مفقود",
   },
 
+  "inbox.assignee": {
+    en: "Assignee",
+    ar: "المكلف",
+  },
+  "inbox.assigneeAll": {
+    en: "All assignees",
+    ar: "كل المكلفين",
+  },
+  "inbox.assigneeUnassigned": {
+    en: "Unassigned",
+    ar: "غير مكلف",
+  },
+
   "inbox.timeRange": {
     en: "Time range",
     ar: "الفترة الزمنية",
