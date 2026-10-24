@@ -181,6 +181,53 @@ export class MetaProvider {
     );
   }
 
+  async exchangeWhatsApp(code: string) {
+    const body = new URLSearchParams({
+      client_id: this.config.metaAppId!,
+      client_secret: this.config.metaSecret!,
+      grant_type: "authorization_code",
+      redirect_uri: `${this.config.publicUrl}/api/integrations/whatsapp/callback`,
+      code,
+    });
+    const tokenRes = await this.json(
+      `https://graph.facebook.com/${this.config.graphVersion}/oauth/access_token`,
+      { method: "POST", body },
+    );
+    if (!tokenRes.access_token)
+      throw new HttpError(502, "WhatsApp did not return an access token.");
+    const accounts = await this.json(
+      `https://graph.facebook.com/${this.config.graphVersion}/me/whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}`,
+      { headers: { Authorization: `Bearer ${tokenRes.access_token}` } },
+    );
+    const waba = accounts.data?.[0];
+    const phone = waba?.phone_numbers?.data?.[0];
+    const accountId = String(phone?.id || waba?.id || "");
+    if (!/^\d+$/.test(accountId))
+      throw new HttpError(502, "WhatsApp account ID could not be verified.");
+    const label = String(
+      phone?.verified_name || phone?.display_phone_number || waba?.name || accountId,
+    );
+    const wabaId = String(waba?.id || accountId);
+    await this.json(
+      `https://graph.facebook.com/${this.config.graphVersion}/${wabaId}/subscribed_apps`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenRes.access_token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return {
+      accountId,
+      label,
+      token: String(tokenRes.access_token),
+      expiresAt: tokenRes.expires_in
+        ? Date.now() + Number(tokenRes.expires_in) * 1000
+        : null,
+    };
+  }
+
   async exchangeInstagram(code: string) {
     const body = new URLSearchParams({
       client_id: this.config.instagramAppId!,

@@ -18,8 +18,6 @@ import type { Platform } from "@/types";
 export default function AccountSettings() {
   const { live } = useApp();
   const [connection, setConnection] = useState<Platform | null>(null);
-  const [phoneId, setPhoneId] = useState("");
-  const [token, setToken] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -142,7 +140,6 @@ export default function AccountSettings() {
                   disabled={!owner || pending}
                   onClick={() => {
                     setConnection(platform);
-                    setToken("");
                     setError("");
                   }}
                 >
@@ -632,7 +629,6 @@ export default function AccountSettings() {
           })}
           onClose={() => {
             setConnection(null);
-            setToken("");
             setError("");
           }}
         >
@@ -668,53 +664,22 @@ export default function AccountSettings() {
                 <ArrowUpRight size={15} />
               </button>
             ) : (
-              <form
-                className="setup-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
+              <button
+                className="closer-button closer-button-primary"
+                disabled={pending || !snapshot.capabilities.whatsapp}
+                onClick={() => {
                   void run(async () => {
-                    await request("/integrations/whatsapp", {
-                      method: "POST",
-                      body: { phoneNumberId: phoneId, accessToken: token },
-                    });
-                    setToken("");
-                    setConnection(null);
-                    setNotice(t("workspace.account.connect.whatsappVerified"));
+                    const value = await request<{ url: string }>(
+                      "/integrations/whatsapp/start",
+                      { method: "POST", body: {} },
+                    );
+                    window.location.assign(value.url);
                   });
                 }}
               >
-                <label htmlFor="wa-phone-id">
-                  {t("workspace.account.connect.phoneNumberId")}
-                  <input
-                    id="wa-phone-id"
-                    value={phoneId}
-                    onChange={(event) => setPhoneId(event.target.value)}
-                    inputMode="numeric"
-                    pattern="[0-9]{5,30}"
-                    required
-                  />
-                </label>
-                <label htmlFor="wa-access-token">
-                  {t("workspace.account.connect.accessToken")}
-                  <input
-                    id="wa-access-token"
-                    type="password"
-                    autoComplete="off"
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    minLength={20}
-                    maxLength={4096}
-                    required
-                  />
-                </label>
-                <button
-                  className="closer-button closer-button-primary"
-                  disabled={pending || !snapshot.capabilities.whatsapp}
-                >
-                  {t("workspace.account.connect.verifyAndConnect")}
-                  <Check size={15} />
-                </button>
-              </form>
+                {t("workspace.account.connect.continueWithWhatsApp")}
+                <ArrowUpRight size={15} />
+              </button>
             )}
             {snapshot.connections.some(
               (item) => item.platform === connection,
@@ -728,7 +693,6 @@ export default function AccountSettings() {
                       method: "DELETE",
                       body: {},
                     });
-                    setToken("");
                     setConnection(null);
                     setNotice(t("workspace.account.connect.disconnected"));
                   });

@@ -443,8 +443,8 @@ export const workspaceStrings = {
     ar: "سيطلب منك Instagram الموافقة على الوصول إلى المراسلة. ويجب أن يكون حسابك احترافياً، ويحتاج مالك الخدمة إلى أذونات Meta معتمدة.",
   },
   "workspace.account.connect.whatsappInfo": {
-    en: "Use the phone number ID and a system-user token from your Meta Business account. The token is encrypted on the server and is never returned to this browser.",
-    ar: "استخدم معرّف رقم الهاتف ورمز مستخدم النظام من حساب Meta Business. ويُشفَّر الرمز على الخادم ولا يعود إلى هذا المتصفح أبداً.",
+    en: "Meta Embedded Signup will ask you to approve WhatsApp messaging access. The access token is encrypted at rest and never stored in plain text.",
+    ar: "سيطلب منك التسجيل المدمج لـ Meta الموافقة على الوصول إلى رسائل WhatsApp. ويُشفَّر رمز الوصول عند الحفظ ولا يُخزَّن بصيغة نصية أبداً.",
   },
   "workspace.account.connect.notConfigured": {
     en: "The service owner must configure {what} before this account can connect.",
@@ -455,12 +455,16 @@ export const workspaceStrings = {
     ar: "بيانات دخول Instagram Business وبيانات اعتماد webhook",
   },
   "workspace.account.connect.whatsappRequirement": {
-    en: "the Meta app secret and webhook verification token",
-    ar: "سر تطبيق Meta ورمز التحقق الخاص بـ webhook",
+    en: "Meta Embedded Signup and webhook credentials",
+    ar: "بيانات التسجيل المدمج لـ Meta وبيانات اعتماد webhook",
   },
   "workspace.account.connect.continueWithInstagram": {
     en: "Continue with Instagram",
     ar: "المتابعة عبر Instagram",
+  },
+  "workspace.account.connect.continueWithWhatsApp": {
+    en: "Continue with WhatsApp",
+    ar: "المتابعة عبر WhatsApp",
   },
   "workspace.account.connect.phoneNumberId": {
     en: "Phone number ID",

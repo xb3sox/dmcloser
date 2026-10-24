@@ -731,6 +731,42 @@ export async function createApp(
     },
   );
 
+  app.get(
+    "/api/integrations/whatsapp/callback",
+    auth,
+    owner,
+    async (req, res) => {
+      const state = String(req.query.state || "");
+      const [token] = await db.query(
+        "DELETE FROM tokens WHERE hash=$1 AND purpose='whatsapp' AND user_id=$2 AND workspace_id=$3 AND expires_at>$4 RETURNING data",
+        [digest(state), req.actor!.userId, req.actor!.workspaceId, Date.now()],
+      );
+      if (!token || token.data.session !== req.actor!.sessionHash)
+        throw new HttpError(
+          400,
+          "This account connection request expired. Please start again.",
+        );
+      if (req.query.error || req.query.error_reason)
+        return res.redirect(`${config.appUrl}/workspace?connection=cancelled`);
+      try {
+        const value = await service.meta.exchangeWhatsApp(
+          z.string().min(1).max(3000).parse(req.query.code),
+        );
+        await service.connect(
+          req.actor!.workspaceId,
+          "whatsapp",
+          value.accountId,
+          value.label,
+          value.token,
+          value.expiresAt,
+        );
+        res.redirect(`${config.appUrl}/workspace?connection=connected`);
+      } catch {
+        res.redirect(`${config.appUrl}/workspace?connection=failed`);
+      }
+    },
+  );
+
   app.use("/api", auth);
   app.use("/api", (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
@@ -1097,34 +1133,39 @@ export async function createApp(
     },
   );
   app.post(
-    "/api/integrations/whatsapp",
+    "/api/integrations/whatsapp/start",
     owner,
     canConnect,
     async (req, res) => {
-      if (!config.metaSecret || !config.verifyToken)
+      if (
+        !config.metaAppId ||
+        !config.metaSecret ||
+        !config.verifyToken
+      )
         throw new HttpError(
           503,
-          "WhatsApp webhooks are not configured by the service owner.",
+          "WhatsApp login is not configured by the service owner.",
         );
-      const body = z
-        .object({
-          phoneNumberId: z.string().regex(/^\d{5,30}$/),
-          accessToken: z.string().min(20).max(4096),
-        })
-        .strict()
-        .parse(req.body);
-      const label = await service.meta.inspectWhatsApp(
-        body.phoneNumberId,
-        body.accessToken,
+      const state = randomToken();
+      await db.query(
+        "INSERT INTO tokens(hash,user_id,workspace_id,purpose,expires_at,data) VALUES($1,$2,$3,$4,$5,$6)",
+        [
+          digest(state),
+          req.actor!.userId,
+          req.actor!.workspaceId,
+          "whatsapp",
+          Date.now() + 600000,
+          JSON.stringify({ session: req.actor!.sessionHash }),
+        ],
       );
-      await service.connect(
-        req.actor!.workspaceId,
-        "whatsapp",
-        body.phoneNumberId,
-        label,
-        body.accessToken,
-      );
-      res.json({ ok: true });
+      const params = new URLSearchParams({
+        client_id: config.metaAppId,
+        redirect_uri: `${config.publicUrl}/api/integrations/whatsapp/callback`,
+        response_type: "code",
+        scope: "whatsapp_business_management,whatsapp_business_messaging",
+        state,
+      });
+      res.json({ url: `https://www.facebook.com/${config.graphVersion}/dialog/oauth?${params}` });
     },
   );
   app.delete("/api/integrations/:platform", owner, async (req, res) => {

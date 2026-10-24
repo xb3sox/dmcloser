@@ -390,7 +390,11 @@ export class ProductService {
           this.config.instagramSecret &&
           this.config.verifyToken
         ),
-        whatsapp: !!(this.config.metaSecret && this.config.verifyToken),
+        whatsapp: !!(
+          this.config.metaAppId &&
+          this.config.metaSecret &&
+          this.config.verifyToken
+        ),
         billing: !!(this.config.stripeKey && this.config.stripeWebhookSecret),
         email: !!this.config.smtpHost,
         simulator: !this.config.production,
