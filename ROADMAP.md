@@ -18,7 +18,7 @@
 - **Custom sector:** `custom` is a first-class industry mode with owner-defined field presets. The fixed BANT qualification shape and the scored pipeline are unchanged; custom fields are additional.
 - **Revenue blocks:** **Potential**, **Attributed** and **Verified** are three separately labelled blocks. Verified revenue is owner-confirmed receipts net of refunds, with the reference and the reversal status on every line. Potential is an estimate and is never presented as cash.
 - **Recovery list:** stale open opportunities, ranked by days without a customer reply, each with a reason and a next safe action. It is a human worklist — dismissible with a reason, restorable, and never automatic.
-- **Scale:** cursor pagination on the inbox snapshot, plus lead-status and time-range filters. The **assignee** filter stays deliberately deferred: no `assignee` column exists in any migration.
+- **Scale:** cursor pagination on the inbox snapshot, lead-status and time-range filters, plus conversation assignment and the **assignee** filter (`005_assignee.sql`).
 
 ## Revenue OS Increment
 

@@ -198,6 +198,7 @@ export class ProductService {
       includeId?: string | null;
       cursor?: PageCursor | null;
       limit?: number;
+      assignee?: string | null;
     } = {},
   ) {
     const limit = Math.min(
@@ -206,23 +207,50 @@ export class ProductService {
     );
     const includeId = options.includeId ?? null;
     const cursor = options.cursor ?? null;
+    const assigneeFilter =
+      options.assignee && options.assignee !== "all"
+        ? options.assignee
+        : null;
     // The promoted conversation already shipped on the first page; skipping it
     // later keeps every conversation in the stream exactly once.
     const excludeId = cursor ? cursor.excludeId : includeId;
     const rows = cursor
       ? await this.db.query(
-          "SELECT * FROM conversations WHERE workspace_id=$1 AND (last_at,id) < ($2::bigint,$3::text) AND ($4::text IS NULL OR id <> $4::text) ORDER BY last_at DESC, id DESC LIMIT $5",
-          [
-            actor.workspaceId,
-            cursor.lastAt,
-            cursor.lastId,
-            excludeId,
-            limit + 1,
-          ],
+          "SELECT * FROM conversations WHERE workspace_id=$1 AND (last_at,id) < ($2::bigint,$3::text) AND ($4::text IS NULL OR id <> $4::text) " +
+            (assigneeFilter === "unassigned"
+              ? "AND assignee_user_id IS NULL "
+              : assigneeFilter
+                ? "AND assignee_user_id=$6 "
+                : "") +
+            "ORDER BY last_at DESC, id DESC LIMIT $5",
+          assigneeFilter && assigneeFilter !== "unassigned"
+            ? [
+                actor.workspaceId,
+                cursor.lastAt,
+                cursor.lastId,
+                excludeId,
+                limit + 1,
+                assigneeFilter,
+              ]
+            : [
+                actor.workspaceId,
+                cursor.lastAt,
+                cursor.lastId,
+                excludeId,
+                limit + 1,
+              ],
         )
       : await this.db.query(
-          "SELECT * FROM conversations WHERE workspace_id=$1 ORDER BY (id=$2) DESC NULLS LAST, last_at DESC, id DESC LIMIT $3",
-          [actor.workspaceId, includeId, limit + 1],
+          "SELECT * FROM conversations WHERE workspace_id=$1 " +
+            (assigneeFilter === "unassigned"
+              ? "AND assignee_user_id IS NULL "
+              : assigneeFilter
+                ? "AND assignee_user_id=$4 "
+                : "") +
+            "ORDER BY (id=$2) DESC NULLS LAST, last_at DESC, id DESC LIMIT $3",
+          assigneeFilter && assigneeFilter !== "unassigned"
+            ? [actor.workspaceId, includeId, limit + 1, assigneeFilter]
+            : [actor.workspaceId, includeId, limit + 1],
         );
     const display = rows.slice(0, limit);
     const boundary =
@@ -278,6 +306,9 @@ export class ProductService {
         windowUntil: Number(conversation.window_until),
         aiError: conversation.ai_error,
         connectionId: conversation.connection_id,
+        assigneeUserId: conversation.assignee_user_id
+          ? String(conversation.assignee_user_id)
+          : null,
       };
     });
     return { conversations, nextCursor };

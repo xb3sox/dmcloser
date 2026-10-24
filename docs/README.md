@@ -36,7 +36,7 @@ DMCloser is a mobile-first sales inbox that converts Instagram/WhatsApp inquirie
 
 The compose stack and a backup/restore rehearsal **were** run on a development host — image built, `/api/ready` reported ready, migrations 1–4 applied, registration refused with 503 without SMTP, and a marker row inserted after the backup was gone after the restore. That database was fresh, not production-shaped, and the stack has not been run on the deployment host; the evidence is in `docs/OPERATIONS.md`.
 
-**Known product gaps** (mapped to requirements in the root `SPEC.md`): the **assignee filter** is the only one of the ten upstream gaps still open — there is no assignee column in any migration, and conversation assignment is a separate feature that touches the team/roles model, so it is not invented here. Every other gap named by the upstream PRD is now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, and the lead-status filter.
+**Known product gaps** (mapped to requirements in the root `SPEC.md`): all ten upstream gaps named by the upstream PRD are now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, the lead-status filter, and conversation assignment with the assignee filter (migration `005_assignee.sql`).
 
 ## Documentation
 **Shipped and authoritative** (written against the code):

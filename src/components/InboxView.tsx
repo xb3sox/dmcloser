@@ -41,6 +41,7 @@ export default function InboxView() {
   const [leadStatus, setLeadStatus] = useState<ConversionStatus | "all">(
     "all",
   );
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -61,6 +62,7 @@ export default function InboxView() {
   const since =
     timeRanges.find((range) => range.value === timeRange)?.since ?? 0;
   const now = Date.now();
+  const members = live?.snapshot?.members || [];
   const filtered = state.conversations
     .filter(
       (conversation) =>
@@ -69,6 +71,10 @@ export default function InboxView() {
         (!unreadOnly || conversation.unread) &&
         (leadStatus === "all" ||
           conversation.conversionStatus === leadStatus) &&
+        (assigneeFilter === "all" ||
+          (assigneeFilter === "unassigned"
+            ? !conversation.assigneeUserId
+            : conversation.assigneeUserId === assigneeFilter)) &&
         (!since || now - conversation.lastMessageTime <= since) &&
         (!query ||
           `${conversation.contactName} ${conversation.lastMessage} ${conversation.leadNotes} ${conversation.messages.map((message) => message.text).join(" ")}`
@@ -168,6 +174,22 @@ export default function InboxView() {
               ))}
             </select>
           </label>
+          <label htmlFor="inbox-assignee">
+            {t("inbox.assignee")}
+            <select
+              id="inbox-assignee"
+              value={assigneeFilter}
+              onChange={(event) => setAssigneeFilter(event.target.value)}
+            >
+              <option value="all">{t("inbox.assigneeAll")}</option>
+              <option value="unassigned">{t("inbox.assigneeUnassigned")}</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name || member.email}
+                </option>
+              ))}
+            </select>
+          </label>
           <label htmlFor="inbox-time-range">
             {t("inbox.timeRange")}
             <select
@@ -236,6 +258,7 @@ export default function InboxView() {
                 setIntent("all");
                 setUnreadOnly(false);
                 setLeadStatus("all");
+                setAssigneeFilter("all");
                 setTimeRange("all");
                 dispatch({ type: "SET_CHANNEL", channel: "all" });
               }}

@@ -312,6 +312,18 @@ export const chatStrings = {
     en: "Closed",
     ar: "مغلق",
   },
+  "chat.assignee.label": {
+    en: "Assignee",
+    ar: "المكلف",
+  },
+  "chat.assignee.unassigned": {
+    en: "Unassigned",
+    ar: "غير مكلف",
+  },
+  "chat.assignee.updated": {
+    en: "Assignee updated.",
+    ar: "تم تحديث المكلف.",
+  },
 };
 
 /**
