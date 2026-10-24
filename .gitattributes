@@ -1,0 +1,8 @@
+* text=auto
+
+# Scripts run on Linux hosts and in containers; CRLF breaks them.
+*.sh text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
