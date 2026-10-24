@@ -148,6 +148,20 @@ not finished.
 - Run `node scripts/check.mjs`, and `npx playwright test` when UI or tests change.
 - No secrets, no live provider calls, no deployment, no new dependency unless the issue names it.
 
+## Branch enforcement (free plan)
+
+This private repo is on the free plan: rulesets and branch protection answer **403**, so GitHub
+cannot require a check or block a merge. Two free substitutes carry the load:
+
+| Control | Mechanism | Limit |
+| --- | --- | --- |
+| Red `main` | `.github/workflows/main-guard.yml` — watches **Product Gates**; on a failed run for `main` it reverts the commit and opens a `type:bug` issue. Skips subjects starting with `Revert`, so it cannot loop. | after the push; a conflicting revert needs a human |
+| Direct push | `scripts/git-hooks/pre-push` via `npm run hooks:install` — refuses `refs/heads/main`; `ALLOW_MAIN_PUSH=1` overrides | client-side only |
+
+Real fixes, in order: make the repo public (rulesets are free for public repos), GitHub Pro
+(rulesets on private repos), or a public mirror whose CI gates promotion. Everything else is
+detection after the fact — the Merge Gate workflow only inspects a PR, it cannot stop a merge.
+
 ## Identifiers
 
 Upstream requirements carry stable ids: `FEAT-001`…`FEAT-020` (features), `FR-nnn`

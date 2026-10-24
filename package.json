@@ -12,7 +12,8 @@
     "test:server": "tsx --test server/tests/*.test.ts",
     "test:e2e": "playwright test",
     "load": "node scripts/loadtest/run.mjs",
-    "check:prisma": "node scripts/prisma/verify-parity.mjs"
+    "check:prisma": "node scripts/prisma/verify-parity.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.11",
