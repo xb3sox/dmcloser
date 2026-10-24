@@ -1,8 +1,8 @@
 // Prisma schema for dmcloser.
 //
-// Mechanical 1:1 translation of the five hand-written SQL migrations in
+// Mechanical 1:1 translation of the six hand-written SQL migrations in
 // server/migrations/ (001.sql, 002_revenue.sql, 003_sector.sql, 004_ai_quality.sql,
-// 005_void_reversals.sql).
+// 005_void_reversals.sql, 006_latency.sql).
 // Column names are preserved verbatim (snake_case) and every table keeps its physical
 // name through @@map, so existing raw SQL keeps working unchanged.
 //
@@ -236,6 +236,10 @@ model Suggestion {
   model        String
   latency_ms   Int
   context_hash String   @default("")
+  ingest_ms    Int      @default(0)
+  persistence_ms Int    @default(0)
+  model_ms     Int      @default(0)
+  draft_write_ms Int    @default(0)
   status       String   @default("ready")
   created_at   DateTime @default(now()) @db.Timestamptz(6)
 
