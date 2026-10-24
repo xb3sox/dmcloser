@@ -428,7 +428,7 @@ export class RevenueService {
           [workspaceId, row.id],
         ),
         this.db.query(
-          "SELECT * FROM revenue_events WHERE workspace_id=$1 AND deal_id=$2 ORDER BY occurred_at",
+          "SELECT r.*, (v.id IS NOT NULL) AS voided FROM revenue_events r LEFT JOIN revenue_voids v ON v.revenue_event_id=r.id AND v.workspace_id=r.workspace_id WHERE r.workspace_id=$1 AND r.deal_id=$2 ORDER BY r.occurred_at",
           [workspaceId, row.id],
         ),
       ]);
@@ -457,6 +457,7 @@ export class RevenueService {
         amountMinor: Number(payment.amount_minor),
         reference: payment.reference,
         occurredAt: Number(payment.occurred_at),
+        voided: Boolean(payment.voided),
       })),
     };
   }
@@ -658,7 +659,7 @@ export class RevenueService {
         return existing.id;
       }
       const [sum] = await tx.query(
-        "SELECT COALESCE(sum(CASE WHEN kind='payment' THEN amount_minor ELSE -amount_minor END),0) AS net FROM revenue_events WHERE workspace_id=$1 AND deal_id=$2",
+        "SELECT COALESCE(sum(CASE WHEN kind='payment' THEN amount_minor ELSE -amount_minor END),0) AS net FROM revenue_events r LEFT JOIN revenue_voids v ON v.revenue_event_id=r.id AND v.workspace_id=r.workspace_id WHERE r.workspace_id=$1 AND r.deal_id=$2 AND v.id IS NULL",
         [actor.workspaceId, id],
       );
       if (input.kind === "refund" && input.amountMinor > Number(sum.net))
@@ -695,6 +696,43 @@ export class RevenueService {
     this.changed(actor.workspaceId);
     return { id: result };
   }
+  async voidPayment(actor: Actor, revenueEventId: string, reason: string) {
+    const voidId = await this.db.transaction(async (tx) => {
+      const [event] = await tx.query(
+        "SELECT * FROM revenue_events WHERE id=$1 AND workspace_id=$2",
+        [revenueEventId, actor.workspaceId],
+      );
+      if (!event) throw new HttpError(404, "Revenue event not found.");
+      const [existing] = await tx.query(
+        "SELECT * FROM revenue_voids WHERE revenue_event_id=$1 AND workspace_id=$2",
+        [revenueEventId, actor.workspaceId],
+      );
+      if (existing)
+        throw new HttpError(409, "Revenue event is already voided.");
+      const id = randomUUID();
+      await tx.query(
+        "INSERT INTO revenue_voids(id,workspace_id,revenue_event_id,reason,actor_id) VALUES($1,$2,$3,$4,$5)",
+        [id, actor.workspaceId, revenueEventId, reason, actor.userId],
+      );
+      await this.event(
+        actor.workspaceId,
+        actor.userId,
+        "revenue.voided",
+        revenueEventId,
+        {
+          voidId: id,
+          reason,
+          kind: event.kind,
+          amountMinor: Number(event.amount_minor),
+          reference: event.reference,
+        },
+        tx,
+      );
+      return id;
+    });
+    this.changed(actor.workspaceId);
+    return { ok: true, id: voidId };
+  }
   async overview(
     workspaceId: string,
     currency: string,
@@ -716,7 +754,7 @@ export class RevenueService {
           workspaceId,
         ]),
         this.db.query(
-          "SELECT r.*,d.source,d.campaign,c.name FROM revenue_events r JOIN deals d ON d.id=r.deal_id AND d.workspace_id=r.workspace_id JOIN conversations c ON c.id=d.conversation_id AND c.workspace_id=d.workspace_id WHERE r.workspace_id=$1",
+          "SELECT r.*,d.source,d.campaign,c.name FROM revenue_events r JOIN deals d ON d.id=r.deal_id AND d.workspace_id=r.workspace_id JOIN conversations c ON c.id=d.conversation_id AND c.workspace_id=d.workspace_id LEFT JOIN revenue_voids v ON v.revenue_event_id=r.id AND v.workspace_id=r.workspace_id WHERE r.workspace_id=$1 AND v.id IS NULL",
           [workspaceId],
         ),
         this.db.query(
@@ -1386,6 +1424,7 @@ export class RevenueService {
       "deal_events",
       "deal_outcomes",
       "revenue_events",
+      "revenue_voids",
       "deal_quotes",
       "appointments",
       "sales_tasks",

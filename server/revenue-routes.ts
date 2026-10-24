@@ -259,6 +259,13 @@ export function mountRevenueRoutes(
         ),
       );
   });
+  app.post("/api/revenue/events/:id/void", owner, async (req, res) => {
+    const { reason } = z
+      .object({ reason: z.string().trim().min(3).max(300) })
+      .strict()
+      .parse(req.body);
+    res.json(await revenue.voidPayment(req.actor!, id(req.params.id), reason));
+  });
   app.post("/api/deals/:id/quotes", async (req, res) =>
     res.status(201).json(
       await revenue.quote(

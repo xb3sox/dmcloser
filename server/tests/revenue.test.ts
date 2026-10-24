@@ -358,6 +358,69 @@ test("payment receipts are idempotent, refunds are capped, and attribution is de
   assert.equal(report.attribution[0].revenueMinor, 7000);
 });
 
+test("voiding a receipt excludes it from verified totals while keeping the original row intact with audit trail", async () => {
+  const f = await fixture();
+  const data = await lead(f);
+  const row = await patch(f, data, { valueMinor: 8000 });
+  await f
+    .mutate("post", `/api/deals/${row.id}/outcome`)
+    .send({ version: row.version, outcome: "won", reason: "fit" });
+
+  const receipt = {
+    kind: "payment",
+    amountMinor: 8000,
+    reference: "REF-12345",
+    occurredAt: Date.now(),
+    confirmed: true,
+  };
+  const key = randomUUID();
+  const paymentRes = await f
+    .mutate("post", `/api/deals/${row.id}/revenue`)
+    .set("Idempotency-Key", key)
+    .send(receipt);
+  assert.equal(paymentRes.status, 201);
+  const paymentId = paymentRes.body.id;
+
+  let overview = (await f.client.get("/api/revenue?currency=USD")).body;
+  assert.equal(overview.revenueMinor, 8000);
+  assert.equal(overview.verifiedReceipts.length, 1);
+
+  const invalidVoid = await f
+    .mutate("post", `/api/revenue/events/${paymentId}/void`)
+    .send({ reason: "" });
+  assert.equal(invalidVoid.status, 400);
+
+  const voidRes = await f
+    .mutate("post", `/api/revenue/events/${paymentId}/void`)
+    .send({ reason: "Mistyped amount entered by mistake" });
+  assert.equal(voidRes.status, 200);
+  assert.equal(voidRes.body.ok, true);
+
+  const duplicateVoid = await f
+    .mutate("post", `/api/revenue/events/${paymentId}/void`)
+    .send({ reason: "Duplicate void attempt" });
+  assert.equal(duplicateVoid.status, 409);
+
+  overview = (await f.client.get("/api/revenue?currency=USD")).body;
+  assert.equal(overview.revenueMinor, 0);
+  assert.equal(overview.verifiedReceipts.length, 0);
+
+  const [originalRow] = await db.query(
+    "SELECT * FROM revenue_events WHERE id=$1",
+    [paymentId],
+  );
+  assert.ok(originalRow);
+  assert.equal(originalRow.reference, "REF-12345");
+  assert.equal(Number(originalRow.amount_minor), 8000);
+
+  const auditRows = await db.query(
+    "SELECT * FROM audit_events WHERE workspace_id=$1 AND action='revenue.voided' AND resource_id=$2",
+    [f.snapshot.workspace.id, paymentId],
+  );
+  assert.equal(auditRows.length, 1);
+  assert.equal(auditRows[0].detail.reason, "Mistyped amount entered by mistake");
+});
+
 test("outcome is explicit, immutable and versioned; reopening cannot rewrite history", async () => {
   const f = await fixture();
   const data = await lead(f);
@@ -936,7 +999,7 @@ test("numbered migration upgrades a version-one database without replacing its e
           "SELECT version FROM schema_migrations ORDER BY version",
         )
       ).map((row) => row.version),
-      [1, 2, 3, 4],
+      [1, 2, 3, 4, 5],
     );
     await old.query("SELECT * FROM deals LIMIT 1");
   } finally {
