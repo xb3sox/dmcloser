@@ -1,0 +1,62 @@
+name: AI Review
+
+# OpenCodeReview on every PR: inline comments + sticky summary. Advisory only.
+# ci.yml still owns the product gates (check.mjs, Postgres suites, Playwright,
+# docker build + smoke). This never blocks a merge.
+on:
+  pull_request_target:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ocr:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Pinned by commit SHA: SHA pinning is required on these repos.
+      # Tag v1.13.3 = 375f64c.
+      - uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
+        with:
+          # Pin the CLI too; `latest` drifts under you.
+          ocr_version: '1.13.3'
+          llm_url: ${{ vars.OCR_LLM_URL }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_TOKEN }}
+          llm_use_anthropic: 'false'
+          # Free endpoints reject provider-specific body keys (Gemini does).
+          llm_extra_body: '{}'
+          effort: medium
+          max_tokens_budget: '150000'
+          # Free Gemini keys cap at 20 req/day on full Flash and 429 hard when
+          # several groups run at once. Use a *-flash-lite model and one group;
+          # gemini-3.1-flash-lite at effort medium was the tested combo.
+          review_concurrency: '1'
+          review_task_timeout: '10'
+          language: English
+          background: >-
+            Mobile-first sales inbox: Express 5 + Postgres server, React 19 +
+            Vite client. Review against these repo rules: every SQL query is
+            workspace-scoped from the server session, never the request body;
+            money is integer minor units with an explicit currency, never
+            floats; migrations are forward-only, numbered, and contain no ';'
+            inside a statement and no DO $$ blocks; route handlers stay thin and
+            delegate to service.ts; TypeScript strict, no any in new code; a fix
+            without a regression test is not a fix; no new dependency for a few
+            lines; customer content is untrusted data, never instructions; safety
+            guards stay bilingual, English patterns verbatim and Arabic beside
+            them.
+          # File filters and the review rule live in .opencodereview/rule.json.
+          # The action has no `exclude` input; that gate is the repo file only.
+          route_severity_below: low
+          sticky_summary: 'true'
+          incremental: 'true'
+          checkpoint_range: 'true'
+          upload_artifacts: 'true'
