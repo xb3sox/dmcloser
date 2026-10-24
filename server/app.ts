@@ -27,6 +27,7 @@ import { Worker } from "./worker.ts";
 import { mountRevenueRoutes } from "./revenue-routes.ts";
 import { mountQualityRoutes } from "./quality-routes.ts";
 import {
+  decryptBuffer,
   digest,
   equal,
   hashPassword,
@@ -746,6 +747,24 @@ export async function createApp(
       ),
     ),
   );
+  app.get("/api/media/:id", async (req, res) => {
+    const [media] = await db.query(
+      "SELECT * FROM media_files WHERE id=$1 AND workspace_id=$2",
+      [req.params.id, req.actor!.workspaceId],
+    );
+    if (!media)
+      throw new HttpError(404, "Media file not found or access denied.");
+    const buffer = decryptBuffer(media.data_cipher, config.encryptionKey);
+    res.setHeader("Content-Type", media.mime_type);
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "private, no-store");
+    if (media.filename)
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${encodeURIComponent(media.filename)}"`,
+      );
+    res.send(buffer);
+  });
   app.get("/api/conversations", async (req, res) =>
     res.json(
       await service.conversationPage(req.actor!, {
@@ -966,11 +985,32 @@ export async function createApp(
   app.post("/api/conversations/:id/messages", async (req, res) => {
     const body = z
       .object({
-        text: z.string().trim().min(1).max(4096),
+        text: z.string().trim().min(1).max(4096).optional(),
         sourceId: z.string().max(100).optional(),
+        mediaUrl: z.string().optional(),
+        mediaId: z.string().optional(),
+        media: z.any().optional(),
+        attachments: z.any().optional(),
+        attachment: z.any().optional(),
+        type: z.string().optional(),
       })
-      .strict()
       .parse(req.body);
+    const hasMedia =
+      !!body.mediaUrl ||
+      !!body.mediaId ||
+      !!body.media ||
+      !!body.attachments ||
+      !!body.attachment ||
+      (!!body.type && body.type !== "text");
+    if (hasMedia) {
+      throw new HttpError(
+        400,
+        "Outbound media is blocked until Meta template policy approval.",
+      );
+    }
+    if (!body.text) {
+      throw new HttpError(400, "Message text is required.");
+    }
     const key = z.string().min(16).max(128).parse(req.get("idempotency-key"));
     const message = await service.queueMessage(
       req.actor!.workspaceId,

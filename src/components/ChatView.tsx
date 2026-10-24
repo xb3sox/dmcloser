@@ -62,6 +62,26 @@ function MessageBubble({
       <span className="sr-only">
         {incoming ? contactName : t("chat.message.you")}:
       </span>
+      {message.media && (
+        <div className="chat-message-media">
+          {message.media.mimeType.startsWith("image/") ? (
+            <img
+              src={message.media.url}
+              alt={message.media.filename || "Inbound image"}
+              className="chat-media-image"
+            />
+          ) : (
+            <a
+              href={message.media.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="chat-media-document"
+            >
+              {message.media.filename || "Document"}
+            </a>
+          )}
+        </div>
+      )}
       <p>{message.text}</p>
       <div className="chat-message-time">
         <time dateTime={new Date(message.timestamp).toISOString()}>

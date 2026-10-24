@@ -1,6 +1,14 @@
 import type { Config } from "./config.ts";
 import { HttpError } from "./security.ts";
 
+export interface IncomingMessageMedia {
+  id?: string;
+  url?: string;
+  mimeType?: string;
+  filename?: string;
+  type?: string;
+}
+
 export interface IncomingMessage {
   platform: "instagram" | "whatsapp";
   accountId: string;
@@ -10,6 +18,7 @@ export interface IncomingMessage {
   text: string;
   timestamp: number;
   reviewOnly: boolean;
+  media?: IncomingMessageMedia;
 }
 export interface DeliveryUpdate {
   platform: "instagram" | "whatsapp";
@@ -18,6 +27,20 @@ export interface DeliveryUpdate {
   status: string;
   localId?: string;
 }
+
+export const ALLOWED_MEDIA_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+export const MAX_MEDIA_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export function normalizeWebhook(
   platform: "instagram" | "whatsapp",
@@ -38,6 +61,22 @@ export function normalizeWebhook(
           !entry.id
         )
           continue;
+        const attachment = Array.isArray(message.attachments)
+          ? message.attachments[0]
+          : null;
+        const media: IncomingMessageMedia | undefined = attachment
+          ? {
+              id: attachment.id || attachment.payload?.id,
+              url: attachment.payload?.url,
+              type: attachment.type,
+              mimeType:
+                attachment.type === "image"
+                  ? "image/jpeg"
+                  : attachment.type === "video"
+                    ? "video/mp4"
+                    : undefined,
+            }
+          : undefined;
         messages.push({
           platform,
           accountId: String(entry.id),
@@ -50,6 +89,7 @@ export function normalizeWebhook(
               : "[Media message: review in Instagram]",
           timestamp: Number(event.timestamp) || Date.now(),
           reviewOnly: typeof message.text !== "string",
+          media,
         });
       }
     } else {
@@ -64,6 +104,17 @@ export function normalizeWebhook(
           const contact = (
             Array.isArray(value.contacts) ? value.contacts : []
           ).find((item: any) => item?.wa_id === message.from);
+          const isText = message.type === "text";
+          const mediaObj = !isText ? message[message.type] : undefined;
+          const media: IncomingMessageMedia | undefined = mediaObj
+            ? {
+                id: mediaObj.id,
+                url: mediaObj.url,
+                mimeType: mediaObj.mime_type,
+                filename: mediaObj.filename,
+                type: message.type,
+              }
+            : undefined;
           messages.push({
             platform,
             accountId: String(accountId),
@@ -71,11 +122,12 @@ export function normalizeWebhook(
             providerId: String(message.id),
             name: String(contact?.profile?.name || message.from).slice(0, 100),
             text:
-              message.type === "text" && typeof message.text?.body === "string"
+              isText && typeof message.text?.body === "string"
                 ? message.text.body.slice(0, 4000)
                 : "[Media message: review in WhatsApp]",
             timestamp: Number(message.timestamp) * 1000 || Date.now(),
-            reviewOnly: message.type !== "text",
+            reviewOnly: !isText,
+            media,
           });
         }
         for (const status of Array.isArray(value.statuses)
@@ -298,5 +350,79 @@ export class MetaProvider {
         true,
       );
     return String(id);
+  }
+
+  async downloadMedia(
+    media: IncomingMessageMedia,
+    token: string,
+  ): Promise<{ buffer: Buffer; mimeType: string; filename?: string }> {
+    let downloadUrl = media.url;
+    let mimeType = media.mimeType;
+    let filename = media.filename;
+
+    if (!downloadUrl && media.id) {
+      const meta = await this.json(
+        `https://graph.facebook.com/${this.config.graphVersion}/${encodeURIComponent(media.id)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      downloadUrl = meta.url;
+      if (meta.mime_type) mimeType = meta.mime_type;
+      if (meta.file_size && Number(meta.file_size) > MAX_MEDIA_SIZE_BYTES) {
+        throw new ProviderError(
+          `Media file exceeds maximum allowed size of 10MB.`,
+        );
+      }
+    }
+
+    if (!downloadUrl) {
+      throw new ProviderError("Media URL could not be resolved.");
+    }
+
+    if (mimeType && !ALLOWED_MEDIA_MIMES.has(mimeType)) {
+      throw new ProviderError(`Unsupported media MIME type: ${mimeType}`);
+    }
+
+    let response: Response;
+    try {
+      response = await this.fetcher(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new ProviderError("Failed to download media file from provider.");
+    }
+
+    if (!response.ok) {
+      throw new ProviderError(
+        `Provider rejected media download with status ${response.status}.`,
+      );
+    }
+
+    const headerMime = response.headers.get("content-type")?.split(";")[0].trim();
+    if (headerMime) mimeType = headerMime;
+
+    if (!mimeType || !ALLOWED_MEDIA_MIMES.has(mimeType)) {
+      throw new ProviderError(
+        `Unsupported media MIME type: ${mimeType || "unknown"}`,
+      );
+    }
+
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && Number(contentLength) > MAX_MEDIA_SIZE_BYTES) {
+      throw new ProviderError(
+        `Media file exceeds maximum allowed size of 10MB.`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.byteLength > MAX_MEDIA_SIZE_BYTES) {
+      throw new ProviderError(
+        `Media file exceeds maximum allowed size of 10MB.`,
+      );
+    }
+
+    return { buffer, mimeType, filename };
   }
 }

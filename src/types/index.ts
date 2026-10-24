@@ -13,6 +13,14 @@ export type ConversionStatus =
 
 export type Tone = "friendly" | "premium" | "aggressive";
 
+export interface MediaAttachment {
+  id: string;
+  mimeType: string;
+  filename?: string | null;
+  sizeBytes: number;
+  url: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -33,6 +41,7 @@ export interface Message {
     | "cancelled";
   deliveryError?: string | null;
   automatic?: boolean;
+  media?: MediaAttachment | null;
 }
 
 export interface Conversation {

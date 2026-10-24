@@ -57,6 +57,25 @@ export function decrypt(value: string, secret: string) {
     cipher.final(),
   ]).toString("utf8");
 }
+export function encryptBuffer(data: Buffer, secret: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", Buffer.from(secret, "hex"), iv);
+  const body = Buffer.concat([cipher.update(data), cipher.final()]);
+  return `${iv.toString("hex")}.${cipher.getAuthTag().toString("hex")}.${body.toString("hex")}`;
+}
+export function decryptBuffer(value: string, secret: string): Buffer {
+  const [iv, tag, body] = value.split(".");
+  const cipher = createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(secret, "hex"),
+    Buffer.from(iv, "hex"),
+  );
+  cipher.setAuthTag(Buffer.from(tag, "hex"));
+  return Buffer.concat([
+    cipher.update(Buffer.from(body, "hex")),
+    cipher.final(),
+  ]);
+}
 export function validMetaSignature(
   body: Buffer,
   signature: string | undefined,

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { Database } from "./db.ts";
 import type { Config } from "./config.ts";
-import { decrypt, digest, encrypt, HttpError } from "./security.ts";
+import { decrypt, digest, encrypt, encryptBuffer, HttpError } from "./security.ts";
 import { detectRisk, guardReply, type AIEngine, type AIInput } from "./ai.ts";
 import { isClinical, isOptOut } from "../src/domain/safety.ts";
 import {
@@ -242,19 +242,41 @@ export class ProductService {
           [actor.workspaceId, JSON.stringify(ids)],
         )
       : [];
+    const messageIds = messages.map((m) => String(m.id));
+    const mediaFiles = messageIds.length
+      ? await this.db.query(
+          "SELECT id,message_id,mime_type,filename,size_bytes FROM media_files WHERE workspace_id=$1 AND message_id IN (SELECT jsonb_array_elements_text($2::jsonb))",
+          [actor.workspaceId, JSON.stringify(messageIds)],
+        )
+      : [];
+    const mediaMap = new Map(
+      mediaFiles.map((m) => [m.message_id, m]),
+    );
     const conversations = display.map((conversation) => {
       const history = messages
         .filter((message) => message.conversation_id === conversation.id)
-        .map((message) => ({
-          id: message.id,
-          conversationId: conversation.id,
-          sender: message.sender,
-          text: message.text,
-          timestamp: Number(message.timestamp),
-          deliveryStatus: message.status,
-          deliveryError: message.error,
-          automatic: message.automatic,
-        }));
+        .map((message) => {
+          const mf = mediaMap.get(message.id);
+          return {
+            id: message.id,
+            conversationId: conversation.id,
+            sender: message.sender,
+            text: message.text,
+            timestamp: Number(message.timestamp),
+            deliveryStatus: message.status,
+            deliveryError: message.error,
+            automatic: message.automatic,
+            media: mf
+              ? {
+                  id: mf.id,
+                  mimeType: mf.mime_type,
+                  filename: mf.filename,
+                  sizeBytes: Number(mf.size_bytes),
+                  url: `/api/media/${mf.id}`,
+                }
+              : null,
+          };
+        });
       const last = history[history.length - 1];
       return {
         id: conversation.id,
@@ -472,6 +494,37 @@ export class ProductService {
         ],
       );
       if (!inserted.length) return;
+      if (message.media && (message.media.id || message.media.url)) {
+        try {
+          const token = decrypt(
+            connection.token_cipher,
+            this.config.encryptionKey,
+          );
+          const downloaded = await this.meta.downloadMedia(
+            message.media,
+            token,
+          );
+          const mediaId = randomUUID();
+          const cipher = encryptBuffer(
+            downloaded.buffer,
+            this.config.encryptionKey,
+          );
+          await tx.query(
+            "INSERT INTO media_files(id,workspace_id,message_id,mime_type,filename,size_bytes,data_cipher) VALUES($1,$2,$3,$4,$5,$6,$7)",
+            [
+              mediaId,
+              connection.workspace_id,
+              id,
+              downloaded.mimeType,
+              downloaded.filename || message.media.filename || null,
+              downloaded.buffer.byteLength,
+              cipher,
+            ],
+          );
+        } catch {
+          // Oversized or unsupported MIME types rejected before storage
+        }
+      }
       if (risk !== "spam")
         await this.revenue.ensure(connection.workspace_id, conversation.id, tx);
       await tx.query(
@@ -735,7 +788,14 @@ export class ProductService {
     key: string,
     sourceId?: string,
     automatic = false,
+    hasMedia = false,
   ) {
+    if (hasMedia) {
+      throw new HttpError(
+        400,
+        "Outbound media is blocked until Meta template policy approval.",
+      );
+    }
     return this.db.transaction(async (tx) => {
       const [existing] = await tx.query(
         "SELECT * FROM messages WHERE workspace_id=$1 AND client_key=$2",

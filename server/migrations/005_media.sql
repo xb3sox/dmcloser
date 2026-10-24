@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS media_files (id text PRIMARY KEY, workspace_id text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE, message_id text REFERENCES messages(id) ON DELETE CASCADE, mime_type text NOT NULL, filename text, size_bytes integer NOT NULL, data_cipher text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS media_files_workspace ON media_files(workspace_id, message_id);
