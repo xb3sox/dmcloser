@@ -97,51 +97,66 @@ export function createAI(config: Config): AIEngine {
   const client = config.openaiKey
     ? new OpenAI({
         apiKey: config.openaiKey,
+        baseURL: config.openaiBaseUrl || undefined,
         timeout: config.aiTimeout,
         maxRetries: 0,
       })
     : null;
+  // OpenAI-compatible providers (DeepSeek, OpenRouter, vLLM) expose chat completions with JSON mode,
+  // not the Responses API or strict json_schema. Same schema, still validated locally by zod.
+  const compatible = Boolean(config.openaiBaseUrl);
   return {
     generate: async (input) => {
       if (!client) throw new Error("AI_NOT_CONFIGURED");
-      const response = await client.responses.create({
-        model: config.openaiModel,
-        store: false,
-        max_output_tokens: 650,
-        instructions: input.instructions || defaultInstructions(input),
-        input: [
-          {
-            role: "user",
-            content: JSON.stringify({
-              approvedBusiness: input.settings,
-              approvedBusinessBrain: input.businessFacts || "",
-              untrustedSalesContext: input.salesContext || "",
-              untrustedContactNotes: input.notes,
-              untrustedMemory: input.memory,
-              untrustedConversation: input.messages
-                .slice(-20)
-                .map((message) => ({
-                  ...message,
-                  text: message.text.slice(0, 2000),
-                })),
-            }),
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "sales_reply",
-            strict: true,
-            schema: z.toJSONSchema(replySchema) as Record<string, unknown>,
-          },
-        },
+      const instructions = input.instructions || defaultInstructions(input);
+      const payload = JSON.stringify({
+        approvedBusiness: input.settings,
+        approvedBusinessBrain: input.businessFacts || "",
+        untrustedSalesContext: input.salesContext || "",
+        untrustedContactNotes: input.notes,
+        untrustedMemory: input.memory,
+        untrustedConversation: input.messages.slice(-20).map((message) => ({
+          ...message,
+          text: message.text.slice(0, 2000),
+        })),
       });
-      if (response.status !== "completed" || !response.output_text)
-        throw new Error("AI_INCOMPLETE");
-      return guardReply(
-        replySchema.parse(JSON.parse(response.output_text)),
-        input,
-      );
+      let output: string;
+      if (compatible) {
+        const completion = await client.chat.completions.create({
+          model: config.openaiModel,
+          max_tokens: 650,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: `${instructions}\n\nReturn one JSON object only, no prose, matching this JSON schema exactly:\n${JSON.stringify(z.toJSONSchema(replySchema))}`,
+            },
+            { role: "user", content: payload },
+          ],
+        });
+        output = completion.choices[0]?.message?.content ?? "";
+        if (!output) throw new Error("AI_INCOMPLETE");
+      } else {
+        const response = await client.responses.create({
+          model: config.openaiModel,
+          store: false,
+          max_output_tokens: 650,
+          instructions,
+          input: [{ role: "user", content: payload }],
+          text: {
+            format: {
+              type: "json_schema",
+              name: "sales_reply",
+              strict: true,
+              schema: z.toJSONSchema(replySchema) as Record<string, unknown>,
+            },
+          },
+        });
+        if (response.status !== "completed" || !response.output_text)
+          throw new Error("AI_INCOMPLETE");
+        output = response.output_text;
+      }
+      return guardReply(replySchema.parse(JSON.parse(output)), input);
     },
   };
 }

@@ -14,6 +14,8 @@ export interface Config {
   encryptionKey: string;
   openaiKey?: string;
   openaiModel: string;
+  /** OpenAI-compatible base URL (DeepSeek, OpenRouter, local vLLM). Unset means api.openai.com. */
+  openaiBaseUrl?: string;
   aiTimeout: number;
   /** Jobs one process runs at the same time. Keep AI work small. */
   workerConcurrency: number;
@@ -82,6 +84,7 @@ export async function loadConfig(): Promise<Config> {
     databaseSsl: env.DATABASE_SSL === "true",
     openaiKey: env.OPENAI_API_KEY,
     openaiModel: env.OPENAI_MODEL || "gpt-4.1-mini",
+    openaiBaseUrl: env.OPENAI_BASE_URL || undefined,
     aiTimeout: Number(env.AI_TIMEOUT_MS || 8000),
     // Default 2: one inbound message can need two model calls, and a burst of
     // parallel calls is the fastest way to hit a provider rate limit. Raise it
