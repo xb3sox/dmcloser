@@ -425,6 +425,13 @@ export default function ChatView() {
             label={t("chat.autoSend.switchLabel", {
               name: conversation.contactName,
             })}
+            title={
+              conversation.intent === "spam"
+                ? t("chat.spam.notice")
+                : t("chat.autoSend.switchLabel", {
+                    name: conversation.contactName,
+                  })
+            }
             disabled={conversation.intent === "spam" || !!live?.pending}
           />
         </div>
