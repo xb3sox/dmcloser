@@ -11,6 +11,8 @@ import { z } from "zod";
 import { randomUUID, createHmac } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import * as Sentry from "@sentry/node";
+import { initServerObservability } from "./observability.ts";
 import { createMailer } from "./mail.ts";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
@@ -71,6 +73,7 @@ export async function createApp(
   db: Database,
   overrides: { ai?: AIEngine; meta?: MetaProvider } = {},
 ) {
+  initServerObservability(config);
   const app = express();
   app.disable("x-powered-by");
   if (config.trustProxy) app.set("trust proxy", config.trustProxy);
@@ -95,6 +98,9 @@ export async function createApp(
   app.use((req, res, next) => {
     req.requestId = randomUUID();
     res.setHeader("X-Request-Id", req.requestId);
+    if (config.sentryDsn) {
+      Sentry.setTag("requestId", req.requestId);
+    }
     const start = performance.now();
     res.on("finish", () => {
       if (!req.path.includes("/events"))
@@ -1487,7 +1493,7 @@ export async function createApp(
               : status === 400
                 ? "Invalid request."
                 : "Something went wrong. Please try again.";
-    if (status >= 500)
+    if (status >= 500) {
       console.error(
         JSON.stringify({
           event: "http.failure",
@@ -1496,6 +1502,14 @@ export async function createApp(
           status,
         }),
       );
+      if (config.sentryDsn) {
+        Sentry.withScope((scope) => {
+          scope.setTag("requestId", req.requestId);
+          scope.setTag("path", req.path);
+          Sentry.captureException(error);
+        });
+      }
+    }
     res.status(status).json({ error: message, requestId: req.requestId });
   });
   return { app, service, worker, billing };

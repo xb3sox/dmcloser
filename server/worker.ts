@@ -1,5 +1,6 @@
 import type { ProductService } from "./service.ts";
 import type { Billing } from "./billing.ts";
+import * as Sentry from "@sentry/node";
 import { normalizeWebhook } from "./providers.ts";
 import { decrypt, encrypt, HttpError } from "./security.ts";
 import {
@@ -307,6 +308,15 @@ export class Worker {
           attempts: job.attempts,
         }),
       );
+      if (this.service.config.sentryDsn) {
+        Sentry.withScope((scope) => {
+          scope.setTag("jobKind", job.kind);
+          scope.setTag("jobId", String(job.id));
+          scope.setTag("dead", String(dead));
+          if (job.workspace_id) scope.setTag("workspaceId", String(job.workspace_id));
+          Sentry.captureException(error);
+        });
+      }
     } finally {
       if (job.workspace_id) this.service.changed(job.workspace_id);
     }

@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.10",
+    "@sentry/node": "^11.9.0",
+    "@sentry/react": "^11.9.0",
     "clsx": "2.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

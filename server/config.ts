@@ -39,6 +39,8 @@ export interface Config {
   mailFrom: string;
   trustProxy: number;
   metricsToken?: string;
+  sentryDsn?: string;
+  sentryRelease?: string;
 }
 
 export async function loadConfig(): Promise<Config> {
@@ -119,5 +121,7 @@ export async function loadConfig(): Promise<Config> {
     mailFrom: env.MAIL_FROM || "DMCloser <hello@example.com>",
     trustProxy: Number(env.TRUST_PROXY_HOPS || 0),
     metricsToken: env.METRICS_TOKEN,
+    sentryDsn: env.SENTRY_DSN || undefined,
+    sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
   };
 }
