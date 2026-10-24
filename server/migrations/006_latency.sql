@@ -1,0 +1,4 @@
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS ingest_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS persistence_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS model_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS draft_write_ms integer NOT NULL DEFAULT 0;
