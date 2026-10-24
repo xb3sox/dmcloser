@@ -242,9 +242,19 @@ export class ProductService {
           [actor.workspaceId, JSON.stringify(ids)],
         )
       : [];
+    // Index messages by conversation_id to avoid O(N*M) array filtering inside display.map
+    const messagesByConversationId = new Map<string, typeof messages>();
+    for (const message of messages) {
+      let list = messagesByConversationId.get(message.conversation_id);
+      if (!list) {
+        list = [];
+        messagesByConversationId.set(message.conversation_id, list);
+      }
+      list.push(message);
+    }
+
     const conversations = display.map((conversation) => {
-      const history = messages
-        .filter((message) => message.conversation_id === conversation.id)
+      const history = (messagesByConversationId.get(conversation.id) || [])
         .map((message) => ({
           id: message.id,
           conversationId: conversation.id,

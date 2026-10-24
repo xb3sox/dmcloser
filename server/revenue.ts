@@ -739,6 +739,22 @@ export class RevenueService {
     const industryOutcomes = outcomes.filter(
       (outcome) => outcome.snapshot.industry === profile.industry,
     );
+    // Pre-calculate price losses count once instead of filtering industryOutcomes in every scoreLead call
+    const priceLossesCount = industryOutcomes.filter(
+      (outcome) => outcome.outcome === "lost" && outcome.reason === "price",
+    ).length;
+
+    // Index messages by conversation_id to avoid O(N*M) array filtering inside rows.map
+    const messagesByConversationId = new Map<string, typeof messages>();
+    for (const message of messages) {
+      let list = messagesByConversationId.get(message.conversation_id);
+      if (!list) {
+        list = [];
+        messagesByConversationId.set(message.conversation_id, list);
+      }
+      list.push(message);
+    }
+
     const opportunities = rows
       .map((row) => ({
         deal: dealView(row),
@@ -748,10 +764,7 @@ export class RevenueService {
           dealView(row),
           {
             intent: row.intent,
-            messages: messages
-              .filter(
-                (message) => message.conversation_id === row.conversation_id,
-              )
+            messages: (messagesByConversationId.get(row.conversation_id) || [])
               .map((message) => ({
                 id: message.id,
                 sender: message.sender,
@@ -763,12 +776,7 @@ export class RevenueService {
           profile.industry,
           cohorts,
           now,
-          {
-            priceLosses: industryOutcomes.filter(
-              (outcome) =>
-                outcome.outcome === "lost" && outcome.reason === "price",
-            ).length,
-          },
+          { priceLosses: priceLossesCount },
         ),
       }))
       .sort(
