@@ -1,5 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+
+process.env.FLAGS_AUTOMATION_ENABLED = "true";
+process.env.FLAGS_REVENUE_ENABLED = "true";
 import request from "supertest";
 import { createHmac, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";

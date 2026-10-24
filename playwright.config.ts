@@ -43,6 +43,8 @@ export default defineConfig({
         META_WEBHOOK_VERIFY_TOKEN: "",
         STRIPE_SECRET_KEY: "",
         SMTP_HOST: "",
+        FLAGS_AUTOMATION_ENABLED: "true",
+        FLAGS_REVENUE_ENABLED: "true",
       },
     },
   ],

@@ -65,6 +65,27 @@ export function mountRevenueRoutes(
 ) {
   const revenue = service.revenue,
     db = service.db;
+
+  const checkRevenue: RequestHandler = async (req, res, next) => {
+    try {
+      if (!req.actor) throw new HttpError(401, "Authentication required.");
+      const enabled = await service.flags.isRevenueEnabled(req.actor.workspaceId);
+      if (!enabled)
+        throw new HttpError(403, "Revenue features are not enabled for this workspace.");
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  app.use("/api/brain", checkRevenue);
+  app.use("/api/revenue", checkRevenue);
+  app.use("/api/conversations/:id/deal", checkRevenue);
+  app.use("/api/deals", checkRevenue);
+  app.use("/api/quotes", checkRevenue);
+  app.use("/api/appointments", checkRevenue);
+  app.use("/api/sales-tasks", checkRevenue);
+
   app.get("/api/brain", async (req, res) =>
     res.json(await revenue.brain(req.actor!.workspaceId)),
   );

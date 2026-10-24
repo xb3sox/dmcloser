@@ -64,6 +64,12 @@ export interface LiveSuggestion {
   reason: string;
   latencyMs: number;
 }
+export interface FlagState {
+  automationEnabled: boolean;
+  revenueEnabled: boolean;
+  pilotWorkspaces: string[];
+}
+
 export interface WorkspaceSnapshot {
   user: {
     id: string;
@@ -82,6 +88,7 @@ export interface WorkspaceSnapshot {
     conversationLimit: number;
     aiLimit: number;
   };
+  flags: FlagState;
   settings: BusinessSettings;
   conversations: Conversation[];
   nextCursor: string | null;
@@ -111,6 +118,7 @@ export interface WorkspaceSnapshot {
   }[];
   capabilities: {
     ai: boolean;
+    revenue?: boolean;
     instagram: boolean;
     whatsapp: boolean;
     billing: boolean;

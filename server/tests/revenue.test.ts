@@ -1,5 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+
+process.env.FLAGS_AUTOMATION_ENABLED = "true";
+process.env.FLAGS_REVENUE_ENABLED = "true";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -936,7 +939,7 @@ test("numbered migration upgrades a version-one database without replacing its e
           "SELECT version FROM schema_migrations ORDER BY version",
         )
       ).map((row) => row.version),
-      [1, 2, 3, 4],
+      [1, 2, 3, 4, 5],
     );
     await old.query("SELECT * FROM deals LIMIT 1");
   } finally {

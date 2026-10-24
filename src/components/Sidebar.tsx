@@ -66,22 +66,26 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
         </button>
         {mode === "live" && (
           <>
-            <button
-              aria-current={
-                state.currentView === "revenue" ? "page" : undefined
-              }
-              onClick={() => dispatch({ type: "SET_VIEW", view: "revenue" })}
-            >
-              <TrendingUp size={17} />
-              <span>{t("nav.revenue")}</span>
-            </button>
-            <button
-              aria-current={state.currentView === "brain" ? "page" : undefined}
-              onClick={() => dispatch({ type: "SET_VIEW", view: "brain" })}
-            >
-              <BookOpen size={17} />
-              <span>{t("nav.brain")}</span>
-            </button>
+            {Boolean(live?.snapshot.flags?.revenueEnabled ?? live?.snapshot.capabilities?.revenue) && (
+              <>
+                <button
+                  aria-current={
+                    state.currentView === "revenue" ? "page" : undefined
+                  }
+                  onClick={() => dispatch({ type: "SET_VIEW", view: "revenue" })}
+                >
+                  <TrendingUp size={17} />
+                  <span>{t("nav.revenue")}</span>
+                </button>
+                <button
+                  aria-current={state.currentView === "brain" ? "page" : undefined}
+                  onClick={() => dispatch({ type: "SET_VIEW", view: "brain" })}
+                >
+                  <BookOpen size={17} />
+                  <span>{t("nav.brain")}</span>
+                </button>
+              </>
+            )}
             {live?.snapshot.user.role === "owner" && (
               <button
                 aria-current={

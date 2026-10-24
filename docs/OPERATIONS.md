@@ -86,6 +86,35 @@ The image runs with `NODE_ENV=production`, and production config refuses to boot
 
 Before real customer traffic: configure SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`) or nobody can sign up at all — in production `POST /api/auth/register` returns **503 "Registration is temporarily unavailable until email delivery is configured"** while no mailer exists (`server/app.ts:553`). Verified on the compose stack 2026-10-23: 503 without SMTP, 201 with SMTP pointed at a local sink. Complete Meta app review (including registration of the implemented signed deauthorization/data-deletion callbacks), legal/privacy/retention review, pen test, live-model calibration, provider sandbox end-to-end tests, and p95/load measurement. Self-reported model confidence is not calibrated assurance. Neither a sub-two-second reply nor a sub-two-minute account connection has been verified with live credentials.
 
+## Feature Flags and Automation Kill Switch
+
+Feature flags control system capabilities per workspace and operator policy without requiring code deployments:
+
+1. **Flags:**
+   - `automation.enabled` (boolean): Master control for AI auto-sends. Defaults to `false` (OFF) when unset.
+   - `revenue.enabled` (boolean): Controls access to Revenue OS, Business Brain, and Deal Management features. Defaults to `false` (OFF) when unset.
+   - `pilot.workspaces` (string array): Cohort list of workspace IDs permitted to access Revenue features when `revenue.enabled` is `true`. Empty list (`[]`) allows all workspaces when `revenue.enabled` is `true`, or an explicit list (e.g. `["ws-id-1", "ws-id-2"]` or `["*"]`) limits access to pilot participants.
+
+2. **Incident Kill Switch Operational Procedure:**
+   - **Immediate Emergency Halt (Environment Kill Switch):**
+     To immediately stop all automated message sends across the application without a code deploy, set the environment variable:
+     ```sh
+     FLAGS_AUTOMATION_ENABLED=false
+     # or
+     AUTOMATION_ENABLED=false
+     ```
+     and restart/reload the process. All ongoing and new auto-send checks evaluate `automation.enabled` as `false`, immediately blocking all auto-sends and recording an audit event with reason `"automation.enabled flag is off"`.
+   - **Database Control Switch (No-Restart Kill Switch):**
+     Alternatively, update the `feature_flags` database table directly:
+     ```sql
+     INSERT INTO feature_flags (key, value, updated_at)
+     VALUES ('automation.enabled', 'false'::jsonb, now())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+     ```
+     This immediately halts auto-sends on the next worker evaluation cycle without restarting process environment variables or doing a code deploy.
+   - **Re-enabling Automation:**
+     Set `automation.enabled` to `'true'::jsonb` in the database or update the environment variable to `FLAGS_AUTOMATION_ENABLED=true`.
+
 ## Delivery Failure
 
 1. Read Settings > Activity or the conversation's provider status. Server logs contain IDs, paths, status and timing, not message bodies or credentials.

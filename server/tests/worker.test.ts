@@ -1,5 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+
+process.env.FLAGS_AUTOMATION_ENABLED = "true";
+process.env.FLAGS_REVENUE_ENABLED = "true";
 import { createDatabase, type Database } from "../db.ts";
 import { Worker } from "../worker.ts";
 import type { Config } from "../config.ts";

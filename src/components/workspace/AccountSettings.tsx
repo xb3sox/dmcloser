@@ -451,10 +451,27 @@ export default function AccountSettings() {
           )}
           <details className="workspace-audit">
             <summary>{t("workspace.account.operations.auditSummary")}</summary>
+            <div className="workspace-flags-summary" style={{ marginBlock: 12 }}>
+              <strong style={{ display: "block", marginBottom: 4 }}>Feature Flags</strong>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.85rem" }}>
+                <li>automation.enabled: <strong>{snapshot.flags?.automationEnabled ? "ON" : "OFF"}</strong></li>
+                <li>revenue.enabled: <strong>{snapshot.flags?.revenueEnabled ? "ON" : "OFF"}</strong></li>
+                <li>
+                  pilot.workspaces: <code>{snapshot.flags?.pilotWorkspaces?.length ? snapshot.flags.pilotWorkspaces.join(", ") : "(unset)"}</code>
+                </li>
+              </ul>
+            </div>
             <ul>
               {snapshot.audit.map((event, index) => (
                 <li key={`${event.created_at}-${index}`}>
-                  <span>{event.action.replace(/\./g, " ")}</span>
+                  <span>
+                    {event.action.replace(/\./g, " ")}
+                    {event.detail && typeof event.detail === "object" && "reason" in event.detail && (
+                      <small style={{ display: "block", opacity: 0.8 }}>
+                        {String(event.detail.reason)}
+                      </small>
+                    )}
+                  </span>
                   <time>{formatDateTime(event.created_at)}</time>
                 </li>
               ))}

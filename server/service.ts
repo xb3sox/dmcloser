@@ -14,6 +14,7 @@ import {
 import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
+import { FlagProvider, type FlagState } from "./flags.ts";
 
 export interface Actor {
   userId: string;
@@ -97,6 +98,7 @@ export function entitlement(workspace: any) {
 export class ProductService {
   revenue: RevenueService;
   quality: QualityService;
+  flags: FlagProvider;
   events = new EventEmitter();
   metrics = {
     received: 0,
@@ -115,6 +117,7 @@ export class ProductService {
     public meta: MetaProvider,
   ) {
     this.events.setMaxListeners(1000);
+    this.flags = new FlagProvider(config, db);
     this.revenue = new RevenueService(db, (workspaceId) =>
       this.changed(workspaceId),
     );
@@ -327,8 +330,10 @@ export class ProductService {
       [actor.workspaceId],
     );
     const limits = entitlement(workspace);
+    const flagsState = await this.flags.evalState(actor.workspaceId, this.db);
     const brainContext = await this.revenue.context(actor.workspaceId);
     return {
+      flags: flagsState,
       user: {
         id: actor.userId,
         email: actor.email,
@@ -385,6 +390,7 @@ export class ProductService {
       audit,
       capabilities: {
         ai: !!this.config.openaiKey,
+        revenue: flagsState.revenueEnabled,
         instagram: !!(
           this.config.instagramAppId &&
           this.config.instagramSecret &&
@@ -855,6 +861,18 @@ export class ProductService {
     conversation: any,
     sourceId: string,
   ) {
+    const automationEnabled = await this.flags.isAutomationEnabled(workspaceId, tx);
+    if (!automationEnabled) {
+      await this.audit(
+        workspaceId,
+        null,
+        "automation.blocked",
+        sourceId,
+        { reason: "automation.enabled flag is off" },
+        tx,
+      );
+      return false;
+    }
     const [opportunity] = await tx.query(
       "SELECT escalated,stage FROM deals WHERE workspace_id=$1 AND conversation_id=$2",
       [workspaceId, conversation.id],
