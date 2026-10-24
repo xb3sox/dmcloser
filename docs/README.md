@@ -36,14 +36,14 @@ DMCloser is a mobile-first sales inbox that converts Instagram/WhatsApp inquirie
 
 The compose stack and a backup/restore rehearsal **were** run on a development host — image built, `/api/ready` reported ready, migrations 1–4 applied, registration refused with 503 without SMTP, and a marker row inserted after the backup was gone after the restore. That database was fresh, not production-shaped, and the stack has not been run on the deployment host; the evidence is in `docs/OPERATIONS.md`.
 
-**Known product gaps** (mapped to requirements in the root `SPEC.md`): the **assignee filter** is the only one of the ten upstream gaps still open — there is no assignee column in any migration, and conversation assignment is a separate feature that touches the team/roles model, so it is not invented here. Every other gap named by the upstream PRD is now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, and the lead-status filter.
+**Known product gaps** (mapped to requirements in the root `SPEC-INDEX.md`): the **assignee filter** is the only one of the ten upstream gaps still open — there is no assignee column in any migration, and conversation assignment is a separate feature that touches the team/roles model, so it is not invented here. Every other gap named by the upstream PRD is now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, and the lead-status filter.
 
 ## Documentation
 **Shipped and authoritative** (written against the code):
 - [Repository instructions and hard rules](../AGENTS.md)
 - [Implementation contract](../spec.md)
 - [Locked brand and identity](../DESIGN.md)
-- [Specification index (FEAT/FR/NFR/AC → status)](../SPEC.md)
+- [Specification index (FEAT/FR/NFR/AC → status)](../SPEC-INDEX.md)
 - [Architecture](ARCHITECTURE.md)
 - [API reference](API.md) · [Operations runbook](OPERATIONS.md) · [Revenue OS contract](REVENUE_OS.md) · [Release review](REVIEW.md)
 
@@ -64,7 +64,7 @@ flowchart LR
  T --> A[AGENTS]
  D --> A
  F --> B
- S[SPEC.md] -.indexes.-> P
+ S[SPEC-INDEX.md] -.indexes.-> P
  R[DESIGN.md] -.overrides.-> D
 ```
 
@@ -73,7 +73,7 @@ flowchart LR
 
 **M2 External readiness** — the remaining gates are not engineering tasks inside this repository: Meta app permission evidence, live SMTP/OpenAI/Stripe credentials, production Postgres and TLS, a deployment-host rehearsal of the compose stack, a restore rehearsal against a production-shaped database, a load test, and the cross-border privacy review. Exit: named owner approval of a staging release, with the rehearsal evidence attached.
 
-**M0 UI repo audit: complete.** The repository is the inspected source; the real routes, dependencies, commands and test plan are in `AGENTS.md` and `SPEC.md`.
+**M0 UI repo audit: complete.** The repository is the inspected source; the real routes, dependencies, commands and test plan are in `AGENTS.md` and `SPEC-INDEX.md`.
 
 ## Critical Gaps
 No verified Meta channel access; privacy/legal cross-border role and obligations unresolved; no load test, no restore rehearsal against a production-shaped database, no live credentials; no demand or financing assumptions validated. Thus no real-data pilot, production or global-launch approval — and no claim of a verified latency SLO, backup, or compliance posture.

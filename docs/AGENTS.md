@@ -28,7 +28,7 @@ DMCloser 2.0 is an Arabic/English SaaS workspace for Instagram/WhatsApp conversa
    contract, and the shipped tokens in `src/styles/system.css` prevail.
 
 **Shipped and authoritative instead:** [root `AGENTS.md`](../AGENTS.md) · [`spec.md`](../spec.md) ·
-[root `SPEC.md`](../SPEC.md) (requirement status index) · [root `DESIGN.md`](../DESIGN.md) ·
+[root `SPEC-INDEX.md`](../SPEC-INDEX.md) (requirement status index) · [root `DESIGN.md`](../DESIGN.md) ·
 [ARCHITECTURE.md](ARCHITECTURE.md) · [API.md](API.md) · [OPERATIONS.md](OPERATIONS.md) ·
 [REVENUE_OS.md](REVENUE_OS.md) · [REVIEW.md](REVIEW.md)
 
