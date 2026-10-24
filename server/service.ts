@@ -567,6 +567,15 @@ export class ProductService {
       [sourceId],
     );
     if (existing) return;
+
+    // Stage 1: Ingest latency (from message arrival / timestamp to job start)
+    const sourceMessage = messages.find((m) => m.id === sourceId);
+    const ingestMs = sourceMessage
+      ? Math.max(0, Date.now() - Number(sourceMessage.timestamp))
+      : 0;
+
+    // Stage 2: Persistence / Context query
+    const persistenceStart = performance.now();
     const [workspace] = await this.db.query(
       "SELECT * FROM workspaces WHERE id=$1",
       [workspaceId],
@@ -637,7 +646,10 @@ export class ProductService {
         .reverse()
         .map((message) => ({ sender: message.sender, text: message.text })),
     };
-    const started = performance.now();
+    const persistenceMs = Math.round(performance.now() - persistenceStart);
+
+    // Stage 3: Model call
+    const modelStart = performance.now();
     let result;
     try {
       result = guardReply(await this.ai.generate(input), input);
@@ -648,7 +660,8 @@ export class ProductService {
       );
       throw error;
     }
-    const latency = Math.round(performance.now() - started);
+    const modelMs = Math.round(performance.now() - modelStart);
+
     const [currentWorkspace] = await this.db.query(
       "SELECT settings FROM workspaces WHERE id=$1",
       [workspaceId],
@@ -679,23 +692,12 @@ export class ProductService {
       );
       return;
     }
+
+    // Stage 4: Draft / Suggestion write
+    const draftWriteStart = performance.now();
+    const suggestionId = randomUUID();
+    let draftWriteMs = 0;
     await this.db.transaction(async (tx) => {
-      await tx.query(
-        "INSERT INTO suggestions(id,workspace_id,conversation_id,source_id,text,confidence,safe,reason,model,latency_ms,context_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (source_id) DO NOTHING",
-        [
-          randomUUID(),
-          workspaceId,
-          conversationId,
-          sourceId,
-          result.text,
-          result.confidence,
-          result.safe,
-          result.reason,
-          this.config.openaiModel,
-          latency,
-          fullContextHash(input.settings, brain.fingerprint),
-        ],
-      );
       await tx.query(
         "UPDATE conversations SET intent=$1,memory=$2,ai_error=NULL,updated_at=now() WHERE id=$3 AND workspace_id=$4",
         [result.intent, result.memory, conversationId, workspaceId],
@@ -709,21 +711,48 @@ export class ProductService {
           2500,
           tx,
         );
+      draftWriteMs = Math.max(1, Math.round(performance.now() - draftWriteStart));
+      const totalLatencyMs = ingestMs + persistenceMs + modelMs + draftWriteMs;
+      await tx.query(
+        "INSERT INTO suggestions(id,workspace_id,conversation_id,source_id,text,confidence,safe,reason,model,latency_ms,context_hash,ingest_ms,persistence_ms,model_ms,draft_write_ms) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT (source_id) DO NOTHING",
+        [
+          suggestionId,
+          workspaceId,
+          conversationId,
+          sourceId,
+          result.text,
+          result.confidence,
+          result.safe,
+          result.reason,
+          this.config.openaiModel,
+          totalLatencyMs,
+          fullContextHash(input.settings, brain.fingerprint),
+          ingestMs,
+          persistenceMs,
+          modelMs,
+          draftWriteMs,
+        ],
+      );
       await this.audit(
         workspaceId,
         null,
         "reply.generated",
         sourceId,
         {
-          latencyMs: latency,
+          latencyMs: totalLatencyMs,
+          ingestMs,
+          persistenceMs,
+          modelMs,
+          draftWriteMs,
           safe: result.safe,
           confidence: result.confidence,
         },
         tx,
       );
     });
+    const totalLatency = ingestMs + persistenceMs + modelMs + draftWriteMs;
     this.metrics.generated++;
-    this.metrics.totalGenerationMs += latency;
+    this.metrics.totalGenerationMs += totalLatency;
     this.changed(workspaceId);
   }
 

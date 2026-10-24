@@ -18,4 +18,8 @@ CREATE TABLE IF NOT EXISTS usage (workspace_id text NOT NULL REFERENCES workspac
 CREATE TABLE IF NOT EXISTS audit_events (id text PRIMARY KEY, workspace_id text REFERENCES workspaces(id) ON DELETE CASCADE, actor_id text, action text NOT NULL, resource_id text, detail jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS deletion_requests (code text PRIMARY KEY, request_hash text UNIQUE NOT NULL, completed_at timestamptz NOT NULL DEFAULT now());
 ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS context_hash text NOT NULL DEFAULT '';
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS ingest_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS persistence_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS model_ms integer NOT NULL DEFAULT 0;
+ALTER TABLE suggestions ADD COLUMN IF NOT EXISTS draft_write_ms integer NOT NULL DEFAULT 0;
 INSERT INTO schema_migrations(version) VALUES(1) ON CONFLICT DO NOTHING;
