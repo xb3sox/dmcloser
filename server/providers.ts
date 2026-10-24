@@ -255,7 +255,16 @@ export class MetaProvider {
     token: string,
     text: string,
     localId: string,
+    template?: {
+      name: string;
+      locale: string;
+      parameters?: Record<string, any>;
+      components?: any[];
+    },
   ) {
+    if (template && platform === "instagram") {
+      throw new ProviderError("Templates are not supported on Instagram.");
+    }
     if (platform === "instagram" && Buffer.byteLength(text, "utf8") > 1000)
       throw new ProviderError(
         "Instagram replies must be 1000 UTF-8 bytes or less.",
@@ -267,14 +276,41 @@ export class MetaProvider {
     const body =
       platform === "instagram"
         ? { recipient: { id: recipient }, message: { text } }
-        : {
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: recipient,
-            type: "text",
-            text: { preview_url: false, body: text },
-            biz_opaque_callback_data: localId,
-          };
+        : template
+          ? {
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: recipient,
+              type: "template",
+              template: {
+                name: template.name,
+                language: { code: template.locale },
+                components:
+                  template.components ||
+                  (template.parameters
+                    ? [
+                        {
+                          type: "body",
+                          parameters: Object.values(template.parameters).map(
+                            (v) => ({
+                              type: "text",
+                              text: String(v),
+                            }),
+                          ),
+                        },
+                      ]
+                    : []),
+              },
+              biz_opaque_callback_data: localId,
+            }
+          : {
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: recipient,
+              type: "text",
+              text: { preview_url: false, body: text },
+              biz_opaque_callback_data: localId,
+            };
     const host =
       platform === "instagram" ? "graph.instagram.com" : "graph.facebook.com";
     const result = await this.json(

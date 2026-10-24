@@ -963,11 +963,48 @@ export async function createApp(
     );
     res.json({ ok: true });
   });
+  app.get("/api/templates", async (req, res) => {
+    res.json(await service.listTemplates(req.actor!.workspaceId));
+  });
+  app.post("/api/templates", owner, async (req, res) => {
+    const body = z
+      .object({
+        name: z.string().trim().min(1).max(100),
+        locale: z.string().trim().min(1).max(20),
+        status: z.enum(["approved", "pending", "rejected"]),
+        parameterSchema: z
+          .array(
+            z.object({
+              name: z.string().trim().min(1).max(100),
+              type: z.enum(["string", "number", "boolean"]).optional(),
+              required: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .strict()
+      .parse(req.body);
+    const template = await service.registerTemplate(
+      req.actor!.workspaceId,
+      body.name,
+      body.locale,
+      body.status,
+      body.parameterSchema || [],
+    );
+    res.status(201).json(template);
+  });
   app.post("/api/conversations/:id/messages", async (req, res) => {
     const body = z
       .object({
         text: z.string().trim().min(1).max(4096),
         sourceId: z.string().max(100).optional(),
+        template: z
+          .object({
+            name: z.string().trim().min(1).max(100),
+            locale: z.string().trim().min(1).max(20),
+            parameters: z.record(z.string(), z.any()).optional(),
+          })
+          .optional(),
       })
       .strict()
       .parse(req.body);
@@ -979,6 +1016,8 @@ export async function createApp(
       body.text,
       key,
       body.sourceId,
+      false,
+      body.template,
     );
     if (!message) throw new HttpError(409, "This reply is paused for review.");
     service.changed(req.actor!.workspaceId);

@@ -73,6 +73,48 @@ export function decodeCursor(value: string): PageCursor {
     throw new HttpError(400, "The page cursor is not valid.");
   return { lastAt: parsed.lastAt, lastId: parsed.lastId, excludeId };
 }
+export function validateTemplateParameters(
+  schema: Array<{ name: string; type?: string; required?: boolean }>,
+  params: Record<string, any> = {},
+) {
+  const schemaList = Array.isArray(schema) ? schema : [];
+  for (const field of schemaList) {
+    const value = params ? params[field.name] : undefined;
+    if (
+      field.required !== false &&
+      (value === undefined || value === null || value === "")
+    ) {
+      throw new HttpError(
+        400,
+        `Template parameter mismatch: missing required parameter '${field.name}'.`,
+      );
+    }
+    if (value !== undefined && value !== null && field.type) {
+      if (field.type === "string" && typeof value !== "string") {
+        throw new HttpError(
+          400,
+          `Template parameter mismatch: '${field.name}' must be a string.`,
+        );
+      }
+      if (
+        field.type === "number" &&
+        (typeof value !== "number" || !Number.isFinite(value))
+      ) {
+        throw new HttpError(
+          400,
+          `Template parameter mismatch: '${field.name}' must be a number.`,
+        );
+      }
+      if (field.type === "boolean" && typeof value !== "boolean") {
+        throw new HttpError(
+          400,
+          `Template parameter mismatch: '${field.name}' must be a boolean.`,
+        );
+      }
+    }
+  }
+}
+
 export function entitlement(workspace: any) {
   const active =
     ["active", "trialing"].includes(workspace.billing_status) &&
@@ -397,6 +439,29 @@ export class ProductService {
         storage: this.db.kind,
       },
     };
+  }
+
+  async registerTemplate(
+    workspaceId: string,
+    name: string,
+    locale: string,
+    status: "approved" | "pending" | "rejected",
+    parameterSchema: any[] = [],
+  ) {
+    const id = randomUUID();
+    const [template] = await this.db.query(
+      "INSERT INTO message_templates(id,workspace_id,name,locale,status,parameter_schema) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (workspace_id,name,locale) DO UPDATE SET status=EXCLUDED.status,parameter_schema=EXCLUDED.parameter_schema,updated_at=now() RETURNING *",
+      [id, workspaceId, name, locale, status, JSON.stringify(parameterSchema)],
+    );
+    this.changed(workspaceId);
+    return template;
+  }
+
+  async listTemplates(workspaceId: string) {
+    return this.db.query(
+      "SELECT * FROM message_templates WHERE workspace_id=$1 ORDER BY name,locale",
+      [workspaceId],
+    );
   }
 
   async connect(
@@ -735,6 +800,11 @@ export class ProductService {
     key: string,
     sourceId?: string,
     automatic = false,
+    templateOption?: {
+      name: string;
+      locale: string;
+      parameters?: Record<string, any>;
+    },
   ) {
     return this.db.transaction(async (tx) => {
       const [existing] = await tx.query(
@@ -759,11 +829,48 @@ export class ProductService {
           409,
           "Connect the messaging account before sending.",
         );
-      if (Number(conversation.window_until) <= Date.now())
+
+      const inbound = await tx.query(
+        "SELECT text FROM messages WHERE workspace_id=$1 AND conversation_id=$2 AND sender='contact' ORDER BY timestamp DESC LIMIT 30",
+        [workspaceId, conversationId],
+      );
+      if (inbound.some((m) => isOptOut(m.text))) {
         throw new HttpError(
           409,
-          "The 24-hour reply window is closed. Wait for a new customer message.",
+          "Contact has opted out of messaging. Sending is blocked.",
         );
+      }
+
+      let templateRecord: any = null;
+      if (templateOption) {
+        const [tmpl] = await tx.query(
+          "SELECT * FROM message_templates WHERE workspace_id=$1 AND name=$2 AND locale=$3",
+          [workspaceId, templateOption.name, templateOption.locale],
+        );
+        if (!tmpl) {
+          throw new HttpError(400, "Unknown template.");
+        }
+        if (tmpl.status !== "approved") {
+          throw new HttpError(400, "Template is not approved.");
+        }
+        const schema = Array.isArray(tmpl.parameter_schema)
+          ? tmpl.parameter_schema
+          : typeof tmpl.parameter_schema === "string"
+            ? JSON.parse(tmpl.parameter_schema)
+            : [];
+        validateTemplateParameters(schema, templateOption.parameters || {});
+        templateRecord = {
+          name: tmpl.name,
+          locale: tmpl.locale,
+          parameters: templateOption.parameters || {},
+        };
+      } else if (Number(conversation.window_until) <= Date.now()) {
+        throw new HttpError(
+          409,
+          "The 24-hour reply window is closed. Freeform messages outside the window are blocked. Use an approved template.",
+        );
+      }
+
       if (
         (conversation.platform === "instagram" &&
           Buffer.byteLength(text, "utf8") > 1000) ||
@@ -800,7 +907,7 @@ export class ProductService {
         return null;
       const id = randomUUID();
       const [message] = await tx.query(
-        "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,connection_id,status,client_key,source_id,automatic) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *",
+        "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,connection_id,status,client_key,source_id,automatic,template) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *",
         [
           id,
           workspaceId,
@@ -813,6 +920,7 @@ export class ProductService {
           key,
           last?.sender === "contact" ? last.id : null,
           automatic,
+          templateRecord ? JSON.stringify(templateRecord) : null,
         ],
       );
       await this.enqueue(
@@ -971,10 +1079,11 @@ export class ProductService {
       "SELECT * FROM connections WHERE id=$1 AND workspace_id=$2",
       [message.connection_id, workspaceId],
     );
+    const isExpiredWindow = Number(message.window_until) < Date.now();
     if (
       !connection ||
       connection.status !== "connected" ||
-      Number(message.window_until) < Date.now()
+      (isExpiredWindow && !message.template)
     ) {
       await this.failMessage(
         workspaceId,
@@ -1032,6 +1141,11 @@ export class ProductService {
     );
     if (!claimed.length) return;
     try {
+      const templateObj = message.template
+        ? typeof message.template === "string"
+          ? JSON.parse(message.template)
+          : message.template
+        : undefined;
       const providerId = await this.meta.send(
         message.platform,
         connection.account_id,
@@ -1039,6 +1153,7 @@ export class ProductService {
         decrypt(connection.token_cipher, this.config.encryptionKey),
         message.text,
         messageId,
+        templateObj,
       );
       await this.db.query(
         "UPDATE messages SET status=CASE WHEN status IN ('delivered','read') THEN status ELSE 'sent' END,provider_id=$1,error=NULL WHERE id=$2 AND workspace_id=$3",
