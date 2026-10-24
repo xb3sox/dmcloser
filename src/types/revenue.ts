@@ -155,6 +155,7 @@ export interface DealDetail {
     kind: "payment" | "refund";
     reference: string;
     occurredAt: number;
+    voided?: boolean;
   }[];
 }
 export interface VerifiedReceipt {

@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS revenue_voids (id text PRIMARY KEY, workspace_id text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE, revenue_event_id text NOT NULL, reason text NOT NULL, actor_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), FOREIGN KEY(revenue_event_id) REFERENCES revenue_events(id) ON DELETE CASCADE, UNIQUE(workspace_id,revenue_event_id));
+CREATE INDEX IF NOT EXISTS revenue_voids_workspace ON revenue_voids(workspace_id,revenue_event_id);
