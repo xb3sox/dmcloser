@@ -404,6 +404,42 @@ export default function ChatView() {
             </span>
           </span>
         </div>
+        <div className="chat-assignee-select">
+          <label htmlFor="chat-assignee-header" className="sr-only">
+            {t("chat.assignee.label")}
+          </label>
+          <select
+            id="chat-assignee-header"
+            value={conversation.assigneeUserId || ""}
+            onChange={async (event) => {
+              const val = event.target.value || null;
+              if (live) {
+                try {
+                  await live.request(`/conversations/${conversation.id}`, {
+                    method: "PATCH",
+                    body: { assigneeUserId: val },
+                  });
+                  await live.refresh();
+                  setNotice(t("chat.assignee.updated"));
+                } catch (failure) {
+                  setNotice(
+                    failure instanceof Error
+                      ? failure.message
+                      : t("chat.error.tryAgain"),
+                  );
+                }
+              }
+            }}
+            disabled={!live || !!live.pending}
+          >
+            <option value="">{t("chat.assignee.unassigned")}</option>
+            {(live?.snapshot?.members || []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name || m.email}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="chat-auto-send">
           <span>{t("chat.autoSend.label")}</span>
           <Switch

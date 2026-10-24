@@ -52,6 +52,7 @@ export interface Conversation {
   windowUntil?: number;
   aiError?: string | null;
   connectionId?: string | null;
+  assigneeUserId?: string | null;
 }
 
 export interface LiveSuggestion {

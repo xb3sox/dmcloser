@@ -761,6 +761,10 @@ export async function createApp(
           req.query.cursor === undefined
             ? null
             : decodeCursor(z.string().max(400).parse(req.query.cursor)),
+        assignee:
+          req.query.assignee === undefined
+            ? null
+            : z.string().max(100).parse(req.query.assignee),
       }),
     ),
   );
@@ -885,6 +889,7 @@ export async function createApp(
           .optional(),
         autoSend: z.boolean().optional(),
         unread: z.boolean().optional(),
+        assigneeUserId: z.string().max(100).nullable().optional(),
       })
       .strict()
       .parse(req.body);
@@ -911,13 +916,31 @@ export async function createApp(
           "Automatic replies are disabled for closed opportunities.",
         );
     }
+    let assigneeUserId = conversation.assignee_user_id;
+    if (body.assigneeUserId !== undefined) {
+      if (body.assigneeUserId !== null && body.assigneeUserId !== "") {
+        const [member] = await db.query(
+          "SELECT 1 FROM members WHERE workspace_id=$1 AND user_id=$2",
+          [req.actor!.workspaceId, body.assigneeUserId],
+        );
+        if (!member)
+          throw new HttpError(
+            400,
+            "Assignee must be a member of this workspace.",
+          );
+        assigneeUserId = body.assigneeUserId;
+      } else {
+        assigneeUserId = null;
+      }
+    }
     await db.query(
-      "UPDATE conversations SET notes=$1,status=$2,auto_send=$3,unread=$4,updated_at=now() WHERE id=$5 AND workspace_id=$6",
+      "UPDATE conversations SET notes=$1,status=$2,auto_send=$3,unread=$4,assignee_user_id=$5,updated_at=now() WHERE id=$6 AND workspace_id=$7",
       [
         body.notes ?? conversation.notes,
         body.status ?? conversation.status,
         body.autoSend ?? conversation.auto_send,
         body.unread ?? conversation.unread,
+        assigneeUserId,
         conversation.id,
         req.actor!.workspaceId,
       ],
