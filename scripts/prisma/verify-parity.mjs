@@ -32,9 +32,6 @@ function sh(command, argv, options = {}) {
   return spawnSync(command, argv, {
     cwd: ROOT,
     encoding: "utf8",
-    // npx/docker resolve to .cmd shims on Windows; without a shell spawnSync
-    // returns ENOENT and the parity check reports a misleading harness error.
-    shell: process.platform === "win32",
     ...options,
   });
 }
