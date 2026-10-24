@@ -172,6 +172,9 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
           title={t(
             locale === "en" ? "nav.switchToArabic" : "nav.switchToEnglish",
           )}
+          aria-label={t(
+            locale === "en" ? "nav.switchToArabic" : "nav.switchToEnglish",
+          )}
           data-locale-switch={locale === "en" ? "ar" : "en"}
         >
           <Languages size={16} />
