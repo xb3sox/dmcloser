@@ -19,7 +19,9 @@ import {
   decrypt,
   digest,
   encrypt,
+  equal,
   hashPassword,
+  HttpError,
   validMetaSignature,
   verifyPassword,
 } from "../security.ts";
@@ -152,9 +154,17 @@ test("password hashes, token encryption, and constant-time signature guards", as
   assert.notEqual(hash, password);
   assert.equal(await verifyPassword(password, hash), true);
   assert.equal(await verifyPassword("wrong", hash), false);
+  assert.equal(equal("abc", "abc"), true);
+  assert.equal(equal("abc", "abcd"), false);
+  assert.equal(equal("a", "b"), false);
+
   const cipher = encrypt("provider-secret", config.encryptionKey);
   assert.equal(decrypt(cipher, config.encryptionKey), "provider-secret");
   assert.ok(!cipher.includes("provider-secret"));
+  assert.throws(
+    () => decrypt("invalid-cipher-string", config.encryptionKey),
+    HttpError,
+  );
   const raw = Buffer.from('{"hello":"world"}');
   const signature = `sha256=${createHmac("sha256", config.metaSecret!).update(raw).digest("hex")}`;
   assert.equal(validMetaSignature(raw, signature, config.metaSecret), true);

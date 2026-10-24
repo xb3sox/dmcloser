@@ -1,0 +1,4 @@
+## 2025-05-18 - Constant-Time String Comparison and Decryption Resilience
+**Vulnerability:** `equal()` in `server/security.ts` performed string length comparison (`a.length === b.length`) before calling `timingSafeEqual()`, creating a length-leaking timing side-channel. Additionally, `decrypt()` did not validate string structure or handle cipher errors gracefully.
+**Learning:** Checking string lengths before `timingSafeEqual()` short-circuits execution and leaks string length through timing. Hashing both input strings with SHA-256 first produces fixed 32-byte buffers that can be safely compared in constant time with `timingSafeEqual()` regardless of input lengths.
+**Prevention:** Always hash variable-length strings to fixed-size SHA-256 digests before using `crypto.timingSafeEqual()` to ensure true constant-time execution.

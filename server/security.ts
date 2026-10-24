@@ -23,9 +23,9 @@ export const randomToken = () => randomBytes(32).toString("base64url");
 export const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 export function equal(first: string, second: string): boolean {
-  const a = Buffer.from(first);
-  const b = Buffer.from(second);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const a = createHash("sha256").update(first).digest();
+  const b = createHash("sha256").update(second).digest();
+  return timingSafeEqual(a, b);
 }
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -46,16 +46,24 @@ export function encrypt(token: string, secret: string) {
 }
 export function decrypt(value: string, secret: string) {
   const [iv, tag, body] = value.split(".");
-  const cipher = createDecipheriv(
-    "aes-256-gcm",
-    Buffer.from(secret, "hex"),
-    Buffer.from(iv, "hex"),
-  );
-  cipher.setAuthTag(Buffer.from(tag, "hex"));
-  return Buffer.concat([
-    cipher.update(Buffer.from(body, "hex")),
-    cipher.final(),
-  ]).toString("utf8");
+  if (!iv || !tag || !body) {
+    throw new HttpError(400, "Invalid encrypted value format", "INVALID_CIPHER");
+  }
+  try {
+    const cipher = createDecipheriv(
+      "aes-256-gcm",
+      Buffer.from(secret, "hex"),
+      Buffer.from(iv, "hex"),
+    );
+    cipher.setAuthTag(Buffer.from(tag, "hex"));
+    return Buffer.concat([
+      cipher.update(Buffer.from(body, "hex")),
+      cipher.final(),
+    ]).toString("utf8");
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, "Failed to decrypt payload", "INVALID_CIPHER");
+  }
 }
 export function validMetaSignature(
   body: Buffer,
