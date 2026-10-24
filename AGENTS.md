@@ -62,6 +62,8 @@ demo (no server, `localStorage`), `/workspace` the authenticated product.
 - **Migrations are forward-only, numbered, and split on `;`.** `server/db.ts` splits
   migration SQL on `;` inside a `LOCK TABLE schema_migrations IN EXCLUSIVE MODE`
   transaction. **Never put a `;` inside a statement body and never write a `DO $$` block.**
+- **Never edit an applied migration.** Add a new numbered file and run
+  `node scripts/check-migrations.mjs --update`; the gate hashes every registered migration.
 - **Money is integer minor units.** Never floats. Currency is explicit.
 - **Validation at every trust boundary:** webhooks, tenant API, AI provider output,
   private storage.

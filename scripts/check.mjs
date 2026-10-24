@@ -21,6 +21,7 @@ const suites = readdirSync("server/tests")
   .map((name) => ["npx", ["tsx", "--test", `server/tests/${name}`]]);
 for (const [command, args] of [
   ["node", ["scripts/check-file-case.mjs"]],
+  ["node", ["scripts/check-migrations.mjs"]],
   ["npx", ["tsc", "--noEmit"]],
   ["npx", ["tsc", "-p", "tsconfig.server.json"]],
   ...suites,

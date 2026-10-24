@@ -1,0 +1,9 @@
+{
+  "001.sql": "21aa8fb481d54c20b35bb26dc765c9e7accd01a5d1f0b2faf98ce006ec5a3fed",
+  "002_revenue.sql": "563873a5fd39edc12425d9907202cf42a381deb086fe814ea95b27e13e0c6a11",
+  "003_sector.sql": "f2aed67ce6f058c07534bc4f39fc72e2c5c72b3db6c9885b48267c107c24b5d5",
+  "004_ai_quality.sql": "b81c300bcf781a4c8ee236738fb4024e9b0aaac9a3ee31a22ca5f6ae472a7431",
+  "005_void_reversals.sql": "10cbec88427f5eec0ab8486bab07d77d66d7845b942880f30da6934b29b33739",
+  "006_latency.sql": "089645a29b696f4e15e125d1c8091956ce94baded890c44ceac89ecdca21274d",
+  "007_assignee.sql": "ae8f0bf74012b93f91daf5edd09eb79d08cef8370afd1d573be09166341a40a5"
+}
