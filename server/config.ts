@@ -32,6 +32,9 @@ export interface Config {
   stripeKey?: string;
   stripeWebhookSecret?: string;
   prices: Record<string, string | undefined>;
+  mailProvider: "smtp" | "resend" | "postmark" | "sink" | "none";
+  resendApiKey?: string;
+  postmarkServerToken?: string;
   smtpHost?: string;
   smtpPort: number;
   smtpUser?: string;
@@ -112,6 +115,16 @@ export async function loadConfig(): Promise<Config> {
       growth_monthly: env.STRIPE_GROWTH_MONTHLY_PRICE,
       growth_yearly: env.STRIPE_GROWTH_YEARLY_PRICE,
     },
+    mailProvider: (() => {
+      const p = env.EMAIL_PROVIDER?.toLowerCase().trim();
+      if (p === "smtp" || p === "resend" || p === "postmark" || p === "sink" || p === "none")
+        return p;
+      if (env.RESEND_API_KEY) return "resend";
+      if (env.POSTMARK_SERVER_TOKEN) return "postmark";
+      return "smtp";
+    })(),
+    resendApiKey: env.RESEND_API_KEY,
+    postmarkServerToken: env.POSTMARK_SERVER_TOKEN,
     smtpHost: env.SMTP_HOST,
     smtpPort: Number(env.SMTP_PORT || 587),
     smtpUser: env.SMTP_USER,

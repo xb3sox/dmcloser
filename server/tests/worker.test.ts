@@ -25,6 +25,7 @@ const config: Config = {
   workerEnabled: false,
   graphVersion: "v26.0",
   prices: {},
+  mailProvider: "smtp",
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,

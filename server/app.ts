@@ -12,6 +12,7 @@ import { randomUUID, createHmac } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createMailer } from "./mail.ts";
+import { renderEmail } from "./email-templates.tsx";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
 import { createAI, type AIEngine } from "./ai.ts";
@@ -383,15 +384,14 @@ export async function createApp(
         )
       )[0]?.workspace_id ??
       null;
+    const rendered = renderEmail(purpose, { url, recipientName: user.name });
     await service.enqueue(
       "email",
       {
         to: user.email,
-        subject:
-          purpose === "reset"
-            ? "Reset your DMCloser password"
-            : "Verify your DMCloser email",
-        text: `${purpose === "reset" ? "Reset your password" : "Verify your email"} using this single-use link (expires in one hour):\n${url}\n\nIf you did not request this, ignore this email.`,
+        subject: rendered.subject,
+        text: rendered.text,
+        html: rendered.html,
         purpose,
       },
       target,
@@ -1203,17 +1203,20 @@ export async function createApp(
       ],
     );
     const url = `${config.appUrl}/workspace?invite=${token}`;
-    if (mailer)
+    if (mailer) {
+      const rendered = renderEmail("invite", { url });
       await service.enqueue(
         "email",
         {
           to: email,
-          subject: "Your DMCloser workspace invitation",
-          text: `Sign in with ${email} and accept your invitation:\n${url}\nThis link expires in 48 hours.`,
+          subject: rendered.subject,
+          text: rendered.text,
+          html: rendered.html,
           purpose: "invite",
         },
         req.actor!.workspaceId,
       );
+    }
     await service.audit(
       req.actor!.workspaceId,
       req.actor!.userId,

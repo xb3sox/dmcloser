@@ -392,7 +392,7 @@ export class ProductService {
         ),
         whatsapp: !!(this.config.metaSecret && this.config.verifyToken),
         billing: !!(this.config.stripeKey && this.config.stripeWebhookSecret),
-        email: !!this.config.smtpHost,
+        email: this.config.mailProvider !== "none",
         simulator: !this.config.production,
         storage: this.db.kind,
       },

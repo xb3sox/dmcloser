@@ -45,6 +45,7 @@ const config: Config = {
   instagramSecret: "instagram-test-secret",
   verifyToken: "verify-this-test",
   prices: {},
+  mailProvider: "smtp",
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,

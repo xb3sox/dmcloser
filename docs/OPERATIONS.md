@@ -17,7 +17,7 @@
 - Webhook GET echoes `hub.challenge` only for the configured verify token. POST requires raw-body HMAC-SHA256. Data is committed before ACK; duplicates are suppressed. Only text replies are supported; inbound media requires human review.
 - Both channels use a conservative 24-hour reply window. No template or Human Agent exceptions are claimed. Provider acceptance is not delivery; WhatsApp delivery statuses reconcile asynchronously.
 - Stripe: set secret/webhook keys and four recurring price IDs matching the displayed Starter/Growth monthly/yearly prices. Subscribe `/api/webhooks/stripe` to Checkout completion, subscription changes, invoice success/failure. Configure Customer Portal. Entitlements follow verified events and freshly retrieved subscription truth, never the redirect.
-- SMTP: configure host/port/user/password and verified `MAIL_FROM`; test verification/recovery deliverability. Production registration requires mail configuration; live connection requires verified email.
+- Email: provider-agnostic mail provider configurable via `EMAIL_PROVIDER` (`smtp` default, `resend`, `postmark`, `sink`, `none`). Configure provider keys/credentials (`SMTP_HOST`, `RESEND_API_KEY`, `POSTMARK_SERVER_TOKEN`) and verified `MAIL_FROM`; test verification/recovery deliverability. Production registration requires email configuration; live connection requires verified email. In tests, the `sink` adapter captures messages without opening a network connection.
 
 ## Production Surface
 

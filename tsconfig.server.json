@@ -8,7 +8,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "types": ["node"]
   },
-  "include": ["server/**/*.ts", "src/types/index.ts"]
+  "include": ["server/**/*.ts", "server/**/*.tsx", "src/types/index.ts"]
 }
