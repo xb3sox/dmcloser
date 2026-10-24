@@ -104,6 +104,7 @@ export class ProductService {
     aiFailures: 0,
     delivered: 0,
     deliveryFailures: 0,
+    emailFailures: 0,
     uncertain: 0,
     totalGenerationMs: 0,
   };
