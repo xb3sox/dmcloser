@@ -11,7 +11,7 @@ import { z } from "zod";
 import { randomUUID, createHmac } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import nodemailer from "nodemailer";
+import { createMailer } from "./mail.ts";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
 import { createAI, type AIEngine } from "./ai.ts";
@@ -355,19 +355,12 @@ export async function createApp(
     res.json({ status: "completed", completedAt: row.completed_at });
   });
 
-  const mailer = config.smtpHost
-    ? nodemailer.createTransport({
-        host: config.smtpHost,
-        port: config.smtpPort,
-        secure: config.smtpPort === 465,
-        requireTLS: config.production,
-        auth: config.smtpUser
-          ? { user: config.smtpUser, pass: config.smtpPassword }
-          : undefined,
-        connectionTimeout: 5000,
-      })
-    : null;
-  async function emailToken(user: any, purpose: "verify" | "reset") {
+  const mailer = createMailer(config);
+  async function emailToken(
+    user: any,
+    purpose: "verify" | "reset",
+    workspaceId?: string,
+  ) {
     if (!mailer)
       throw new HttpError(
         503,
@@ -379,15 +372,30 @@ export async function createApp(
       [digest(token), user.id, purpose, Date.now() + 3600000],
     );
     const url = `${config.appUrl}/workspace?${purpose}=${encodeURIComponent(token)}`;
-    await mailer.sendMail({
-      from: config.mailFrom,
-      to: user.email,
-      subject:
-        purpose === "reset"
-          ? "Reset your DMCloser password"
-          : "Verify your DMCloser email",
-      text: `${purpose === "reset" ? "Reset your password" : "Verify your email"} using this single-use link (expires in one hour):\n${url}\n\nIf you did not request this, ignore this email.`,
-    });
+    // Queue the send: SMTP latency must not sit in a signup or recovery request,
+    // and a bounce has to reach the activity feed instead of a swallowed promise.
+    const target =
+      workspaceId ??
+      (
+        await db.query(
+          "SELECT workspace_id FROM members WHERE user_id=$1 LIMIT 1",
+          [user.id],
+        )
+      )[0]?.workspace_id ??
+      null;
+    await service.enqueue(
+      "email",
+      {
+        to: user.email,
+        subject:
+          purpose === "reset"
+            ? "Reset your DMCloser password"
+            : "Verify your DMCloser email",
+        text: `${purpose === "reset" ? "Reset your password" : "Verify your email"} using this single-use link (expires in one hour):\n${url}\n\nIf you did not request this, ignore this email.`,
+        purpose,
+      },
+      target,
+    );
   }
   async function readActor(req: Request): Promise<Actor | undefined> {
     const token = req.cookies?.[cookieName];
@@ -590,10 +598,15 @@ export async function createApp(
     await issueSession(res, userId, workspaceId);
     await service.audit(workspaceId, userId, "workspace.created");
     if (mailer)
-      emailToken({ id: userId, email: body.email }, "verify").catch(() =>
-        console.error(
-          JSON.stringify({ event: "email.delivery_failed", purpose: "verify" }),
-        ),
+      emailToken({ id: userId, email: body.email }, "verify", workspaceId).catch(
+        (error) =>
+          console.error(
+            JSON.stringify({
+              event: "email.enqueue_failed",
+              purpose: "verify",
+              reason: error instanceof Error ? error.message : "unknown",
+            }),
+          ),
       );
     res.status(201).json({ ok: true });
   });
@@ -781,6 +794,7 @@ export async function createApp(
     await emailToken(
       { id: req.actor!.userId, email: req.actor!.email },
       "verify",
+      req.actor!.workspaceId,
     );
     res.json({ message: "Verification email sent." });
   });
@@ -1190,12 +1204,16 @@ export async function createApp(
     );
     const url = `${config.appUrl}/workspace?invite=${token}`;
     if (mailer)
-      await mailer.sendMail({
-        from: config.mailFrom,
-        to: email,
-        subject: "Your DMCloser workspace invitation",
-        text: `Sign in with ${email} and accept your invitation:\n${url}\nThis link expires in 48 hours.`,
-      });
+      await service.enqueue(
+        "email",
+        {
+          to: email,
+          subject: "Your DMCloser workspace invitation",
+          text: `Sign in with ${email} and accept your invitation:\n${url}\nThis link expires in 48 hours.`,
+          purpose: "invite",
+        },
+        req.actor!.workspaceId,
+      );
     await service.audit(
       req.actor!.workspaceId,
       req.actor!.userId,

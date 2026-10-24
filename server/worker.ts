@@ -2,6 +2,13 @@ import type { ProductService } from "./service.ts";
 import type { Billing } from "./billing.ts";
 import { normalizeWebhook } from "./providers.ts";
 import { decrypt, encrypt, HttpError } from "./security.ts";
+import {
+  createMailer,
+  isTransientMailError,
+  sendEmail,
+  type Mailer,
+  type MailMessage,
+} from "./mail.ts";
 
 /** Default lease a processing job holds before another worker may reclaim it. */
 const BASE_LEASE_MS = 60000;
@@ -33,6 +40,14 @@ export class Worker {
   private readonly running = new Set<Promise<void>>();
   /** Serialises claim transactions; job bodies still run in parallel. */
   private claimChain: Promise<void> = Promise.resolve();
+  /** Built once on first email job; undefined until then, null when SMTP is unconfigured. */
+  private mailerInstance?: Mailer | null;
+
+  private mailer(): Mailer | null {
+    if (this.mailerInstance === undefined)
+      this.mailerInstance = createMailer(this.service.config);
+    return this.mailerInstance;
+  }
 
   constructor(
     public service: ProductService,
@@ -160,6 +175,26 @@ export class Worker {
         }
       } else if (job.kind === "ai-eval")
         await this.service.quality.runVersion(job.workspace_id, payload.versionId);
+      else if (job.kind === "email") {
+        const mailer = this.mailer();
+        if (!mailer)
+          throw new HttpError(
+            503,
+            "Email is not configured on the server; the message was not sent.",
+          );
+        try {
+          await sendEmail(mailer, this.service.config, payload as MailMessage);
+        } catch (error) {
+          // 5xx and auth failures never heal: fail the job now so the operator sees it
+          // instead of burning the three attempts on credentials the provider rejects.
+          if (!isTransientMailError(error))
+            throw new HttpError(
+              400,
+              `Email to ${payload.purpose} address was rejected by the provider.`,
+            );
+          throw error;
+        }
+      }
       else if (job.kind === "billing")
         await this.billing.process(payload.event);
       else if (job.kind === "refresh-token") {
@@ -243,6 +278,26 @@ export class Worker {
           job.id,
           { kind: job.kind, attempts: job.attempts },
         );
+      if (job.kind === "email") {
+        this.service.metrics.emailFailures++;
+        console.error(
+          JSON.stringify({
+            event: "email.failure",
+            id: job.id,
+            purpose: job.payload?.purpose,
+            dead,
+            attempts: job.attempts,
+          }),
+        );
+        if (dead)
+          await this.service.audit(
+            job.workspace_id,
+            null,
+            "email.needs_review",
+            job.id,
+            { purpose: job.payload?.purpose },
+          );
+      }
       console.error(
         JSON.stringify({
           event: "job.failure",
