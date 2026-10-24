@@ -48,7 +48,7 @@
     "@types/react-dom": "19.2.3",
     "@types/supertest": "^7.2.1",
     "@vitejs/plugin-react": "5.1.1",
-    "concurrently": "^9.2.5",
+    "concurrently": "^10.0.6",
     "esbuild": "^0.28.2",
     "supabase": "^2.121.0",
     "supertest": "^7.3.1",
