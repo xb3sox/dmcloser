@@ -28,11 +28,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          count=$(gh pr view "${{ github.event.pull_request.number }}" \
+          body=$(gh pr view "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
-            --json closingIssuesReferences \
-            --jq '.closingIssuesReferences | length')
-          if [ "$count" -lt 1 ]; then
+            --json body --jq .body)
+          if ! printf '%s' "$body" | grep -Eqi '(closes|fixes|resolves)[[:space:]]+#[0-9]+'; then
             echo "::error::Link the issue with Closes #N in the PR body."
             exit 1
           fi
