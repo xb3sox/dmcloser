@@ -1,3 +1,4 @@
+// probe: rule regression check
 import Stripe from "stripe";
 import type { ProductService } from "./service.ts";
 import { HttpError } from "./security.ts";
