@@ -18,7 +18,7 @@ jobs:
       - name: Gitleaks
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar -xz gitleaks
-          ./gitleaks detect --source . --verbose --redact --exit-code 1
+          ./gitleaks detect --source . --log-opts HEAD --verbose --redact --exit-code 1
   filesystem:
     runs-on: ubuntu-latest
     timeout-minutes: 10
