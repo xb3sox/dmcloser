@@ -54,8 +54,29 @@ export function encrypt(token: string, secret: string) {
   const body = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
   return `${iv.toString("hex")}.${cipher.getAuthTag().toString("hex")}.${body.toString("hex")}`;
 }
+const HEX_REGEX = /^[0-9a-fA-F]+$/;
+
+// Validate payload structure defensively before hex conversion and deciphering
+// to prevent unexpected runtime TypeErrors or crashes on malformed ciphertext input.
 export function decrypt(value: string, secret: string) {
-  const [iv, tag, body] = value.split(".");
+  if (typeof value !== "string" || !value) {
+    throw new Error("Invalid encrypted payload.");
+  }
+  const parts = value.split(".");
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+    throw new Error("Invalid encrypted payload format.");
+  }
+  const [iv, tag, body] = parts;
+  if (
+    iv.length !== 24 ||
+    tag.length !== 32 ||
+    body.length % 2 !== 0 ||
+    !HEX_REGEX.test(iv) ||
+    !HEX_REGEX.test(tag) ||
+    !HEX_REGEX.test(body)
+  ) {
+    throw new Error("Invalid encrypted payload format.");
+  }
   const cipher = createDecipheriv(
     "aes-256-gcm",
     Buffer.from(secret, "hex"),
