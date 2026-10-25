@@ -21,8 +21,13 @@ test("observability: scrubber removes email, phone, message body and Authorizati
   const payload = {
     event_id: "test-event-123",
     message: "Unhandled error for customer user@domain.com calling +15551234567",
+    user: {
+      id: "u123",
+      ip_address: "192.168.1.1",
+      email: "owner@company.com",
+    },
     request: {
-      url: "http://localhost:3001/api/conversations/c1/messages",
+      url: "http://localhost:3001/api/conversations/c1/messages?token=secret123&user=admin",
       method: "POST",
       headers: {
         authorization: "Bearer secret-token-xyz",
@@ -48,6 +53,7 @@ test("observability: scrubber removes email, phone, message body and Authorizati
     extra: {
       messageBody: "Raw message content from instagram customer",
       userEmail: "customer@company.org",
+      arabicPhone: "رقم الهاتف هو +٩٦٦٥١٢٣٤٥٦٧٨ للتواصل",
     },
     breadcrumbs: [
       {
@@ -58,36 +64,52 @@ test("observability: scrubber removes email, phone, message body and Authorizati
     ],
   };
 
-  const scrubbed = scrubSentryEvent(payload);
+  const scrubbed = scrubSentryEvent(payload as any);
 
   // Check Authorization header & cookie scrubbed
-  assert.equal(scrubbed.request.headers.authorization, "[SCRUBBED]");
-  assert.equal(scrubbed.request.headers.cookie, "[SCRUBBED]");
-  assert.equal(scrubbed.request.headers["content-type"], "application/json");
+  assert.equal(scrubbed.request?.headers?.authorization, "[SCRUBBED]");
+  assert.equal(scrubbed.request?.headers?.cookie, "[SCRUBBED]");
+  assert.equal(scrubbed.request?.headers?.["content-type"], "application/json");
 
   // Check email scrubbing
   assert.ok(!JSON.stringify(scrubbed).includes("user@domain.com"));
   assert.ok(!JSON.stringify(scrubbed).includes("customer@company.org"));
   assert.ok(!JSON.stringify(scrubbed).includes("support@company.org"));
+  assert.ok(!JSON.stringify(scrubbed).includes("owner@company.com"));
 
-  // Check phone scrubbing
+  // Check phone scrubbing (both ASCII and Arabic-Indic digits)
   assert.ok(!JSON.stringify(scrubbed).includes("+15551234567"));
   assert.ok(!JSON.stringify(scrubbed).includes("+15559876543"));
   assert.ok(!JSON.stringify(scrubbed).includes("+15551112222"));
+  assert.ok(!JSON.stringify(scrubbed).includes("+٩٦٦٥١٢٣٤٥٦٧٨"));
+
+  // Check user IP & email
+  assert.equal((scrubbed as any).user?.ip_address, "[SCRUBBED_IP]");
+  assert.equal((scrubbed as any).user?.email, "[SCRUBBED_EMAIL]");
+  assert.equal((scrubbed as any).user?.id, "u123");
 
   // Check message body scrubbing
-  assert.equal(scrubbed.request.data.text, "[SCRUBBED_BODY]");
-  assert.equal(scrubbed.request.data.notes, "[SCRUBBED_BODY]");
-  assert.equal(scrubbed.extra.messageBody, "[SCRUBBED_BODY]");
+  assert.equal((scrubbed.request?.data as any)?.text, "[SCRUBBED_BODY]");
+  assert.equal((scrubbed.request?.data as any)?.notes, "[SCRUBBED_BODY]");
+  assert.equal((scrubbed.extra as any)?.messageBody, "[SCRUBBED_BODY]");
 
   // Check token scrubbing
-  assert.equal(scrubbed.request.data.token, "[SCRUBBED]");
+  assert.equal((scrubbed.request?.data as any)?.token, "[SCRUBBED]");
 
-  // Non-sensitive request fields preserved
+  // Non-sensitive request fields preserved and query params scrubbed
   assert.equal(scrubbed.event_id, "test-event-123");
-  assert.equal(scrubbed.request.method, "POST");
+  assert.equal(scrubbed.request?.method, "POST");
   assert.equal(
-    scrubbed.request.url,
-    "http://localhost:3001/api/conversations/c1/messages",
+    scrubbed.request?.url,
+    "http://localhost:3001/api/conversations/c1/messages?[SCRUBBED_QUERY]",
   );
+});
+
+test("observability: circular object does not crash scrubber", () => {
+  const circularObj: any = { name: "test", email: "circ@example.com" };
+  circularObj.self = circularObj;
+
+  const result: any = scrubSentryEvent(circularObj);
+  assert.equal(result.self, "[Circular]");
+  assert.equal(result.email, "[SCRUBBED_EMAIL]");
 });
