@@ -94,13 +94,18 @@ export default function InboxView() {
           return false;
         }
         if (query) {
-          // Short-circuit search evaluation: check contact name, last message, and notes first
-          if (conversation.contactName.toLowerCase().includes(query)) return true;
-          if (conversation.lastMessage.toLowerCase().includes(query)) return true;
-          if (conversation.leadNotes.toLowerCase().includes(query)) return true;
-          // Avoid mapping/joining all messages; check lazily with .some()
-          return conversation.messages.some((message) =>
-            message.text.toLowerCase().includes(query),
+          const tokens = query.split(/\s+/).filter(Boolean);
+          const contactLower = conversation.contactName.toLowerCase();
+          const lastMsgLower = conversation.lastMessage.toLowerCase();
+          const notesLower = conversation.leadNotes.toLowerCase();
+          return tokens.every(
+            (token) =>
+              contactLower.includes(token) ||
+              lastMsgLower.includes(token) ||
+              notesLower.includes(token) ||
+              conversation.messages.some((message) =>
+                message.text.toLowerCase().includes(token),
+              ),
           );
         }
         return true;
