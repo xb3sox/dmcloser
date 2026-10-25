@@ -39,10 +39,11 @@ process, the control-band test, the build and the audit. **Playwright is not par
 | Revenue Server Test Suite | `npx tsx --test server/tests/revenue.test.ts` | 2026-10-25 | 24/24 pass | `server/tests/revenue.test.ts` | Automated (`scripts/check.mjs`) |
 | Safety Server Test Suite | `npx tsx --test server/tests/safety.test.ts` | 2026-10-25 | 11/11 pass | `server/tests/safety.test.ts` | Automated (`scripts/check.mjs`) |
 | Quality Server Test Suite | `npx tsx --test server/tests/quality.test.ts` | 2026-10-25 | 7/7 pass | `server/tests/quality.test.ts` | Automated (`scripts/check.mjs`) |
-| Recovery Server Test Suite | `npx tsx --test server/tests/recovery.test.ts` | 2026-10-25 | 5/5 pass | `server/tests/recovery.test.ts` | Automated (`scripts/check.mjs`) |
+| Recovery Server Test Suite | `npx tsx --test server/tests/recovery.test.ts` | 2026-10-25 | 6/6 pass (5 before the erasure proof landed) | `server/tests/recovery.test.ts` | Automated (`scripts/check.mjs`) |
 | Mail Server Test Suite | `npx tsx --test server/tests/mail.test.ts` | 2026-10-25 | 1/1 pass | `server/tests/mail.test.ts` | Automated (`scripts/check.mjs`) |
 | Worker Server Test Suite | `npx tsx --test server/tests/worker.test.ts` | 2026-10-25 | 4/4 pass | `server/tests/worker.test.ts` | Automated (`scripts/check.mjs`) |
-| Server Test Suite Total (PGlite local) | `npx tsx --test server/tests/*.test.ts` | 2026-10-25 | 85/85 pass | `server/tests/*.test.ts` | Automated (`scripts/check.mjs`) |
+| Security Server Test Suite | `npx tsx --test server/tests/security.test.ts` | 2026-10-25 | 3/3 pass | `server/tests/security.test.ts` | Automated (`scripts/check.mjs`) |
+| Server Test Suite Total (PGlite local) | `npx tsx --test server/tests/*.test.ts` | 2026-10-25 | 89/89 pass (85 before the security and erasure proofs landed) | `server/tests/*.test.ts` | Automated (`scripts/check.mjs`) |
 | Server Test Suite Total (Postgres 17, hosted) | GitHub Actions `ci.yml` job `verify`, `TEST_DATABASE_URL` step | 2026-10-24 | 85/85 pass | [run 40143930237](https://github.com/xb3sox/dmcloser/actions/runs/40143930237) | CI / External Postgres |
 | Control Bands Test Suite | `node --test scripts/control-bands.test.mjs` | 2026-10-25 | 4/4 pass | `scripts/control-bands.test.mjs` | Automated (`scripts/check.mjs`) |
 | Playwright Browser Test Suite | `npx playwright test` | 2026-10-25 | 66/66 pass (58 pre-existing + 8 Arabic/RTL) | `tests/*.spec.ts` | Automated (`playwright`, chromium-headless-shell 156) |
@@ -62,6 +63,15 @@ added across product/revenue).
 | Product Gates (Postgres 17, Playwright, docker build + readiness smoke) | GitHub Actions `ci.yml`, job `verify` | 2026-10-24 | success | [run 40143930237](https://github.com/xb3sox/dmcloser/actions/runs/40143930237) | CI |
 | Security (gitleaks, trivy fs, semgrep) | GitHub Actions `security.yml` | 2026-10-24 | success | [run 40143930214](https://github.com/xb3sox/dmcloser/actions/runs/40143930214) | CI |
 | Schema Parity (Prisma schema vs SQL migrations) | GitHub Actions `ci.yml`, job `schema-parity` | 2026-10-24 | success | same run as Product Gates | CI |
+| Gitleaks range scan, negative test | scratch PR with a fake token in commit 1 and its removal in commit 2 | 2026-10-25 | **failed as intended** — `Scanning the pull request range: origin/main..HEAD`, `leaks found: 1` | [run 40150507473](https://github.com/xb3sox/dmcloser/actions/runs/40150507473) | CI; PR #132 closed, branch deleted |
+| Release SBOM attached | throwaway `v0.0.0-test` tag on `main` | 2026-10-25 | success — asset `dmcloser-v0.0.0-test.cdx.json`, 100094 bytes, 71 components, CycloneDX 1.5 | [run 40151747851](https://github.com/xb3sox/dmcloser/actions/runs/40151747851) | CI; tag and release deleted after verification |
+| First tag run failed before the install fix | same tag, before #135 | 2026-10-25 | failure — `npm error missing: …` because `node_modules` was absent | [run 40151118871](https://github.com/xb3sox/dmcloser/actions/runs/40151118871) | CI; kept as the reason #135 exists |
+| Erasure proof (webhook payload scrub) | `npx tsx --test server/tests/recovery.test.ts`, plus #138 | 2026-10-25 | 6/6 pass — a deletion leaves no message body, phone or token in any table | `server/tests/recovery.test.ts`, `server/service.ts` | CI ([run 40152000141](https://github.com/xb3sox/dmcloser/actions/runs/40152000141)) |
+
+**Provenance note:** the erasure test reached `main` inside the squash merge of #135, because a
+parallel agent had it uncommitted in the shared working tree when that commit was staged. It
+was reviewed, it passes, and #138 supplied the matching `server/service.ts` change. Recorded
+here rather than silently absorbed.
 
 ## Repository controls
 
