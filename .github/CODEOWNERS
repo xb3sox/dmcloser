@@ -5,3 +5,9 @@ server/security.ts @xb3sox
 server/billing.ts @xb3sox
 server/ai.ts @xb3sox
 server/migrations/ @xb3sox
+server/worker.ts @xb3sox
+server/providers.ts @xb3sox
+# Shared bilingual safety guard: one module, imported by client and server.
+src/domain/safety.ts @xb3sox
+# The gates themselves, so a workflow change cannot land without the owner seeing it.
+.github/workflows/ @xb3sox

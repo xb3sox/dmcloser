@@ -1,0 +1,6 @@
+# Keep the "open a blank issue" escape hatch: some work is a chore or a launch gate and
+# does not fit a template. Only route the one report that must never be public.
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/xb3sox/dmcloser/security/policy
+    about: Do not open a public issue. Read SECURITY.md and use the private channel it names.

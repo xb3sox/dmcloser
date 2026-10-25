@@ -9,6 +9,9 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+# Actions are pinned by commit SHA with the tag in a comment. A tag can be repointed at a
+# different commit; a SHA cannot. Dependabot keeps both the SHA and the comment current.
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -25,8 +28,8 @@ jobs:
           --health-cmd "pg_isready -U test" --health-interval 5s
           --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -70,7 +73,7 @@ jobs:
             | head -c 200
           docker logs dmcloser-smoke
           docker rm -f dmcloser-smoke
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
           name: test-evidence
@@ -80,8 +83,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -106,7 +109,7 @@ jobs:
           --health-cmd "pg_isready -U dmcloser" --health-interval 5s
           --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build the candidate image
         run: docker build -t dmcloser:${{ github.sha }} .
       - name: Smoke test the candidate image
@@ -143,7 +146,7 @@ jobs:
       - name: Export the image
         run: |
           docker save dmcloser:${{ github.sha }} | gzip -1 > release/dmcloser-image.tar.gz
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-candidate
           path: release/
