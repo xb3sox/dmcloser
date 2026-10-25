@@ -10,3 +10,4 @@ backups/
 test-results/
 playwright-report/
 *.log.tools/
+.tmp/
