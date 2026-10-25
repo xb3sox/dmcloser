@@ -1,9 +1,5 @@
-# Keep the "open a blank issue" escape hatch: some work is a chore or a launch gate and
-# does not fit a template. Only route the one report that must never be public.
-#
-# The repository is private and GitHub private vulnerability reporting is not enabled, so
-# this link can only serve people who already have access. It is not a disclosure channel.
+blank_issues_enabled: true
 contact_links:
   - name: Report a security vulnerability privately
     url: https://github.com/xb3sox/dmcloser/blob/main/SECURITY.md
-    about: Do not open a public issue. SECURITY.md names the private channel; verifying it is tracked in #124.
+    about: Do not open a public issue for security vulnerabilities. Review SECURITY.md for instructions on private disclosure.

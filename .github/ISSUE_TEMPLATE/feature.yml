@@ -1,32 +1,66 @@
 name: Feature Request
-description: Suggest an idea or feature for DMCloser
+description: Propose a new feature, enhancement, or architectural improvement for DMCloser
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting a feature!
+        Thank you for suggesting an idea for DMCloser! We value feature proposals that align with our North Star: **revenue > conversion > retention > moat**.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Component / Surface
+      description: Which part of DMCloser does this feature request target?
+      options:
+        - Workspace (Sales Inbox & Revenue OS)
+        - AI Brain & Reply Generator
+        - Ingestion & Webhooks (Meta / WhatsApp / Instagram)
+        - Billing & Subscription Plans
+        - Express API & Data Architecture
+        - Developer Experience / Tooling / CI
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
-      label: Problem Statement
-      description: Is your feature request related to a problem? Please describe.
-      placeholder: A clear and concise description of what the problem is...
+      label: Problem Statement / Motivation
+      description: Is this feature related to a problem or friction point? Please describe clearly.
+      placeholder: Describe the problem user or system experiences...
     validations:
       required: true
   - type: textarea
     id: solution
     attributes:
-      label: Proposed Solution
-      description: Describe the solution you'd like.
-      placeholder: A clear and concise description of what you want to happen...
+      label: Proposed Solution & User Value
+      description: Describe the solution you would like to see and how it helps convert sales or improve workspace UX.
+      placeholder: Describe your proposed feature and user interaction flow...
     validations:
       required: true
+  - type: input
+    id: requirement_spec
+    attributes:
+      label: Related Requirement or Spec Mapping (Optional)
+      description: Reference any related spec ID or document (e.g. FEAT-001, FR-002, `docs/REVENUE_OS.md`, ROADMAP.md).
+      placeholder: e.g. FEAT-002 or docs/PRD.md
+    validations:
+      required: false
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternative Solutions
-      description: Describe any alternative solutions or features you've considered.
+      label: Alternative Solutions Considered
+      description: What alternative approaches or workarounds have been considered?
+      placeholder: Describe any alternative options...
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Proposed Acceptance Criteria
+      description: Outline what success looks like for this feature (e.g. tests passing, API endpoints added, UX requirements).
+      placeholder: |
+        - [ ] Feature is configurable per workspace
+        - [ ] API endpoint returns typed response
+        - [ ] E2E / Unit tests added in server/tests or tests/
     validations:
       required: false

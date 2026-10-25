@@ -1,42 +1,98 @@
 name: Bug Report
-description: Create a report to help us improve DMCloser
+description: Report a bug or unexpected behavior in DMCloser
 title: "[Bug]: "
-labels: ["bug"]
+labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug!
+        Thank you for helping improve DMCloser! Please fill out the sections below as accurately as possible.
+
+        **Note:** If you are reporting a security vulnerability, please **do not** open a public issue. Follow our [Security Policy](https://github.com/xb3sox/dmcloser/blob/main/SECURITY.md) instead.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component / Area
+      description: Which part of DMCloser is affected by this issue?
+      options:
+        - Workspace (Authenticated Web App)
+        - Demo (/app Browser Sandbox)
+        - Marketing Landing Page (/)
+        - Express API Server
+        - Durable Worker / Queue
+        - AI Brain / Sales Suggestions
+        - Billing / Stripe Integration
+        - Meta / Webhooks Ingestion
+        - CI / Workflows / Documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity / Impact
+      description: How severely does this bug affect product functionality?
+      options:
+        - "Critical (P0 - System down, data loss, security issue)"
+        - "Major (P1 - Core feature broken, no easy workaround)"
+        - "Moderate (P2 - Feature degraded or workaround exists)"
+        - "Minor (P3 - Small glitch or cosmetic UI flaw)"
+    validations:
+      required: true
   - type: textarea
     id: description
     attributes:
       label: Bug Description
       description: A clear and concise description of what the bug is.
-      placeholder: Describe what happened...
+      placeholder: Provide a clear summary of the issue...
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      description: Detailed steps to reproduce the issue.
       placeholder: |
-        1. Go to '...'
+        1. Navigate to '/workspace'
         2. Click on '...'
-        3. See error
+        3. Observe error message '...'
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected vs Actual Behavior
-      description: What did you expect to happen, and what actually happened?
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe the expected behavior...
     validations:
       required: true
   - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error codes if applicable.
+      placeholder: Describe what actually occurred...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs, Stack Traces, or Screenshots
+      description: Paste terminal output, console logs, network responses, or paste image URLs here.
+      placeholder: |
+        ```
+        npm log or browser console error
+        ```
+    validations:
+      required: false
+  - type: textarea
     id: environment
     attributes:
-      label: Environment
-      description: Operating system, browser, Node version, environment variables, etc.
+      label: Environment Details
+      description: Provide relevant environment context (e.g., OS, Browser, Node version, DB engine PGlite vs Postgres).
+      placeholder: |
+        - OS: macOS / Linux / Windows
+        - Browser: Chrome / Safari / Firefox
+        - Node Version: v22.x
+        - Storage Engine: PGlite (local) / Postgres (production)
     validations:
       required: false
