@@ -80,7 +80,7 @@ body:
       description: Paste terminal output, console logs, network responses, or paste image URLs here.
       placeholder: |
         ```
-        pnpm/npm log or browser console error
+        npm log or browser console error
         ```
     validations:
       required: false
