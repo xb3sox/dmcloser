@@ -1376,3 +1376,35 @@ test("conversation assignment, reassignment, cross-tenant rejection, and assigne
   assert.equal(paged2.conversations.length, 5);
   assert.equal(paged2.nextCursor, null);
 });
+
+test("server-side filtering across pagination returns rows matching from page 2+", async () => {
+  const f = await fixture();
+  const now = Date.now();
+
+  // Insert 205 instagram conversations (would fill page 1) and 1 target whatsapp conversation with intent 'buy' created earlier (so it appears on page 2 if unfiltered)
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,intent,last_at,window_until) SELECT $1||'-ig-'||n,$1,'instagram','ig-'||n,'IG Contact '||n,'question',$2-n::bigint,$3 FROM generate_series(1,205) AS n",
+    [f.snapshot.workspace.id, now, now + 86400000],
+  );
+
+  const targetId = `${f.snapshot.workspace.id}-target-wa`;
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,intent,last_at,window_until) VALUES($1,$2,'whatsapp','target-wa','Target WA','buy',$3,$4)",
+    [targetId, f.snapshot.workspace.id, now - 300, now + 86400000],
+  );
+
+  // Without filters, page 1 returns 200 IG conversations
+  const unfiltered = (await f.client.get("/api/bootstrap")).body;
+  assert.equal(unfiltered.conversations.length, 200);
+  assert.ok(!unfiltered.conversations.some((c: any) => c.id === targetId));
+
+  // With channel=whatsapp filter applied before page load, it returns the target row on page 1
+  const filteredChannel = (await f.client.get("/api/bootstrap?channel=whatsapp")).body;
+  assert.equal(filteredChannel.conversations.length, 1);
+  assert.equal(filteredChannel.conversations[0].id, targetId);
+
+  // With intent=buy filter applied, it also returns the target row on page 1
+  const filteredIntent = (await f.client.get("/api/bootstrap?intent=buy")).body;
+  assert.equal(filteredIntent.conversations.length, 1);
+  assert.equal(filteredIntent.conversations[0].id, targetId);
+});

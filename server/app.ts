@@ -751,6 +751,15 @@ export async function createApp(
         req.query.include === undefined
           ? null
           : z.string().max(150).parse(req.query.include),
+        {
+          assignee: req.query.assignee ? z.string().max(100).parse(req.query.assignee) : null,
+          channel: req.query.channel ? z.string().max(50).parse(req.query.channel) : null,
+          intent: req.query.intent ? z.string().max(50).parse(req.query.intent) : null,
+          unreadOnly: req.query.unread === "true" || req.query.unreadOnly === "true",
+          leadStatus: req.query.leadStatus ? z.string().max(50).parse(req.query.leadStatus) : null,
+          timeRange: req.query.timeRange ? z.string().max(50).parse(req.query.timeRange) : null,
+          search: req.query.search ? z.string().max(200).parse(req.query.search) : null,
+        },
       ),
     ),
   );
@@ -765,6 +774,12 @@ export async function createApp(
           req.query.assignee === undefined
             ? null
             : z.string().max(100).parse(req.query.assignee),
+        channel: req.query.channel ? z.string().max(50).parse(req.query.channel) : null,
+        intent: req.query.intent ? z.string().max(50).parse(req.query.intent) : null,
+        unreadOnly: req.query.unread === "true" || req.query.unreadOnly === "true",
+        leadStatus: req.query.leadStatus ? z.string().max(50).parse(req.query.leadStatus) : null,
+        timeRange: req.query.timeRange ? z.string().max(50).parse(req.query.timeRange) : null,
+        search: req.query.search ? z.string().max(200).parse(req.query.search) : null,
       }),
     ),
   );
