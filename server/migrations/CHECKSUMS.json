@@ -5,5 +5,6 @@
   "004_ai_quality.sql": "b81c300bcf781a4c8ee236738fb4024e9b0aaac9a3ee31a22ca5f6ae472a7431",
   "005_void_reversals.sql": "10cbec88427f5eec0ab8486bab07d77d66d7845b942880f30da6934b29b33739",
   "006_latency.sql": "089645a29b696f4e15e125d1c8091956ce94baded890c44ceac89ecdca21274d",
-  "007_assignee.sql": "ae8f0bf74012b93f91daf5edd09eb79d08cef8370afd1d573be09166341a40a5"
+  "007_assignee.sql": "ae8f0bf74012b93f91daf5edd09eb79d08cef8370afd1d573be09166341a40a5",
+  "008_multi_instance.sql": "e91f72ea6ba971da69e8512736d827f57221998c8d7605a50ddf7cb34ba3e6f4"
 }

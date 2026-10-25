@@ -6,7 +6,46 @@ import express, {
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, MemoryStore, type Store, type ClientRateLimitInfo, type Options } from "express-rate-limit";
+
+export class PostgresRateLimitStore implements Store {
+  windowMs = 60000;
+
+  constructor(private db: Database) {}
+
+  init(options: Options): void {
+    this.windowMs = options.windowMs;
+  }
+
+  async increment(key: string): Promise<ClientRateLimitInfo> {
+    const now = Date.now();
+    const expiresAt = now + this.windowMs;
+    const [row] = await this.db.query<{ hits: number; expires_at: string | number }>(
+      `INSERT INTO rate_limits (key, hits, expires_at)
+       VALUES ($1, 1, $2)
+       ON CONFLICT (key) DO UPDATE SET
+         hits = CASE WHEN rate_limits.expires_at < $3 THEN 1 ELSE rate_limits.hits + 1 END,
+         expires_at = CASE WHEN rate_limits.expires_at < $3 THEN $2 ELSE rate_limits.expires_at END
+       RETURNING hits, expires_at`,
+      [key, expiresAt, now],
+    );
+    return {
+      totalHits: row.hits,
+      resetTime: new Date(Number(row.expires_at)),
+    };
+  }
+
+  async decrement(key: string): Promise<void> {
+    await this.db.query(
+      `UPDATE rate_limits SET hits = GREATEST(hits - 1, 0) WHERE key = $1 AND expires_at >= $2`,
+      [key, Date.now()],
+    );
+  }
+
+  async resetKey(key: string): Promise<void> {
+    await this.db.query(`DELETE FROM rate_limits WHERE key = $1`, [key]);
+  }
+}
 import { z } from "zod";
 import { randomUUID, createHmac } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -140,6 +179,11 @@ export async function createApp(
       origin: (origin, done) => done(null, !origin || origins.has(origin)),
     }),
   );
+  const createRateLimitStore = (): Store =>
+    db.kind === "postgres"
+      ? new PostgresRateLimitStore(db)
+      : new MemoryStore();
+
   app.use(
     "/api",
     rateLimit({
@@ -147,6 +191,7 @@ export async function createApp(
       limit: 300,
       standardHeaders: "draft-8",
       legacyHeaders: false,
+      store: createRateLimitStore(),
       message: { error: "Too many requests. Please wait a minute." },
     }),
   );
@@ -477,6 +522,7 @@ export async function createApp(
     limit: 15,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    store: createRateLimitStore(),
     message: { error: "Too many sign-in attempts. Please wait 15 minutes." },
   });
   const recoveryLimit = rateLimit({
@@ -484,6 +530,7 @@ export async function createApp(
     limit: 5,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    store: createRateLimitStore(),
     message: { error: "Too many recovery requests. Please try later." },
   });
 
