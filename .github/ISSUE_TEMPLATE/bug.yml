@@ -1,42 +1,150 @@
-name: Bug Report
-description: Create a report to help us improve DMCloser
-title: "[Bug]: "
-labels: ["bug"]
+name: Bug
+description: A defect with a reproducible path. Fixes without a regression test are not finished.
+title: "fix: "
+labels: ["type:bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug!
+        One issue = one pull request = one agent session. A defect fix without a regression
+        test is not finished. Keep the diff at 400 changed lines or fewer, excluding
+        `package-lock.json`. The project README holds the full contract.
+
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: Bug Description
-      description: A clear and concise description of what the bug is.
-      placeholder: Describe what happened...
-    validations:
-      required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      label: Problem
+      description: The observable fact with file:line evidence, plus the reproduction. No speculation about the cause unless it is proven.
       placeholder: |
-        1. Go to '...'
-        2. Click on '...'
-        3. See error
+        `server/security.ts:25-29` compares lengths before the constant-time call, so
+        the comparison returns early. Reproduction: ...
     validations:
       required: true
+
   - type: textarea
     id: expected
     attributes:
-      label: Expected vs Actual Behavior
-      description: What did you expect to happen, and what actually happened?
+      label: Expected behaviour
+      description: What correct looks like, in one or two statements an agent can assert.
     validations:
       required: true
+
   - type: textarea
-    id: environment
+    id: scope
     attributes:
-      label: Environment
-      description: Operating system, browser, Node version, environment variables, etc.
+      label: Scope
+      description: Three to five bullets. The smallest fix that removes the root cause, not the symptom.
+      value: |
+        -
+        -
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: One checkbox per criterion, each checkable by a command or an artifact.
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+
+  - type: textarea
+    id: test
+    attributes:
+      label: Test requirement
+      description: Line 1 is the exact runnable command for the regression test. Name the suite that must fail before the fix and pass after.
+      placeholder: |
+        `npx tsx --test server/tests/example.test.ts`
+        The new case must fail on the current `main` and pass with the fix.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: diff_size
+    attributes:
+      label: Expected diff size
+      description: The merge gate fails above 400 changed lines excluding `package-lock.json`.
+      options:
+        - 400 changed lines or fewer
+        - More than 400, split into child issues first
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent_ready
+    attributes:
+      label: Agent readiness
+      description: An agent may start only when this says "Ready". "Blocked" means a named issue must land first, recorded as a native blocking link.
+      options:
+        - Ready for an agent now
+        - Needs a human first
+        - Blocked on another issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Files with line numbers, requirement ids, PRs that tried this before and were closed.
+      placeholder: |
+        - `server/security.ts:25-29`, callers at `server/app.ts:164,260`
+        - closed PRs #4, #76
+    validations:
+      required: true
+
+  - type: textarea
+    id: guardrails
+    attributes:
+      label: Guardrails
+      description: What the agent must not do. Name the files it may edit; anything else means stop and comment.
+      value: |
+        - Fix the root cause once, in the shared function every caller routes through.
+        - Do not widen the change into a refactor of neighbouring code.
+        - Do not remove or weaken an existing test, selector or error shape.
+        - Do not add a dependency unless it is listed under Allowed dependencies below.
+        - No secrets, no live provider calls, no deployment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of done
+      description: The gate command, the regression test, the PR rules, and the ledger row.
+      value: |
+        - Every acceptance box is checked.
+        - The regression test fails on `main` before the fix and passes after it.
+        - `node scripts/check.mjs` is green, plus `npx playwright test` when UI or tests change.
+        - One pull request, `Closes #N`, listing every command run and its result.
+        - `docs/EVIDENCE.md` gains a row when this change makes a claim.
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed_dependencies
+    attributes:
+      label: Allowed dependencies
+      description: Optional. Any new package must be named here with a reason. Omit to mean none.
+    validations:
+      required: false
+
+  - type: textarea
+    id: agent_brief
+    attributes:
+      label: Agent brief
+      description: Optional but strongly preferred. Start files, run commands, stop conditions.
+      value: |
+        **Start here:**
+        -
+        **Run before opening the PR:**
+        ```sh
+        node scripts/check.mjs
+        ```
+        **Stop and comment instead of guessing if:**
+        -
     validations:
       required: false

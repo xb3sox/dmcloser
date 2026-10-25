@@ -1,32 +1,150 @@
-name: Feature Request
-description: Suggest an idea or feature for DMCloser
-title: "[Feature]: "
-labels: ["enhancement"]
+name: Feature
+description: A repo-contained change that ships as one pull request.
+title: "feat: "
+labels: ["type:feature"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting a feature!
+        One issue = one pull request = one agent session. Every section below is required:
+        an agent reads this body and nothing else. Keep the diff at 400 changed lines or fewer,
+        excluding `package-lock.json`. The project README holds the full contract.
+
   - type: textarea
     id: problem
     attributes:
-      label: Problem Statement
-      description: Is your feature request related to a problem? Please describe.
-      placeholder: A clear and concise description of what the problem is...
+      label: Problem
+      description: The observable fact, with file:line evidence. What is true today and why it is wrong.
+      placeholder: |
+        `src/components/Example.tsx:66-84` filters in memory while
+        `server/service.ts:198-282` already filters server-side.
     validations:
       required: true
+
   - type: textarea
-    id: solution
+    id: scope
     attributes:
-      label: Proposed Solution
-      description: Describe the solution you'd like.
-      placeholder: A clear and concise description of what you want to happen...
+      label: Scope
+      description: Three to five bullets. What is in this issue, and what is explicitly out.
+      value: |
+        -
+        -
+        -
     validations:
       required: true
+
   - type: textarea
-    id: alternatives
+    id: acceptance
     attributes:
-      label: Alternative Solutions
-      description: Describe any alternative solutions or features you've considered.
+      label: Acceptance criteria
+      description: One checkbox per criterion. Each must be checkable by a command or an attached artifact. No "improve", "clean up", "better".
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+
+  - type: textarea
+    id: test
+    attributes:
+      label: Test requirement
+      description: Line 1 must be the exact runnable command. The agent pastes its output in the PR.
+      placeholder: |
+        `npx tsx --test server/tests/example.test.ts`
+        Deterministic fixture, no network, no live provider.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: diff_size
+    attributes:
+      label: Expected diff size
+      description: The merge gate fails above 400 changed lines excluding `package-lock.json`.
+      options:
+        - 400 changed lines or fewer
+        - More than 400, split into child issues first
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent_ready
+    attributes:
+      label: Agent readiness
+      description: An agent may start only when this says "Ready". "Blocked" means a named issue must land first, recorded as a native blocking link.
+      options:
+        - Ready for an agent now
+        - Needs a human first
+        - Blocked on another issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Files, requirement ids (FEAT/FR/NFR/AC), existing issues, docs.
+      placeholder: |
+        - FEAT-010, NFR-005
+        - `src/components/Example.tsx`, `server/service.ts`
+    validations:
+      required: true
+
+  - type: textarea
+    id: guardrails
+    attributes:
+      label: Guardrails
+      description: What the agent must not do. Name the files it may edit; anything else means stop and comment.
+      value: |
+        - Do not touch auth, tenancy, billing, safety or automation gates.
+        - Do not add a dependency unless it is listed under Allowed dependencies below.
+        - Do not remove an existing test, selector or error shape.
+        - Keep the diff inside this issue; no drive-by refactors or reformatting.
+        - No secrets, no live provider calls, no deployment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of done
+      description: The gate command, the PR rules, and the ledger row when the change makes a claim.
+      value: |
+        - Every acceptance box is checked.
+        - `node scripts/check.mjs` is green, plus `npx playwright test` when UI or tests change.
+        - One pull request, `Closes #N`, listing every command run and its result.
+        - `docs/EVIDENCE.md` gains a row when this change makes a claim.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Optional. Name the issue that must land first, then link it as a native blocking issue. Prose alone does not block.
+    validations:
+      required: false
+
+  - type: textarea
+    id: allowed_dependencies
+    attributes:
+      label: Allowed dependencies
+      description: Optional. Any new package must be named here with a reason. Omit to mean none.
+    validations:
+      required: false
+
+  - type: textarea
+    id: agent_brief
+    attributes:
+      label: Agent brief
+      description: Optional but strongly preferred. Start files, run commands, stop conditions.
+      value: |
+        **Start here:**
+        -
+        **Run before opening the PR:**
+        ```sh
+        node scripts/check.mjs
+        ```
+        **Stop and comment instead of guessing if:**
+        -
     validations:
       required: false

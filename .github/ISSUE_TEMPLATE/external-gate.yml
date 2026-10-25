@@ -1,40 +1,77 @@
-name: External Gate Report
-description: Report or update status on an external verification or approval gate
-title: "[Gate]: "
-labels: ["gate"]
+name: External gate
+description: Owner, credential or legal evidence needed before a real-customer launch. Changes no code.
+title: "gate: "
+labels: ["gate:launch", "type:chore"]
 body:
   - type: markdown
     attributes:
       value: |
-        Submit evidence or status updates for external verification gates.
+        An external gate closes on an attached artifact, never on an assertion. If it is not
+        in `docs/EVIDENCE.md` with a date, a command or a link, it is not evidence.
+        No code changes belong in this issue.
+
   - type: input
-    id: requirement_id
+    id: gate_id
     attributes:
-      label: Requirement or Gate ID
-      description: The ID of the requirement or gate (e.g., FEAT-001, FR-002, META-APP-REVIEW).
+      label: Gate or requirement id
+      description: Stable id, for example a requirement id or an issue id.
+      placeholder: FEAT-001, NFR-004, or the blocking issue number
     validations:
       required: true
+
   - type: textarea
     id: gate_description
     attributes:
-      label: Gate Description
-      description: Describe the scope and context of the external gate.
+      label: Gate
+      description: What must be true, who owns it, and why code cannot satisfy it.
     validations:
       required: true
+
   - type: textarea
     id: evidence
     attributes:
-      label: Evidence Attached / Results
-      description: Attach screenshots, logs, or command output demonstrating gate completion.
+      label: Evidence required
+      description: The exact artifact that closes this gate — a run link, a console output, a signed document, a screenshot of a setting.
+      placeholder: |
+        - `gh release view v0.1.0-alpha.1` output
+        - screenshot of the enabled setting
+        - the exact API error proving it is unavailable
     validations:
       required: true
+
   - type: dropdown
     id: status
     attributes:
-      label: Gate Status
+      label: Status
+      description: "Unverified means nobody has run the check; it is never a synonym for probably fine."
       options:
-        - Pending Review
-        - Passed / Approved
-        - Blocked / Failed
+        - Unverified
+        - Evidence attached, awaiting owner review
+        - Verified and recorded in the ledger
+        - Blocked, unavailable on this plan or account
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Closure criteria
+      description: One checkbox per condition. The issue closes only when every box is checked against an attached artifact.
+      value: |
+        - [ ] Artifact attached and linked from this issue.
+        - [ ] `docs/EVIDENCE.md` carries a row with the date, the result and the verifier.
+        - [ ] Any code-side follow-up is filed as its own issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: guardrails
+    attributes:
+      label: Guardrails
+      description: What must not happen while closing this gate.
+      value: |
+        - Do not change code in this issue; attach evidence instead.
+        - Do not record a credential, secret or customer data in the issue, a screenshot or a commit.
+        - Do not claim a gate the owner has not authorised.
     validations:
       required: true
