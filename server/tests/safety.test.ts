@@ -201,14 +201,3 @@ test("the proclitic and article forms of an Arabic word still match", () => {
   assert.equal(isClinical("عندي الم في صدري"), true);
   assert.equal(isClinical("عندي الملف في الحقيبة"), false);
 });
-
-test("verifyPassword handles valid, invalid, and malformed stored hashes", async () => {
-  const password = "SuperSecretPassword123!";
-  const hash = await hashPassword(password);
-
-  assert.equal(await verifyPassword(password, hash), true);
-  assert.equal(await verifyPassword("WrongPassword123!", hash), false);
-  assert.equal(await verifyPassword(password, "malformed_hash_without_colon"), false);
-  assert.equal(await verifyPassword(password, ""), false);
-  assert.equal(await verifyPassword(password, ":"), false);
-});

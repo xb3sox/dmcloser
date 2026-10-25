@@ -40,6 +40,7 @@ const dummySalt = "00".repeat(16);
 const dummyHash = "00".repeat(64);
 
 export async function verifyPassword(password: string, stored: string) {
+  if (typeof stored !== "string") return false;
   const [salt, hash] = stored.split(":");
   const valid = Boolean(salt && hash);
   const key = (await scrypt(password, valid ? salt : dummySalt, 64)) as Buffer;
