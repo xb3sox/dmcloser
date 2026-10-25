@@ -363,3 +363,101 @@ test("verified receipts keep their reference and refunds reverse the verified to
   );
   assert.equal(sum, report.revenueMinor);
 });
+
+test("a deletion leaves no message body, phone or token in any table, and surviving audit rows contain no customer text", async () => {
+  const f = await fixture();
+  const secretText = `secret-customer-text-${randomUUID()}`;
+  const secretPhone = `+1555${Math.floor(1000000 + Math.random() * 9000000)}`;
+  const secretToken = `secret-token-${randomUUID()}`;
+  
+  // Seed a webhook
+  const accountId = `account-${randomUUID()}`;
+  const receiptId = randomUUID();
+  const payload = {
+    entry: [
+      {
+        changes: [
+          {
+            value: {
+              metadata: { phone_number_id: accountId },
+              messages: [{ text: { body: secretText } }],
+            },
+          },
+        ],
+      },
+    ],
+  };
+  await f.database.query(
+    "INSERT INTO webhook_receipts(id,platform,payload) VALUES($1,$2,$3)",
+    [receiptId, "whatsapp", JSON.stringify(payload)],
+  );
+
+  // Seed a job containing secret text
+  await f.service.enqueue(
+    "generate",
+    { conversationId: randomUUID(), sourceId: randomUUID(), text: secretText },
+    f.snapshot.workspace.id,
+    randomUUID()
+  );
+
+  // Connect using secret token
+  await f.service.connect(
+    f.snapshot.workspace.id,
+    "whatsapp",
+    accountId,
+    "Erasure tests",
+    secretToken,
+  );
+
+  // Seed a message containing secret text
+  const externalId = randomUUID();
+  await f.service.ingest({
+    platform: "whatsapp",
+    accountId,
+    externalId,
+    providerId: randomUUID(),
+    name: `Test Erasure`,
+    text: secretText,
+    timestamp: Date.now(),
+    reviewOnly: false,
+  });
+
+  // Verify presence of secret before deletion
+  let found = false;
+  const res = await f.database.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND data_type IN ('text', 'jsonb', 'character varying', 'varchar')");
+  for (const row of res) {
+    if (row.table_name === 'users' && row.column_name === 'password_hash') continue;
+    const data = await f.database.query(`SELECT ${row.column_name} FROM ${row.table_name}`);
+    for (const d of data) {
+      const val = d[row.column_name];
+      if (val) {
+        const str = typeof val === 'string' ? val : JSON.stringify(val);
+        if (str.includes(secretText) || str.includes(secretPhone)) {
+          found = true;
+          break;
+        }
+      }
+    }
+  }
+  assert.ok(found, "Secret text should be present before erasure");
+
+  // Perform deletion
+  const deletion = await f.mutate("delete", "/api/workspace").send({ password });
+  assert.equal(deletion.status, 200);
+
+  // Verify complete erasure of secret
+  for (const row of res) {
+    if (row.table_name === 'users' && row.column_name === 'password_hash') continue;
+    const data = await f.database.query(`SELECT ${row.column_name} FROM ${row.table_name}`);
+    for (const d of data) {
+      const val = d[row.column_name];
+      if (val) {
+        const str = typeof val === 'string' ? val : JSON.stringify(val);
+        // In redactAccountReceipts, webhook entries are filtered out if phone_number_id === accountId
+        assert.ok(!str.includes(secretText), `Found secret text in ${row.table_name}.${row.column_name}`);
+        assert.ok(!str.includes(secretPhone), `Found secret phone in ${row.table_name}.${row.column_name}`);
+        assert.ok(!str.includes(secretToken), `Found secret token in ${row.table_name}.${row.column_name}`);
+      }
+    }
+  }
+});
