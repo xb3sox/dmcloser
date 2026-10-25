@@ -8,7 +8,9 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: security-${{ github.ref }}
+  # Keyed by event as well as ref: the weekly schedule and a push to main share
+  # refs/heads/main, and they must not cancel each other.
+  group: security-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 # Actions are pinned by commit SHA with the tag in a comment. A tag can be repointed at a
 # different commit; a SHA cannot. Dependabot keeps both the SHA and the comment current.

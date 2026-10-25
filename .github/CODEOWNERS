@@ -9,5 +9,6 @@ server/worker.ts @xb3sox
 server/providers.ts @xb3sox
 # Shared bilingual safety guard: one module, imported by client and server.
 src/domain/safety.ts @xb3sox
-# The gates themselves, so a workflow change cannot land without the owner seeing it.
+# The gates themselves. On this plan CODEOWNERS routes a review request only; it cannot
+# block a merge (branch protection is 403 until #41 is resolved).
 .github/workflows/ @xb3sox
