@@ -32,6 +32,9 @@ export class PostgresRateLimitStore implements Store {
     const key = this.keyFor(rawKey);
     const now = Date.now();
     const expiresAt = now + this.windowMs;
+    if (Math.random() < 0.05) {
+      void this.db.query("DELETE FROM rate_limits WHERE expires_at < $1", [now]).catch(() => {});
+    }
     const [row] = await this.db.query<{ hits: number; expires_at: string | number }>(
       `INSERT INTO rate_limits (key, hits, expires_at)
        VALUES ($1, 1, $2)
