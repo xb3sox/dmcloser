@@ -42,7 +42,7 @@ Status values: **Implemented** · **Partial** · **Deferred** · **Proposal only
 | FEAT-007 | AI suggested reply | **Implemented** | `server/ai.ts` `createAI()` / `guardReply()`; strict JSON schema, grounding check at `server/ai.ts:60-66` |
 | FEAT-008 | Approval and takeover | **Implemented** | `autoAllowed()` (`server/service.ts:762`), `POST /api/conversations/:id/hold` (`server/app.ts:911`), `POST /api/deals/:id/escalation` (`server/revenue-routes.ts:473`) |
 | FEAT-009 | Next best action | **Implemented** | `SalesInsight.nextAction` in `src/domain/revenue.ts`; surfaced in the inbox and the deal panel |
-| FEAT-010 | Search, filters and status | **Partial** | Channel, intent, unread, free-text search, **lead-status** and **time-range** filters (`src/components/InboxView.tsx:10-36`) plus **cursor pagination** (`server/service.ts:198-282`; `GET /api/bootstrap` returns the first page and a `nextCursor`, `GET /api/conversations?cursor=` returns the next page). **Deferred:** assignee filter — no `assignee` column exists in any migration, and conversation assignment is a separate feature. |
+| FEAT-010 | Search, filters and status | **Implemented** | Channel, intent, unread, free-text search, **lead-status**, **time-range** and **assignee** filters (`src/components/InboxView.tsx`), **cursor pagination** (`server/service.ts:198-282`; `GET /api/bootstrap` returns the first page and a `nextCursor`, `GET /api/conversations?cursor=` returns the next page) and **conversation assignment** (`server/migrations/007_assignee.sql`: `conversations.assignee_user_id` with an FK to `users`; the filter is applied in `server/service.ts:210-252` and read from `GET /api/conversations?assignee=` at `server/app.ts:764`). Assignment and the filter shipped in #100. **Limit:** the inbox applies the filters in the client over the pages it has loaded (`src/components/InboxView.tsx:66-84`) and does not send them to the API yet (`src/components/workspace/LiveWorkspace.tsx:343,352,381`), so a filter can miss older conversations; tracked in #126. |
 | FEAT-011 | Follow-up scheduler | **Implemented** (review-only) | `sales_tasks` (`002_revenue.sql:13`), `POST /api/deals/:id/follow-ups` (`server/revenue-routes.ts:384`), `POST /api/sales-tasks/:id/use` (`:423`). Tasks are human reminders; they never auto-send. |
 | FEAT-012 | Bookings and appointments | **Partial** | `appointments` table + conflict check + ICS export (`server/revenue-routes.ts:285-383`). **Deferred:** external calendar sync (explicitly out of scope per `docs/REVENUE_OS.md`). |
 | FEAT-013 | Deal and outcome ledger | **Implemented** | `deals` / `deal_outcomes` / `revenue_events` (`002_revenue.sql:5,8,9`), `POST /api/deals/:id/outcome` (`server/revenue-routes.ts:173`), `POST /api/deals/:id/revenue` (`:198`) |
@@ -62,7 +62,7 @@ Requirements and §Acceptance Criteria.
 
 FR-001 Implemented · FR-002 Implemented · FR-003 Partial · FR-004 Implemented ·
 FR-005 Implemented · FR-006 Implemented · FR-007 Implemented · FR-008 Implemented ·
-FR-009 Implemented · FR-010 Partial · FR-011 Implemented · FR-012 Partial ·
+FR-009 Implemented · FR-010 Implemented · FR-011 Implemented · FR-012 Partial ·
 FR-013 Implemented · FR-014 Implemented · FR-015 Implemented · FR-016 Implemented ·
 FR-017 Implemented · FR-018 Implemented · FR-019 Implemented · FR-020 Implemented
 
@@ -108,8 +108,10 @@ local test, no amount of code, and no agent can close them. Only the owner can.
 | 4 | **Restore rehearsal and a load test** (NFR-009, NFR-011) | `docs/OPERATIONS.md` holds the runbook, but a backup that has never been restored is a hypothesis, and p95 ≤ 2s at 100 conversations is a target, not a measurement. | Owner — a staging rehearsal. |
 | 5 | **Cross-border privacy review** | Arabic support does not constitute PDPL or cross-border compliance; that is counsel's determination, not an engineering one. | Owner + counsel. |
 | 6 | **Native-speaker review of the Arabic customer-facing wording** | The Arabic phrase set and the interface copy are validated engineering artefacts. The guard set does not cover Arabic dialect or transliterated Arabic. | Owner + a native reviewer. |
-| 7 | **Assignee filter** (FEAT-010) | **Deliberately deferred.** No `assignee` column exists in any migration, and conversation assignment is a separate feature that touches the team/roles model. It will not be invented. | Not scoped. |
-| 8 | **External calendar sync, PSP-verified payments, ad ingestion, calibrated models, causal attribution, outcome voiding** | Explicitly out of scope in `docs/REVENUE_OS.md`; each needs a contract with a third party. | Not scoped. |
+| 7 | **External calendar sync, PSP-verified payments, ad ingestion, calibrated models, causal attribution, outcome voiding** | Explicitly out of scope in `docs/REVENUE_OS.md`; each needs a contract with a third party. | Not scoped. |
+
+The former gap 7 (**assignee filter**) is closed, not deferred: it shipped in #100 with
+migration `007_assignee.sql`. It is listed under FEAT-010 above, not here.
 
 ## Known limits of the current implementation
 
@@ -122,5 +124,8 @@ local test, no amount of code, and no agent can close them. Only the owner can.
   loosening grounding.
 - **The demo is credential-free and local** (`/app`, `localStorage`). It never simulates a
   live send.
+- **Inbox filters are client-side over the loaded pages.** The API supports the same filters
+  (including `?assignee=`), but the inbox does not send them yet, so a filtered view can miss
+  conversations beyond the loaded page. Tracked in #126.
 - **No live integration, latency SLO, backup, or compliance claim is verified locally.**
   The gates in `intent.md` and `ROADMAP.md` remain open.

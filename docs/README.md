@@ -18,7 +18,7 @@ For all test counts, gate results, rehearsal details and unverified external gat
 
 The compose stack and a backup/restore rehearsal **were** run on a development host — image built, `/api/ready` reported ready, migrations 1–4 applied, registration refused with 503 without SMTP, and a marker row inserted after the backup was gone after the restore. That database was fresh, not production-shaped, and the stack has not been run on the deployment host; the evidence is in `docs/OPERATIONS.md`.
 
-**Known product gaps** (mapped to requirements in the root `SPEC-INDEX.md`): all ten upstream gaps named by the upstream PRD are now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, the lead-status filter, and conversation assignment with the assignee filter (migration `006_assignee.sql`).
+**Known product gaps** (mapped to requirements in the root `SPEC-INDEX.md`): all ten upstream gaps named by the upstream PRD are now closed: bilingual safety guards, the Arabic/RTL interface, the AI Quality Lab, the custom sector, the three revenue blocks, the recovery list, cursor pagination, the lead-status filter, and conversation assignment with the assignee filter (migration `007_assignee.sql`). One limit is open: the inbox applies its filters over the pages it has loaded rather than asking the API, tracked in #126.
 
 ## Documentation
 **Shipped and authoritative** (written against the code):

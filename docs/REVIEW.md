@@ -40,4 +40,8 @@ For exact test execution counts, commands, dates and verifiers, see the single a
 - **The recovery list is a human worklist.** It ranks and explains; it never acts. Dismissal is recorded with the operator's reason and is reversible.
 - **The three revenue blocks are not interchangeable.** Verified is owner-confirmed receipts net of refunds; Potential is an estimate and is never presented as cash; Attributed is descriptive and never claims that AI or an ad caused a sale. Win chance is a labelled, uncalibrated heuristic.
 - **Cursor pagination and the lead-status and time-range filters are client-side over a paged snapshot.** The owner export is still complete, independently of any UI window.
-- **The assignee filter is not implemented and was not invented.** Conversation assignment touches the team/roles model and is a separate feature.
+- **The assignee filter is implemented, and its limit is stated.** Conversation assignment
+  shipped in #100 with `007_assignee.sql` (`conversations.assignee_user_id`), a server-side
+  filter in `server/service.ts:210-252` and `?assignee=` on `GET /api/conversations`. The
+  inbox currently filters the loaded pages in the client rather than sending the filter to
+  the API, so a filtered view can miss older conversations; #126 closes that gap.
