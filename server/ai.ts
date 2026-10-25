@@ -13,6 +13,10 @@ export const replySchema = z.object({
   evidence: z.array(z.string().max(800)).max(5),
   memory: z.string().max(1500),
 });
+// Pre-compute JSON Schema and stringified JSON Schema for static replySchema to avoid repeating z.toJSONSchema on every AI call
+const cachedJsonSchema = z.toJSONSchema(replySchema) as Record<string, unknown>;
+const cachedJsonSchemaString = JSON.stringify(cachedJsonSchema);
+
 export type GeneratedReply = z.infer<typeof replySchema>;
 export interface AIInput {
   settings: BusinessSettings;
@@ -54,12 +58,14 @@ export function guardReply(
     .join("\n");
   const risk = detectRisk(customerText) || detectRisk(reply.text);
   const facts = `${input.settings.businessName}\n${input.settings.productsSold}\n${input.settings.businessDescription}\n${input.businessFacts || ""}`;
+  // Pre-lowercase facts string once to avoid repeated string conversions per evidence item
+  const factsLower = facts.toLowerCase();
   const grounded =
     reply.evidence.length > 0 &&
     reply.evidence.every(
       (evidence) =>
         evidence.trim().length > 4 &&
-        facts.toLowerCase().includes(evidence.trim().toLowerCase()),
+        factsLower.includes(evidence.trim().toLowerCase()),
     );
   const urls = reply.text.match(/https?:\/\/[^\s)]+/g) || [];
   const unknownLink = urls.some((url) => !facts.includes(url));
@@ -129,7 +135,7 @@ export function createAI(config: Config): AIEngine {
           messages: [
             {
               role: "system",
-              content: `${instructions}\n\nReturn one JSON object only, no prose, matching this JSON schema exactly:\n${JSON.stringify(z.toJSONSchema(replySchema))}`,
+              content: `${instructions}\n\nReturn one JSON object only, no prose, matching this JSON schema exactly:\n${cachedJsonSchemaString}`,
             },
             { role: "user", content: payload },
           ],
@@ -148,7 +154,7 @@ export function createAI(config: Config): AIEngine {
               type: "json_schema",
               name: "sales_reply",
               strict: true,
-              schema: z.toJSONSchema(replySchema) as Record<string, unknown>,
+              schema: cachedJsonSchema,
             },
           },
         });
