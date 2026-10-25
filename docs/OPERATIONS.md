@@ -93,6 +93,13 @@ Before real customer traffic: configure SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_US
 ## Observe And Restore
 
 - Health: `/api/health`. Internal aggregate metrics: `/internal/metrics` with `Authorization: Bearer $METRICS_TOKEN`; never expose this token to the browser.
+- Sentry Monitoring: Set `SENTRY_DSN` for the server and `VITE_SENTRY_DSN` for the web client. If `SENTRY_DSN` is absent or unset, initialization is a no-op and will never crash or block service startup.
+  - **PII Scrubbing:** `beforeSend` handlers on both server and client automatically scrub emails, phone numbers, message text/bodies, tokens, cookies, and `Authorization` headers.
+  - **Release Tagging & Source Maps:** Release tags are attached from `SENTRY_RELEASE`, `COMMIT_SHA`, or `GIT_SHA`. Client source maps are generated on build for error stack symbolication.
+  - **Alert Routing:**
+    - *New Issue:* Route newly detected server or client exceptions to the primary team notification channel.
+    - *Error-Rate Spike:* Alert on-call when error rates exceed 10 exceptions/minute or 5% of request volume.
+    - *Worker Failure:* Trigger immediate high-priority alerts when worker jobs reach dead state (`dead: true`) or worker queue age exceeds 60 seconds.
 - `MONITOR_API_URL=... METRICS_TOKEN=... node scripts/monitor.mjs` checks dead jobs, queue age >60s, and AI p95 >2s (at least 20 samples). Breaches create `incidents/*-intent.md` for owner triage; no deployment is triggered. Schedule this externally and alert on exit 2/unavailability.
 - Back up managed Postgres plus the encryption key through your secret manager. Use provider PITR or `scripts/backup.sh`, which writes a checksummed `pg_dump` archive under `backups/`. Encrypt off-site backups, set retention, and rehearse restoring with `scripts/restore.sh` (or `pg_restore --clean --if-exists --no-owner --dbname "$RESTORE_DATABASE_URL" backup.dump`) into an isolated staging database. Never overwrite production during a rehearsal. The restore path has been rehearsed end to end against a fresh compose Postgres (backup, checksum, marker row, restore, marker gone — see Rehearsal Evidence); a restore of a production-shaped dataset, with a separately held encryption key and off-site retention, is still untested — treat the first such restore as untested until it is.
 - Rollback: stop new sends (disable auto-reply and pause worker), retain queued records, select the previous approved image, migrate only if backward-compatible, run health/auth/ingestion smoke tests, then re-enable after owner approval. Reconcile every `sending/uncertain` record first. Backups, PITR and rollback are procedures, not verified infrastructure here.
