@@ -1,0 +1,22 @@
+#!/bin/sh
+# Blocks direct pushes to main. Free-plan repos cannot enforce this server-side,
+# so this is the client-side half of the guard (see .github/workflows/main-guard.yml).
+#
+# Install once per clone:  npm run hooks:install
+# Bypass deliberately:     ALLOW_MAIN_PUSH=1 git push origin main
+
+if [ "${ALLOW_MAIN_PUSH:-0}" = "1" ]; then
+  exit 0
+fi
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/master)
+      echo "pre-push: refusing to push straight to ${remote_ref#refs/heads/}." >&2
+      echo "           Open a PR instead. Override with ALLOW_MAIN_PUSH=1." >&2
+      exit 1
+      ;;
+  esac
+done
+
+exit 0

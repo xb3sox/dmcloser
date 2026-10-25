@@ -1,0 +1,71 @@
+name: main-guard
+
+# Free-plan substitute for required status checks.
+#
+# A private repo on GitHub Free cannot enable rulesets or branch protection
+# (the API answers 403 "Upgrade to GitHub Pro or make this repository public"),
+# so a red commit can reach main. This workflow watches Product Gates on main
+# and, when that run failed, reverts the offending commit. Revert commits are
+# skipped by the guard below, so it cannot loop.
+#
+# Limits: reacts after the push, not before. A conflicting revert needs a human.
+
+on:
+  workflow_run:
+    workflows: ["Product Gates"]
+    types: [completed]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: main-guard
+  cancel-in-progress: false
+
+jobs:
+  revert:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'Revert')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Revert the failing commit
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          git config user.name "main-guard[bot]"
+          git config user.email "main-guard@users.noreply.github.com"
+          git revert --no-edit "$SHA" -m 1 || { echo "::error::revert conflicted; needs a human"; exit 1; }
+          git commit --amend -m "Revert \"$(git log -1 --format=%s "$SHA")\"" \
+            -m "Automatic revert: Product Gates failed on main (${RUN_URL})." \
+            -m "This reverts commit ${SHA}."
+          git push origin HEAD:main
+
+      - name: Report the revert as an issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "main-guard: Product Gates failed on main for ${SHA:0:7}" \
+            --body "Product Gates failed on \`main\` for commit ${SHA}.
+
+          Run: ${RUN_URL}
+          Guard outcome: ${OUTCOME}
+
+          If the revert succeeded, main is back at the previous commit. Fix the failure on a branch and open a PR.
+          If the revert conflicted, main is still broken and needs a manual revert." \
+            --label "type:bug" || true
