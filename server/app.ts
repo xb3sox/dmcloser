@@ -924,6 +924,9 @@ export async function createApp(
     req.on("close", () => {
       clearInterval(heartbeat);
       service.events.off(req.actor!.workspaceId, notify);
+      // End the response too: a destroyed socket alone leaves the stream open on
+      // some stacks, and an open stream keeps the process (and tests) alive.
+      res.end();
     });
   });
   app.patch("/api/settings", owner, async (req, res) => {
