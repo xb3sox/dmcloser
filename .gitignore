@@ -9,4 +9,4 @@ artifacts/
 backups/
 test-results/
 playwright-report/
-*.log
+*.log.tools/
