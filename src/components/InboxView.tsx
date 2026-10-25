@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Inbox, Search, X } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useStrings } from "@/context/LocaleContext";
@@ -58,30 +58,64 @@ export default function InboxView() {
     );
     selectedRow?.focus({ preventScroll: true });
   }, [state.currentView, state.selectedConversationId]);
-  const query = search.trim().toLowerCase();
-  const since =
-    timeRanges.find((range) => range.value === timeRange)?.since ?? 0;
-  const now = Date.now();
   const members = live?.snapshot?.members || [];
-  const filtered = state.conversations
-    .filter(
-      (conversation) =>
-        (state.channel === "all" || conversation.platform === state.channel) &&
-        (intent === "all" || conversation.intent === intent) &&
-        (!unreadOnly || conversation.unread) &&
-        (leadStatus === "all" ||
-          conversation.conversionStatus === leadStatus) &&
-        (assigneeFilter === "all" ||
-          (assigneeFilter === "unassigned"
-            ? !conversation.assigneeUserId
-            : conversation.assigneeUserId === assigneeFilter)) &&
-        (!since || now - conversation.lastMessageTime <= since) &&
-        (!query ||
-          `${conversation.contactName} ${conversation.lastMessage} ${conversation.leadNotes} ${conversation.messages.map((message) => message.text).join(" ")}`
-            .toLowerCase()
-            .includes(query)),
-    )
-    .sort((first, second) => second.lastMessageTime - first.lastMessageTime);
+
+  // ⚡ Bolt Optimization: Memoize conversation filtering/sorting and short-circuit search
+  // checks. Avoids mapping and joining message texts into large strings on every keystroke,
+  // preventing heavy array/string allocations (O(N*M)) per render.
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const since =
+      timeRanges.find((range) => range.value === timeRange)?.since ?? 0;
+    const now = Date.now();
+
+    return state.conversations
+      .filter((conversation) => {
+        if (state.channel !== "all" && conversation.platform !== state.channel) {
+          return false;
+        }
+        if (intent !== "all" && conversation.intent !== intent) {
+          return false;
+        }
+        if (unreadOnly && !conversation.unread) {
+          return false;
+        }
+        if (leadStatus !== "all" && conversation.conversionStatus !== leadStatus) {
+          return false;
+        }
+        if (assigneeFilter !== "all") {
+          if (assigneeFilter === "unassigned") {
+            if (conversation.assigneeUserId) return false;
+          } else if (conversation.assigneeUserId !== assigneeFilter) {
+            return false;
+          }
+        }
+        if (since && now - conversation.lastMessageTime > since) {
+          return false;
+        }
+        if (query) {
+          // Short-circuit search evaluation: check contact name, last message, and notes first
+          if (conversation.contactName.toLowerCase().includes(query)) return true;
+          if (conversation.lastMessage.toLowerCase().includes(query)) return true;
+          if (conversation.leadNotes.toLowerCase().includes(query)) return true;
+          // Avoid mapping/joining all messages; check lazily with .some()
+          return conversation.messages.some((message) =>
+            message.text.toLowerCase().includes(query),
+          );
+        }
+        return true;
+      })
+      .sort((first, second) => second.lastMessageTime - first.lastMessageTime);
+  }, [
+    state.conversations,
+    state.channel,
+    intent,
+    unreadOnly,
+    leadStatus,
+    assigneeFilter,
+    timeRange,
+    search,
+  ]);
 
   return (
     <section
