@@ -35,11 +35,15 @@ export async function hashPassword(password: string) {
   const key = (await scrypt(password, salt, 64)) as Buffer;
   return `${salt}:${key.toString("hex")}`;
 }
+// Dummy salt/hash used when stored password format is missing/malformed to ensure constant-time scrypt execution.
+const dummySalt = "00".repeat(16);
+const dummyHash = "00".repeat(64);
+
 export async function verifyPassword(password: string, stored: string) {
   const [salt, hash] = stored.split(":");
-  if (!salt || !hash) return false;
-  const key = (await scrypt(password, salt, 64)) as Buffer;
-  return equal(key.toString("hex"), hash);
+  const valid = Boolean(salt && hash);
+  const key = (await scrypt(password, valid ? salt : dummySalt, 64)) as Buffer;
+  return valid && equal(key.toString("hex"), hash || dummyHash);
 }
 export function encrypt(token: string, secret: string) {
   const iv = randomBytes(12);
