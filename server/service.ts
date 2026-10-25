@@ -224,7 +224,7 @@ export class ProductService {
     // later keeps every conversation in the stream exactly once.
     const excludeId = cursor ? cursor.excludeId : includeId;
 
-    const params: any[] = [actor.workspaceId];
+    const params: unknown[] = [actor.workspaceId];
     const conditions: string[] = ["workspace_id = $1"];
 
     if (cursor) {
@@ -278,7 +278,8 @@ export class ProductService {
     }
 
     if (options.search && options.search.trim()) {
-      params.push(`%${options.search.trim()}%`);
+      const sanitized = options.search.trim().replace(/[%_\\]/g, (ch) => "\\" + ch);
+      params.push(`%${sanitized}%`);
       const searchIdx = params.length;
       conditions.push(
         `(name ILIKE $${searchIdx} OR notes ILIKE $${searchIdx} OR EXISTS (SELECT 1 FROM messages m WHERE m.workspace_id = conversations.workspace_id AND m.conversation_id = conversations.id AND m.text ILIKE $${searchIdx}))`

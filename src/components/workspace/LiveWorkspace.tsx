@@ -686,7 +686,7 @@ function ServerWorkspaceProvider({
         await request("/auth/logout", { method: "POST", body: {} });
         onSessionLost();
       },
-    } as AppContextValue["live"],
+    },
   };
   return <AppContext.Provider value={context}>{children}</AppContext.Provider>;
 }

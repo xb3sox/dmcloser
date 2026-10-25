@@ -50,7 +50,7 @@ export default function InboxView() {
   // The client-side filter below serves as the render guard for the page just fetched.
   useEffect(() => {
     if (mode === "live" && live) {
-      (live as unknown as { setFilters?: (filters: object) => void }).setFilters?.({
+      live.setFilters?.({
         channel: state.channel,
         intent,
         unreadOnly,
