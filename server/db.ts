@@ -6,8 +6,11 @@ import type { Config } from "./config.ts";
 export interface Database {
   query<T = Record<string, any>>(sql: string, params?: any[]): Promise<T[]>;
   transaction<T>(run: (tx: Database) => Promise<T>): Promise<T>;
+  listen?(channel: string, callback: (payload: string) => void): Promise<() => Promise<void>>;
   close(): Promise<void>;
   kind: "postgres" | "pglite";
+  connectionString?: string;
+  ssl?: boolean;
 }
 
 export async function createDatabase(
@@ -33,6 +36,8 @@ export async function createDatabase(
     });
     database = {
       kind: "postgres",
+      connectionString: config.databaseUrl,
+      ssl: config.databaseSsl,
       query: async (sql, params) => (await pool.query(sql, params)).rows,
       close: () => pool.end(),
       transaction: async (run) => {
@@ -61,6 +66,12 @@ export async function createDatabase(
       kind: "pglite",
       query: async (sql, params) =>
         (await instance.query(sql, params)).rows as any[],
+      listen: async (channel, callback) => {
+        const unlisten = await instance.listen(channel, callback);
+        return async () => {
+          await unlisten();
+        };
+      },
       close: () => instance.close(),
       transaction: async (run) =>
         instance.transaction(async (tx) =>
