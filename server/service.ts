@@ -100,6 +100,8 @@ export class ProductService {
   quality: QualityService;
   events = new EventEmitter();
   private notifyClient: pg.Client | null = null;
+  private notifyReady: Promise<unknown> | null = null;
+  private unlisten: (() => Promise<void>) | null = null;
   metrics = {
     received: 0,
     generated: 0,
@@ -126,6 +128,9 @@ export class ProductService {
         connectionString: this.db.connectionString,
         ssl: this.db.ssl ? { rejectUnauthorized: true } : undefined,
       });
+      // Own the client before it finishes connecting: a service closed during
+      // connect must still end the socket, or the process never exits.
+      this.notifyClient = client;
       client.on("error", (err) => {
         console.error(
           JSON.stringify({
@@ -134,11 +139,10 @@ export class ProductService {
           }),
         );
       });
-      client
+      this.notifyReady = client
         .connect()
         .then(() => client.query("LISTEN workspace_events"))
         .then(() => {
-          this.notifyClient = client;
           client.on("notification", (msg) => {
             if (msg.channel === "workspace_events" && msg.payload) {
               this.events.emit(msg.payload);
@@ -157,6 +161,9 @@ export class ProductService {
       this.db
         .listen("workspace_events", (payload) => {
           if (payload) this.events.emit(payload);
+        })
+        .then((unlisten) => {
+          this.unlisten = unlisten;
         })
         .catch((err) => {
           console.error(
@@ -182,10 +189,18 @@ export class ProductService {
       });
   }
   async close() {
-    if (this.notifyClient) {
-      await this.notifyClient.end().catch(() => {});
-      this.notifyClient = null;
+    if (this.unlisten) {
+      const unlisten = this.unlisten;
+      this.unlisten = null;
+      await unlisten().catch(() => {});
     }
+    if (this.notifyReady) {
+      await this.notifyReady.catch(() => {});
+      this.notifyReady = null;
+    }
+    const client = this.notifyClient;
+    this.notifyClient = null;
+    if (client) await client.end().catch(() => {});
   }
   async redactAccountReceipts(
     platform: string,
