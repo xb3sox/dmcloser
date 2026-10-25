@@ -52,6 +52,18 @@ export interface PageCursor {
   lastId: string;
   excludeId: string | null;
 }
+export interface ConversationPageOptions {
+  includeId?: string | null;
+  cursor?: PageCursor | null;
+  limit?: number;
+  assignee?: string | null;
+  channel?: string | null;
+  intent?: string | null;
+  unreadOnly?: boolean | null;
+  leadStatus?: string | null;
+  timeRange?: string | null;
+  search?: string | null;
+}
 export function encodeCursor(cursor: PageCursor): string {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
@@ -193,14 +205,10 @@ export class ProductService {
     );
   }
 
+  // Server-side filtering is authoritative for database queries and pagination.
   async conversationPage(
     actor: Actor,
-    options: {
-      includeId?: string | null;
-      cursor?: PageCursor | null;
-      limit?: number;
-      assignee?: string | null;
-    } = {},
+    options: ConversationPageOptions = {},
   ) {
     const limit = Math.min(
       Math.max(options.limit ?? PAGE_SIZE, 1),
@@ -215,44 +223,82 @@ export class ProductService {
     // The promoted conversation already shipped on the first page; skipping it
     // later keeps every conversation in the stream exactly once.
     const excludeId = cursor ? cursor.excludeId : includeId;
-    const rows = cursor
-      ? await this.db.query(
-          "SELECT * FROM conversations WHERE workspace_id=$1 AND (last_at,id) < ($2::bigint,$3::text) AND ($4::text IS NULL OR id <> $4::text) " +
-            (assigneeFilter === "unassigned"
-              ? "AND assignee_user_id IS NULL "
-              : assigneeFilter
-                ? "AND assignee_user_id=$6 "
-                : "") +
-            "ORDER BY last_at DESC, id DESC LIMIT $5",
-          assigneeFilter && assigneeFilter !== "unassigned"
-            ? [
-                actor.workspaceId,
-                cursor.lastAt,
-                cursor.lastId,
-                excludeId,
-                limit + 1,
-                assigneeFilter,
-              ]
-            : [
-                actor.workspaceId,
-                cursor.lastAt,
-                cursor.lastId,
-                excludeId,
-                limit + 1,
-              ],
-        )
-      : await this.db.query(
-          "SELECT * FROM conversations WHERE workspace_id=$1 " +
-            (assigneeFilter === "unassigned"
-              ? "AND assignee_user_id IS NULL "
-              : assigneeFilter
-                ? "AND assignee_user_id=$4 "
-                : "") +
-            "ORDER BY (id=$2) DESC NULLS LAST, last_at DESC, id DESC LIMIT $3",
-          assigneeFilter && assigneeFilter !== "unassigned"
-            ? [actor.workspaceId, includeId, limit + 1, assigneeFilter]
-            : [actor.workspaceId, includeId, limit + 1],
-        );
+
+    const params: unknown[] = [actor.workspaceId];
+    const conditions: string[] = ["workspace_id = $1"];
+
+    if (cursor) {
+      params.push(cursor.lastAt, cursor.lastId, excludeId);
+      const atIdx = params.length - 2;
+      const idIdx = params.length - 1;
+      const exIdx = params.length;
+      conditions.push(`(last_at, id) < ($${atIdx}::bigint, $${idIdx}::text)`);
+      conditions.push(`($${exIdx}::text IS NULL OR id <> $${exIdx}::text)`);
+    }
+
+    if (assigneeFilter === "unassigned") {
+      conditions.push("assignee_user_id IS NULL");
+    } else if (assigneeFilter) {
+      params.push(assigneeFilter);
+      conditions.push(`assignee_user_id = $${params.length}`);
+    }
+
+    if (options.channel && options.channel !== "all") {
+      params.push(options.channel);
+      conditions.push(`platform = $${params.length}`);
+    }
+
+    if (options.intent && options.intent !== "all") {
+      params.push(options.intent);
+      conditions.push(`intent = $${params.length}`);
+    }
+
+    if (options.unreadOnly) {
+      conditions.push("unread = true");
+    }
+
+    if (options.leadStatus && options.leadStatus !== "all") {
+      params.push(options.leadStatus);
+      conditions.push(`status = $${params.length}`);
+    }
+
+    if (options.timeRange && options.timeRange !== "all") {
+      const duration =
+        options.timeRange === "24h"
+          ? 24 * 3600000
+          : options.timeRange === "7d"
+            ? 7 * 86400000
+            : options.timeRange === "30d"
+              ? 30 * 86400000
+              : 0;
+      if (duration > 0) {
+        params.push(Date.now() - duration);
+        conditions.push(`last_at >= $${params.length}::bigint`);
+      }
+    }
+
+    if (options.search && options.search.trim()) {
+      const sanitized = options.search.trim().replace(/[%_\\]/g, (ch) => "\\" + ch);
+      params.push(`%${sanitized}%`);
+      const searchIdx = params.length;
+      conditions.push(
+        `(name ILIKE $${searchIdx} OR notes ILIKE $${searchIdx} OR EXISTS (SELECT 1 FROM messages m WHERE m.workspace_id = conversations.workspace_id AND m.conversation_id = conversations.id AND m.text ILIKE $${searchIdx}))`
+      );
+    }
+
+    let orderBy = "";
+    if (cursor) {
+      params.push(limit + 1);
+      orderBy = `ORDER BY last_at DESC, id DESC LIMIT $${params.length}`;
+    } else {
+      params.push(includeId, limit + 1);
+      const incIdx = params.length - 1;
+      const limIdx = params.length;
+      orderBy = `ORDER BY (id = $${incIdx}::text) DESC NULLS LAST, last_at DESC, id DESC LIMIT $${limIdx}`;
+    }
+
+    const sql = `SELECT * FROM conversations WHERE ${conditions.join(" AND ")} ${orderBy}`;
+    const rows = await this.db.query(sql, params);
     const display = rows.slice(0, limit);
     const boundary =
       [...display].reverse().find((row) => row.id !== includeId) ?? null;
@@ -315,14 +361,18 @@ export class ProductService {
     return { conversations, nextCursor };
   }
 
-  async snapshot(actor: Actor, includeId: string | null = null) {
+  async snapshot(
+    actor: Actor,
+    includeId: string | null = null,
+    options: ConversationPageOptions = {},
+  ) {
     const [workspace] = await this.db.query(
       "SELECT * FROM workspaces WHERE id=$1",
       [actor.workspaceId],
     );
     if (!workspace)
       throw new HttpError(401, "This workspace is no longer available.");
-    const page = await this.conversationPage(actor, { includeId });
+    const page = await this.conversationPage(actor, { includeId, ...options });
     const [drafts, suggestions, connections, usage, members, audit] =
       await Promise.all([
         this.db.query(

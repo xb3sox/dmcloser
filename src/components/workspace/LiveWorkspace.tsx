@@ -315,6 +315,17 @@ function ServerWorkspaceProvider({
   const [nextCursor, setNextCursor] = useState<string | null>(
     initial.nextCursor ?? null,
   );
+  const [activeFilters, setActiveFilters] = useState<{
+    channel?: string;
+    intent?: string;
+    unreadOnly?: boolean;
+    leadStatus?: string;
+    assignee?: string;
+    timeRange?: string;
+    search?: string;
+  }>({});
+  const activeFiltersRef = useRef(activeFilters);
+  activeFiltersRef.current = activeFilters;
   const extraPages = useRef(0);
   const [connectionState, setConnectionState] = useState<
     "connected" | "reconnecting"
@@ -335,21 +346,36 @@ function ServerWorkspaceProvider({
     ) => api<T>(path, { ...options, csrf: snapshotRef.current.csrf }),
     [],
   );
-  const refresh = useCallback(async () => {
+
+  const filterParams = useCallback((filters = activeFiltersRef.current) => {
+    const params = new URLSearchParams();
+    if (filters.channel && filters.channel !== "all") params.set("channel", filters.channel);
+    if (filters.intent && filters.intent !== "all") params.set("intent", filters.intent);
+    if (filters.unreadOnly) params.set("unread", "true");
+    if (filters.leadStatus && filters.leadStatus !== "all") params.set("leadStatus", filters.leadStatus);
+    if (filters.assignee && filters.assignee !== "all") params.set("assignee", filters.assignee);
+    if (filters.timeRange && filters.timeRange !== "all") params.set("timeRange", filters.timeRange);
+    if (filters.search && filters.search.trim()) params.set("search", filters.search.trim());
+    return params;
+  }, []);
+
+  const refresh = useCallback(async (overrideFilters?: typeof activeFilters) => {
     try {
       const selectedId = selectedRef.current.selectedConversationId;
-      const next = await request<WorkspaceSnapshot>(
-        selectedId
-          ? `/bootstrap?include=${encodeURIComponent(selectedId)}`
-          : "/bootstrap",
-      );
+      const params = filterParams(overrideFilters ?? activeFiltersRef.current);
+      if (selectedId) params.set("include", selectedId);
+      const queryString = params.toString();
+      const path = `/bootstrap${queryString ? `?${queryString}` : ""}`;
+      const next = await request<WorkspaceSnapshot>(path);
       let conversations = next.conversations;
       let cursor = next.nextCursor ?? null;
       for (let page = 0; page < extraPages.current && cursor; page++) {
+        const pageParams = filterParams(overrideFilters ?? activeFiltersRef.current);
+        pageParams.set("cursor", cursor);
         const result = await request<{
           conversations: Conversation[];
           nextCursor: string | null;
-        }>(`/conversations?cursor=${encodeURIComponent(cursor)}`);
+        }>(`/conversations?${pageParams.toString()}`);
         conversations = mergeConversations(conversations, result.conversations);
         cursor = result.nextCursor;
       }
@@ -375,10 +401,12 @@ function ServerWorkspaceProvider({
   const loadMore = useCallback(async () => {
     if (!nextCursor) return;
     try {
+      const params = filterParams();
+      params.set("cursor", nextCursor);
       const result = await request<{
         conversations: Conversation[];
         nextCursor: string | null;
-      }>(`/conversations?cursor=${encodeURIComponent(nextCursor)}`);
+      }>(`/conversations?${params.toString()}`);
       extraPages.current += 1;
       setNextCursor(result.nextCursor);
       setState((previous) => ({
@@ -610,6 +638,28 @@ function ServerWorkspaceProvider({
         item.conversationId === selectedConversation?.id &&
         item.sourceId === selectedConversation.messages.slice(-1)[0]?.id,
     ) || null;
+  const setFilters = useCallback(
+    (newFilters: typeof activeFilters) => {
+      const current = activeFiltersRef.current;
+      const isChanged =
+        current.channel !== newFilters.channel ||
+        current.intent !== newFilters.intent ||
+        current.unreadOnly !== newFilters.unreadOnly ||
+        current.leadStatus !== newFilters.leadStatus ||
+        current.assignee !== newFilters.assignee ||
+        current.timeRange !== newFilters.timeRange ||
+        current.search !== newFilters.search;
+
+      if (isChanged) {
+        extraPages.current = 0;
+        setActiveFilters(newFilters);
+        activeFiltersRef.current = newFilters;
+        void refresh(newFilters);
+      }
+    },
+    [refresh],
+  );
+
   const context: AppContextValue = {
     state,
     dispatch: (action) => {
@@ -631,6 +681,7 @@ function ServerWorkspaceProvider({
       clearError: () => setError(null),
       loadMore,
       hasMore: !!nextCursor,
+      setFilters,
       logout: async () => {
         await request("/auth/logout", { method: "POST", body: {} });
         onSessionLost();

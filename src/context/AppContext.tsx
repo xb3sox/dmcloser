@@ -285,6 +285,15 @@ export interface AppContextValue {
     clearError: () => void;
     loadMore: () => Promise<void>;
     hasMore: boolean;
+    setFilters?: (filters: {
+      channel?: string;
+      intent?: string;
+      unreadOnly?: boolean;
+      leadStatus?: string;
+      assignee?: string;
+      timeRange?: string;
+      search?: string;
+    }) => void;
   };
 }
 

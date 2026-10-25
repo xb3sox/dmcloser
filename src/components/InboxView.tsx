@@ -46,6 +46,22 @@ export default function InboxView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
 
+  // Sync active filters with live workspace service if in live mode.
+  // The client-side filter below serves as the render guard for the page just fetched.
+  useEffect(() => {
+    if (mode === "live" && live) {
+      live.setFilters?.({
+        channel: state.channel,
+        intent,
+        unreadOnly,
+        leadStatus,
+        assignee: assigneeFilter,
+        timeRange,
+        search,
+      });
+    }
+  }, [state.channel, intent, unreadOnly, leadStatus, assigneeFilter, timeRange, search, mode, live]);
+
   useEffect(() => {
     if (
       state.currentView !== "inbox" ||
