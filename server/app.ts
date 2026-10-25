@@ -10,14 +10,26 @@ import { rateLimit, MemoryStore, type Store, type ClientRateLimitInfo, type Opti
 
 export class PostgresRateLimitStore implements Store {
   windowMs = 60000;
+  readonly db: Database;
+  readonly prefix: string;
 
-  constructor(private db: Database) {}
+  // Every limiter shares one table, so the key is namespaced per limiter:
+  // otherwise a sign-in attempt would consume the general API budget.
+  constructor(db: Database, prefix = "api") {
+    this.db = db;
+    this.prefix = prefix;
+  }
+
+  private keyFor(key: string): string {
+    return `${this.prefix}:${key}`;
+  }
 
   init(options: Options): void {
     this.windowMs = options.windowMs;
   }
 
-  async increment(key: string): Promise<ClientRateLimitInfo> {
+  async increment(rawKey: string): Promise<ClientRateLimitInfo> {
+    const key = this.keyFor(rawKey);
     const now = Date.now();
     const expiresAt = now + this.windowMs;
     const [row] = await this.db.query<{ hits: number; expires_at: string | number }>(
@@ -35,15 +47,15 @@ export class PostgresRateLimitStore implements Store {
     };
   }
 
-  async decrement(key: string): Promise<void> {
+  async decrement(rawKey: string): Promise<void> {
     await this.db.query(
       `UPDATE rate_limits SET hits = GREATEST(hits - 1, 0) WHERE key = $1 AND expires_at >= $2`,
-      [key, Date.now()],
+      [this.keyFor(rawKey), Date.now()],
     );
   }
 
-  async resetKey(key: string): Promise<void> {
-    await this.db.query(`DELETE FROM rate_limits WHERE key = $1`, [key]);
+  async resetKey(rawKey: string): Promise<void> {
+    await this.db.query(`DELETE FROM rate_limits WHERE key = $1`, [this.keyFor(rawKey)]);
   }
 }
 import { z } from "zod";
@@ -179,9 +191,9 @@ export async function createApp(
       origin: (origin, done) => done(null, !origin || origins.has(origin)),
     }),
   );
-  const createRateLimitStore = (): Store =>
+  const createRateLimitStore = (name: string): Store =>
     db.kind === "postgres"
-      ? new PostgresRateLimitStore(db)
+      ? new PostgresRateLimitStore(db, name)
       : new MemoryStore();
 
   app.use(
@@ -191,7 +203,10 @@ export async function createApp(
       limit: 300,
       standardHeaders: "draft-8",
       legacyHeaders: false,
-      store: createRateLimitStore(),
+      store: createRateLimitStore("api"),
+      // A shared Postgres counter can legitimately jump by more than one when another
+      // instance counts the same client, and the library reads that as a double count.
+      validate: { singleCount: false },
       message: { error: "Too many requests. Please wait a minute." },
     }),
   );
@@ -522,7 +537,8 @@ export async function createApp(
     limit: 15,
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    store: createRateLimitStore(),
+    store: createRateLimitStore("auth"),
+    validate: { singleCount: false },
     message: { error: "Too many sign-in attempts. Please wait 15 minutes." },
   });
   const recoveryLimit = rateLimit({
@@ -530,7 +546,8 @@ export async function createApp(
     limit: 5,
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    store: createRateLimitStore(),
+    store: createRateLimitStore("recovery"),
+    validate: { singleCount: false },
     message: { error: "Too many recovery requests. Please try later." },
   });
 

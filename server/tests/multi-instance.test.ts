@@ -150,8 +150,8 @@ test("a limit consumed on one instance is counted on the other", { timeout: 3000
   const app2 = await createApp(config, db);
 
   try {
-    const store1 = new PostgresRateLimitStore(db);
-    const store2 = new PostgresRateLimitStore(db);
+    const store1 = new PostgresRateLimitStore(db, "limits");
+    const store2 = new PostgresRateLimitStore(db, "limits");
     const key = `ratelimit-test-${randomUUID()}`;
 
     const res1 = await store1.increment(key);
@@ -161,13 +161,31 @@ test("a limit consumed on one instance is counted on the other", { timeout: 3000
     assert.equal(res2.totalHits, 2);
 
     if (db.kind === "postgres") {
-      const [row] = await db.query("SELECT hits FROM rate_limits WHERE key=$1", [key]);
+      const [row] = await db.query("SELECT hits FROM rate_limits WHERE key=$1", [
+        `limits:${key}`,
+      ]);
       assert.equal(row.hits, 2);
     }
   } finally {
     await app1.service.close();
     await app2.service.close();
   }
+});
+
+test("each limiter keeps its own counter for the same client", { timeout: 30000 }, async () => {
+  const api = new PostgresRateLimitStore(db, "api");
+  const auth = new PostgresRateLimitStore(db, "auth");
+  const client = `client-${randomUUID()}`;
+
+  const first = await api.increment(client);
+  const second = await auth.increment(client);
+
+  assert.equal(first.totalHits, 1, "the api limiter starts a fresh counter");
+  assert.equal(
+    second.totalHits,
+    1,
+    "a sign-in attempt must not consume the api budget",
+  );
 });
 
 test("a killed instance does not strand a leased job", { timeout: 30000 }, async () => {
