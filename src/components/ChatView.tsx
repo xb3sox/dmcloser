@@ -94,6 +94,7 @@ function MessageBubble({
             <summary>{t("chat.feedback.summary")}</summary>
             <div>
               <button
+                type="button"
                 onClick={async () => {
                   try {
                     await live.request(`/messages/${message.id}/feedback`, {
@@ -113,6 +114,7 @@ function MessageBubble({
                 {t("chat.feedback.helpful")}
               </button>
               <button
+                type="button"
                 onClick={async () => {
                   try {
                     await live.request(`/messages/${message.id}/feedback`, {
@@ -689,6 +691,7 @@ export default function ChatView() {
             maxLength={4000}
             rows={1}
             placeholder={t("chat.composer.placeholder")}
+            aria-describedby="chat-composer-hint"
             onKeyDown={(event) => onEnter(event, () => send(draft))}
           />
           <button
@@ -712,7 +715,7 @@ export default function ChatView() {
                 ? t("chat.composer.liveFooter")
                 : t("chat.composer.demoFooter"))}
           </span>
-          <span>{t("chat.composer.enterToSend")}</span>
+          <span id="chat-composer-hint">{t("chat.composer.enterToSend")}</span>
         </div>
       </div>
       <span className="sr-only" role="status">
