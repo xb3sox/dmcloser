@@ -41,6 +41,7 @@ function MessageBubble({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   async function deliveryAction(path: string, body: unknown) {
     if (!live) return;
     setBusy(true);
@@ -78,6 +79,7 @@ function MessageBubble({
             </span>
             <CheckCheck
               size={13}
+              role="img"
               aria-label={
                 live ? t("chat.delivery.providerStatus") : t("chat.delivery.savedInDemo")
               }
@@ -95,12 +97,15 @@ function MessageBubble({
             <div>
               <button
                 type="button"
+                disabled={busy || feedbackSubmitted}
                 onClick={async () => {
+                  setBusy(true);
                   try {
                     await live.request(`/messages/${message.id}/feedback`, {
                       method: "POST",
                       body: { label: "helpful" },
                     });
+                    setFeedbackSubmitted(true);
                     setFeedback(t("chat.feedback.markedHelpful"));
                   } catch (failure) {
                     setFeedback(
@@ -108,6 +113,8 @@ function MessageBubble({
                         ? failure.message
                         : t("chat.error.feedbackSave"),
                     );
+                  } finally {
+                    setBusy(false);
                   }
                 }}
               >
@@ -115,12 +122,15 @@ function MessageBubble({
               </button>
               <button
                 type="button"
+                disabled={busy || feedbackSubmitted}
                 onClick={async () => {
+                  setBusy(true);
                   try {
                     await live.request(`/messages/${message.id}/feedback`, {
                       method: "POST",
                       body: { label: "unhelpful" },
                     });
+                    setFeedbackSubmitted(true);
                     setFeedback(t("chat.feedback.saved"));
                   } catch (failure) {
                     setFeedback(
@@ -128,6 +138,8 @@ function MessageBubble({
                         ? failure.message
                         : t("chat.error.feedbackSave"),
                     );
+                  } finally {
+                    setBusy(false);
                   }
                 }}
               >
@@ -473,7 +485,7 @@ export default function ChatView() {
           <span className="lead-memory-preview">
             {conversation.leadNotes || t("chat.memory.emptyHint")}
           </span>
-          <ChevronDown size={15} />
+          <ChevronDown size={15} aria-hidden="true" />
         </summary>
         <div className="lead-memory-content">
           <div className="lead-status-field">
