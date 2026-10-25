@@ -13,7 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      # Pinned by SHA. fetch-depth: 0 and the checkout credential stay: this job runs
+      # `git fetch origin <base>` and cannot read a private repository without them.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Reject foreign lockfiles
