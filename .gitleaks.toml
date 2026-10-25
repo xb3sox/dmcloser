@@ -1,0 +1,17 @@
+# Gitleaks configuration.
+#
+# Defaults stay on. The only allowlist entry is a test fixture that is not a credential:
+# server/tests/analytics.test.ts (commit da9640c, file since removed) uses the literal
+# "phc_test_key_12345" as a PostHog key and asserts on it. Seven generic-api-key findings
+# came from that one file and would otherwise hide a real finding behind known noise.
+#
+# Scope: one path, one regex. Tests, docs and source directories are NOT allowlisted
+# wholesale, and no provider prefix (ghp_, sk-, AKIA) is ever excused.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake PostHog fixture in a removed analytics test"
+paths = ['''server/tests/analytics\.test\.ts''']
+regexes = ['''phc_test_key_[0-9]+''']
