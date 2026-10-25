@@ -26,10 +26,17 @@ Out of scope:
 
 ## Private Disclosure Contact
 
-If you discover a security vulnerability or potential risk within DMCloser, please report it privately. Do **not** create a public GitHub issue.
+If you discover a security vulnerability or potential risk within DMCloser, please report it
+privately. Do **not** create a public GitHub issue.
 
-- **Email Contact:** `security@dmcloser.com` (or contact `@xb3sox` directly via repository administration)
-- **Response Time:** We aim to acknowledge receipt of vulnerability reports within 48 hours and provide status updates every 5 business days until resolution.
+- **Channel:** contact repository administrator `@xb3sox` through GitHub, or email
+  `security@dmcloser.com`. GitHub private vulnerability reporting is not available on this
+  repository's plan, so the repository itself has no private-report button.
+- **Acknowledged status:** the mailbox is not verified from inside the repository. Until it
+  is, `@xb3sox` is the channel that is known to exist. Tracked in #124.
+- **Response target, not a guarantee:** we aim to acknowledge within 48 hours and to update
+  every 5 business days until resolution. The target is a best effort by a single maintainer;
+  do not treat it as a contractual SLA.
 
 ## Disclosure Guidelines
 

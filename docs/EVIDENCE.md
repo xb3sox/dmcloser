@@ -79,6 +79,8 @@ Verified from an admin session against the live repository, not inferred from a 
 | Deployment environment and required reviewer | `gh api repos/xb3sox/dmcloser/environments` | 2026-10-25 | **Unverified** — 0 environments configured | N/A | Blocked by plan; tracked in #41 |
 | Red-`main` compensating control | `.github/workflows/main-guard.yml` (#114) | 2026-10-25 | configured — reverts a failed Product Gates run on `main` and opens a `type:bug` issue | `.github/workflows/main-guard.yml` | Static |
 | Direct-push compensating control | `scripts/git-hooks/pre-push` via `npm run hooks:install` (#114) | 2026-10-25 | configured — refuses `refs/heads/main`; `ALLOW_MAIN_PUSH=1` overrides | `scripts/git-hooks/pre-push` | Static (client-side only) |
+| Private vulnerability reporting | `gh api -X PUT repos/xb3sox/dmcloser/private-vulnerability-reporting` | 2026-10-25 | **Unverified** — HTTP 404, not available on this plan | N/A | Blocked by plan; `SECURITY.md` names `@xb3sox` instead |
+| Security mailbox `security@dmcloser.com` | send a test report and wait for a reply | N/A | **Unverified** — no receipt proof in the repository | N/A | Pending Owner; tracked in #124 |
 
 ## Local rehearsals
 
