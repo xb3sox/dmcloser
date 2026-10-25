@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { equal } from "../security.ts";
+import { equal, hashPassword, verifyPassword } from "../security.ts";
 
 // A length short-circuit in equal() turns every token comparison into a length oracle.
 // These cases fail if the comparison ever branches on input length again.
@@ -19,4 +19,15 @@ test("equal rejects different lengths without revealing which", () => {
   assert.equal(equal("a", "ab"), false);
   assert.equal(equal("short", "a much longer secret value"), false);
   assert.equal(equal("", "x"), false);
+});
+
+test("verifyPassword handles valid, invalid, and malformed stored hashes", async () => {
+  const password = "SuperSecretPassword123!";
+  const hash = await hashPassword(password);
+
+  assert.equal(await verifyPassword(password, hash), true);
+  assert.equal(await verifyPassword("WrongPassword123!", hash), false);
+  assert.equal(await verifyPassword(password, "malformed_hash_without_colon"), false);
+  assert.equal(await verifyPassword(password, ""), false);
+  assert.equal(await verifyPassword(password, ":"), false);
 });

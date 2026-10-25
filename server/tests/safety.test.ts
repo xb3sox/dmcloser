@@ -10,6 +10,7 @@ import {
   isUnsafe,
   normalizeText,
 } from "../../src/domain/safety.ts";
+import { hashPassword, verifyPassword } from "../security.ts";
 
 /**
  * The bilingual guard set. Pure, no database.
