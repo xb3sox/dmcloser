@@ -152,6 +152,7 @@ export class ProductService {
                 ),
               }))
               .filter((item: any) => item.changes.length > 0);
+      
       await tx.query("UPDATE webhook_receipts SET payload=$1 WHERE id=$2", [
         JSON.stringify(entry.length ? { ...receipt.payload, entry } : {}),
         receipt.id,
