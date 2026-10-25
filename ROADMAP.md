@@ -18,7 +18,7 @@
 - **Custom sector:** `custom` is a first-class industry mode with owner-defined field presets. The fixed BANT qualification shape and the scored pipeline are unchanged; custom fields are additional.
 - **Revenue blocks:** **Potential**, **Attributed** and **Verified** are three separately labelled blocks. Verified revenue is owner-confirmed receipts net of refunds, with the reference and the reversal status on every line. Potential is an estimate and is never presented as cash.
 - **Recovery list:** stale open opportunities, ranked by days without a customer reply, each with a reason and a next safe action. It is a human worklist — dismissible with a reason, restorable, and never automatic.
-- **Scale:** cursor pagination on the inbox snapshot, lead-status and time-range filters, plus conversation assignment and the **assignee** filter (`005_assignee.sql`).
+- **Scale:** cursor pagination on the inbox snapshot, lead-status and time-range filters, plus conversation assignment and the **assignee** filter (`007_assignee.sql`). The inbox applies those filters in the client over the loaded pages; sending them to the API is tracked in #126.
 
 ## Revenue OS Increment
 
@@ -40,6 +40,6 @@ Exact gaps, revenue rationale, DB/API/AI/UI contracts and implementation order: 
 
 ## After Pilot
 
-Calibrated conversion/time-to-close models; processor-verified sales payments; external calendars; real campaign ingestion; multilingual semantic signals; consented outbound follow-up sequences; outcome correction/voiding; conversation assignment and an assignee filter; WhatsApp Embedded Signup; policy-approved templates/media; shared limiting/pub-sub before horizontal scale.
+Calibrated conversion/time-to-close models; processor-verified sales payments; external calendars; real campaign ingestion; multilingual semantic signals; consented outbound follow-up sequences; outcome correction/voiding; WhatsApp Embedded Signup; policy-approved templates/media; shared limiting/pub-sub before horizontal scale.
 
 **Evidence boundary:** local tests do not verify live credentials, approvals, latency targets, legal compliance, hosted CI, Docker deployment or production recovery. Detailed evidence ledger: `docs/EVIDENCE.md`.
