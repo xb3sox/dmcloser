@@ -1,8 +1,8 @@
 // Prisma schema for dmcloser.
 //
-// Mechanical 1:1 translation of the seven hand-written SQL migrations in
+// Mechanical 1:1 translation of the eight hand-written SQL migrations in
 // server/migrations/ (001.sql, 002_revenue.sql, 003_sector.sql, 004_ai_quality.sql,
-// 005_void_reversals.sql, 006_latency.sql, 007_assignee.sql).
+// 005_void_reversals.sql, 006_latency.sql, 007_assignee.sql, 008_multi_instance.sql).
 // Column names are preserved verbatim (snake_case) and every table keeps its physical
 // name through @@map, so existing raw SQL keeps working unchanged.
 //
@@ -592,5 +592,14 @@ model AiEvalRun {
 
   @@index([workspace_id, version_id, created_at], map: "ai_eval_runs_workspace")
   @@map("ai_eval_runs")
+}
+
+model RateLimit {
+  key        String @id
+  hits       Int    @default(1)
+  expires_at BigInt
+
+  @@index([expires_at], map: "rate_limits_expires")
+  @@map("rate_limits")
 }
 

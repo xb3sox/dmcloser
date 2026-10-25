@@ -43,13 +43,15 @@ process, the control-band test, the build and the audit. **Playwright is not par
 | Mail Server Test Suite | `npx tsx --test server/tests/mail.test.ts` | 2026-10-25 | 1/1 pass | `server/tests/mail.test.ts` | Automated (`scripts/check.mjs`) |
 | Worker Server Test Suite | `npx tsx --test server/tests/worker.test.ts` | 2026-10-25 | 4/4 pass | `server/tests/worker.test.ts` | Automated (`scripts/check.mjs`) |
 | Security Server Test Suite | `npx tsx --test server/tests/security.test.ts` | 2026-10-25 | 3/3 pass | `server/tests/security.test.ts` | Automated (`scripts/check.mjs`) |
-| Server Test Suite Total (PGlite local) | `npx tsx --test server/tests/*.test.ts` | 2026-10-25 | 89/89 pass (85 before the security and erasure proofs landed) | `server/tests/*.test.ts` | Automated (`scripts/check.mjs`) |
+| Multi-instance Server Test Suite | `npx tsx --test server/tests/multi-instance.test.ts` | 2026-10-25 | 3/3 pass | `server/tests/multi-instance.test.ts` | Automated (`scripts/check.mjs`) |
+| Multi-instance Deployment Claim | two app instances against one Postgres: SSE fan-out reaches a client on either instance, a limit consumed on one is counted on the other, a killed instance does not strand a leased job | 2026-10-25 | supported in tests only, not on a real multi-host deployment | `server/tests/multi-instance.test.ts` | Automated (`scripts/check.mjs`) |
+| Server Test Suite Total (PGlite local) | `npx tsx --test server/tests/*.test.ts` | 2026-10-25 | 92/92 pass (89 before the multi-instance proof landed) | `server/tests/*.test.ts` | Automated (`scripts/check.mjs`) |
 | Server Test Suite Total (Postgres 17, hosted) | GitHub Actions `ci.yml` job `verify`, `TEST_DATABASE_URL` step | 2026-10-24 | 85/85 pass | [run 40143930237](https://github.com/xb3sox/dmcloser/actions/runs/40143930237) | CI / External Postgres |
 | Control Bands Test Suite | `node --test scripts/control-bands.test.mjs` | 2026-10-25 | 4/4 pass | `scripts/control-bands.test.mjs` | Automated (`scripts/check.mjs`) |
 | Playwright Browser Test Suite | `npx playwright test` | 2026-10-25 | 66/66 pass (58 pre-existing + 8 Arabic/RTL) | `tests/*.spec.ts` | Automated (`playwright`, chromium-headless-shell 156) |
 | Production Frontend Build | `npm run build` | 2026-10-25 | pass (751.89 kB single-file bundle, 211.97 kB gzip) | `dist/index.html` | CI (`vite build`, [run 40145194829](https://github.com/xb3sox/dmcloser/actions/runs/40145194829)) |
 | Dependency Security Audit | `npm audit --audit-level=moderate` | 2026-10-25 | 0 vulnerabilities | `package-lock.json` | Automated (`npm audit`) |
-| Forward Migrations Apply On An Empty Database | test bootstrap applies every migration once, in order, under the migration lock | 2026-10-25 | pass (migrations `001`–`007`) | `server/migrations/` | Automated (`server/db.ts`) |
+| Forward Migrations Apply On An Empty Database | test bootstrap applies every migration once, in order, under the migration lock | 2026-10-25 | pass (migrations `001`–`008`) | `server/migrations/` | Automated (`server/db.ts`) |
 
 The local build prints 751.95 kB; the hosted build prints 751.89 kB for the same commit. The
 row quotes the hosted figure because that run is linkable. The `2026-10-24` total of 76/76 was
