@@ -148,6 +148,41 @@ not finished.
 - Run `node scripts/check.mjs`, and `npx playwright test` when UI or tests change.
 - No secrets, no live provider calls, no deployment, no new dependency unless the issue names it.
 
+## Dispatching Jules
+
+Two labels, two different meanings. Do not confuse them.
+
+| Label | Meaning | Read by |
+| --- | --- | --- |
+| `agent` | This issue is repo-contained and testable by Jules. A human shortlist. | humans only |
+| `jules` | Start a task now. Adding it to an issue starts a Jules session. | the Jules GitHub App |
+
+`agent` never starts anything — 22 open and closed issues carry it and every dispatch so far
+was a manual CLI call. The `jules` trigger requires the Jules GitHub App to have access to
+this repo; prove it on one low-risk issue and confirm a session appears before relying on it.
+
+The CLI does not open pull requests. `jules new` runs a remote session that holds the patch,
+and a session ending `COMPLETED` still has no branch on GitHub. Pull it and deliver it
+yourself:
+
+```sh
+jules remote pull --session <id> --apply   # apply the patch locally
+node scripts/check.mjs                     # gate it
+git push -u origin agent/<issue>-<slug>    # push it
+```
+
+Before any dispatch, all three checks:
+
+```sh
+# 1. WIP: never more than two open agent PRs
+gh pr list --state open --json headRefName --jq '[.[]|select(.headRefName|startswith("agent/") or startswith("jules"))]|length'
+# 2. Do not redo closed work
+gh pr list --state all --search "<issue> in:body" --json number,state
+# 3. Two concurrent issues must share no file (service.ts, app.ts, OPERATIONS.md collide often)
+```
+
+A label cannot carry file ownership and cannot count open PRs. That stays manual.
+
 ## Branch enforcement (free plan)
 
 This private repo is on the free plan: rulesets and branch protection answer **403**, so GitHub
