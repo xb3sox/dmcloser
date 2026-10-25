@@ -22,10 +22,13 @@ export class HttpError extends Error {
 export const randomToken = () => randomBytes(32).toString("base64url");
 export const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
+// Constant-time by construction: both inputs become 32-byte digests before the only
+// comparison, so the time taken cannot reveal the expected value's length. A direct
+// timingSafeEqual on raw buffers needs a length guard, and that guard is the leak.
 export function equal(first: string, second: string): boolean {
-  const a = Buffer.from(first);
-  const b = Buffer.from(second);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const a = createHash("sha256").update(first).digest();
+  const b = createHash("sha256").update(second).digest();
+  return timingSafeEqual(a, b);
 }
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
