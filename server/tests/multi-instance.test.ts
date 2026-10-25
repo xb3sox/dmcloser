@@ -44,7 +44,7 @@ after(async () => {
   await db.close();
 });
 
-test("two app instances sharing one database deliver an event to a client connected to either", async () => {
+test("two app instances sharing one database deliver an event to a client connected to either", { timeout: 30000 }, async () => {
   const app1 = await createApp(config, db);
   const app2 = await createApp(config, db);
 
@@ -145,7 +145,7 @@ test("two app instances sharing one database deliver an event to a client connec
   }
 });
 
-test("a limit consumed on one instance is counted on the other", async () => {
+test("a limit consumed on one instance is counted on the other", { timeout: 30000 }, async () => {
   const app1 = await createApp(config, db);
   const app2 = await createApp(config, db);
 
@@ -170,7 +170,7 @@ test("a limit consumed on one instance is counted on the other", async () => {
   }
 });
 
-test("a killed instance does not strand a leased job", async () => {
+test("a killed instance does not strand a leased job", { timeout: 30000 }, async () => {
   const app1 = await createApp(config, db);
   const app2 = await createApp(config, db);
 
