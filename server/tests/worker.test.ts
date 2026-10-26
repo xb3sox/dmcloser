@@ -28,6 +28,9 @@ const config: Config = {
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,
+  rateLimitMax: 10000,
+  authRateLimitMax: 10000,
+  recoveryRateLimitMax: 10000,
   metricsToken: "internal-test-token",
 };
 

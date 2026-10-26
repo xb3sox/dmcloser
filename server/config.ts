@@ -41,9 +41,9 @@ export interface Config {
   metricsToken?: string;
   sentryDsn?: string;
   sentryRelease?: string;
-  rateLimitMax?: number;
-  authRateLimitMax?: number;
-  recoveryRateLimitMax?: number;
+  rateLimitMax: number;
+  authRateLimitMax: number;
+  recoveryRateLimitMax: number;
 }
 
 export async function loadConfig(): Promise<Config> {

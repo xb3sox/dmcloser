@@ -48,6 +48,9 @@ const config: Config = {
   smtpPort: 587,
   mailFrom: "test@example.com",
   trustProxy: 0,
+  rateLimitMax: 10000,
+  authRateLimitMax: 10000,
+  recoveryRateLimitMax: 10000,
   metricsToken: "internal-test-token",
 };
 const password = "correct horse battery staple";
@@ -94,7 +97,7 @@ const fakeAI = {
 };
 
 async function fixture(overrides: Partial<Config> = {}, database = db) {
-  const cfg = { ...config, ...overrides };
+  const cfg = { ...config, authRateLimitMax: 10000, rateLimitMax: 10000, recoveryRateLimitMax: 10000, ...overrides };
   const meta = new FakeMeta(cfg);
   const value = await createApp(cfg, database, { meta, ai: fakeAI });
   const client = request.agent(value.app);

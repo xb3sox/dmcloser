@@ -45,6 +45,9 @@ jobs:
         run: npx tsx --test --test-concurrency=1 server/tests/*.test.ts
         env:
           TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/dmcloser_test
+          RATE_LIMIT_MAX: "10000"
+          AUTH_RATE_LIMIT_MAX: "10000"
+          RECOVERY_RATE_LIMIT_MAX: "10000"
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       - name: Build the production image
