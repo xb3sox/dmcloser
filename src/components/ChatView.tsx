@@ -632,11 +632,19 @@ export default function ChatView() {
                 maxLength={4000}
                 onChange={(event) => setEditedReply(event.target.value)}
                 rows={3}
-                onKeyDown={(event) => onEnter(event, () => send(editedReply))}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setEditing(false);
+                  } else {
+                    onEnter(event, () => send(editedReply));
+                  }
+                }}
                 aria-label={t("chat.suggestion.editLabel")}
+                aria-describedby="chat-composer-hint"
               />
             ) : (
-              <p tabIndex={0}>{aiSuggestion.text}</p>
+              <p>{aiSuggestion.text}</p>
             )}
             <div className="chat-suggestion-actions">
               <button
