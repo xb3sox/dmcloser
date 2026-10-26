@@ -11,6 +11,7 @@ export interface Database {
   kind: "postgres" | "pglite";
   connectionString?: string;
   ssl?: boolean;
+  onClose?(fn: () => Promise<void> | void): void;
 }
 
 export async function createDatabase(
@@ -34,12 +35,20 @@ export async function createDatabase(
       },
       close: async () => {},
     });
+    const closeHandlers: (() => Promise<void> | void)[] = [];
     database = {
       kind: "postgres",
       connectionString: config.databaseUrl,
       ssl: config.databaseSsl,
       query: async (sql, params) => (await pool.query(sql, params)).rows,
-      close: () => pool.end(),
+      close: async () => {
+        while (closeHandlers.length) {
+          const fn = closeHandlers.pop();
+          if (fn) await fn();
+        }
+        await pool.end();
+      },
+      onClose: (fn) => closeHandlers.push(fn),
       transaction: async (run) => {
         const client = await pool.connect();
         try {

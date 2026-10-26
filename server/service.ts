@@ -143,6 +143,7 @@ export class ProductService {
       // Own the client before it finishes connecting: a service closed during
       // connect must still end the socket, or the process never exits.
       this.notifyClient = client;
+      this.db.onClose?.(() => this.close());
       client.on("error", (err) => {
         console.error(
           JSON.stringify({
@@ -153,7 +154,10 @@ export class ProductService {
       });
       this.notifyReady = client
         .connect()
-        .then(() => client.query("LISTEN workspace_events"))
+        .then(() => {
+          (client as unknown as { connection?: { stream?: { unref?: () => void } } }).connection?.stream?.unref?.();
+          return client.query("LISTEN workspace_events");
+        })
         .then(() => {
           client.on("notification", (msg) => {
             if (msg.channel === "workspace_events" && msg.payload) {

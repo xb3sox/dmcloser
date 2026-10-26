@@ -40,7 +40,7 @@ jobs:
           fi
       - name: Limit review size
         run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1
+          git fetch origin "${{ github.base_ref }}"
           total=$(git diff --numstat "origin/${{ github.base_ref }}...HEAD" -- . ':(exclude)package-lock.json' \
             | awk '{added += $1; deleted += $2} END {print added + deleted + 0}')
           echo "Changed lines excluding package-lock.json: $total"
