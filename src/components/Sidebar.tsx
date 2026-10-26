@@ -163,7 +163,14 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
             </small>
           </div>
         </div>
-        <button onClick={toggle}>
+        <button
+          onClick={toggle}
+          title={t(
+            theme === "dark"
+              ? "nav.switchToLightMode"
+              : "nav.switchToDarkMode",
+          )}
+        >
           {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           {t(theme === "light" ? "nav.darkMode" : "nav.lightMode")}
         </button>
