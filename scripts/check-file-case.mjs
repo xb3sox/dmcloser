@@ -1,4 +1,7 @@
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 
 /**
  * Finds case collisions in a list of file paths.
@@ -66,6 +69,17 @@ function main() {
   console.log("No file path case collisions found.");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    const entry = realpathSync(process.argv[1]);
+    return fileURLToPath(import.meta.url) === entry;
+  } catch {
+    // Fallback to resolved path if realpath fails (e.g. Windows path casing)
+    return fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+  }
+}
+
+if (isMainModule()) {
   main();
 }

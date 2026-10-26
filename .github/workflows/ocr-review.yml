@@ -21,6 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Checkout base_ref (not the PR head) so the PR cannot influence the review rules it is reviewed under.
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
       # Pinned by commit SHA: SHA pinning is required on these repos.
       # Tag v1.13.3 = 375f64c.
       - uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb

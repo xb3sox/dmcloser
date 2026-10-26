@@ -41,6 +41,20 @@ export interface Config {
   metricsToken?: string;
   sentryDsn?: string;
   sentryRelease?: string;
+  rateLimitMax: number;
+  authRateLimitMax: number;
+  recoveryRateLimitMax: number;
+}
+
+function positiveInt(raw: string | undefined, fallback: number, name: string): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const value = Number(raw.trim());
+  if (!Number.isInteger(value) || value < 1 || value > 100_000) {
+    if (process.env.NODE_ENV === "production")
+      throw new Error(`${name} must be an integer between 1 and 100000 (got ${JSON.stringify(raw)}).`);
+    return fallback;
+  }
+  return value;
 }
 
 export async function loadConfig(): Promise<Config> {
@@ -123,5 +137,8 @@ export async function loadConfig(): Promise<Config> {
     metricsToken: env.METRICS_TOKEN,
     sentryDsn: env.SENTRY_DSN || undefined,
     sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
+    rateLimitMax: positiveInt(env.RATE_LIMIT_MAX, 300, "RATE_LIMIT_MAX"),
+    authRateLimitMax: positiveInt(env.AUTH_RATE_LIMIT_MAX, 15, "AUTH_RATE_LIMIT_MAX"),
+    recoveryRateLimitMax: positiveInt(env.RECOVERY_RATE_LIMIT_MAX, 5, "RECOVERY_RATE_LIMIT_MAX"),
   };
 }

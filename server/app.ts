@@ -209,7 +209,7 @@ export async function createApp(
     "/api",
     rateLimit({
       windowMs: 60000,
-      limit: 300,
+      limit: config.rateLimitMax,
       standardHeaders: "draft-8",
       legacyHeaders: false,
       store: createRateLimitStore("api"),
@@ -543,7 +543,7 @@ export async function createApp(
   }
   const authLimit = rateLimit({
     windowMs: 15 * 60000,
-    limit: 15,
+    limit: config.authRateLimitMax,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     store: createRateLimitStore("auth"),
@@ -552,7 +552,7 @@ export async function createApp(
   });
   const recoveryLimit = rateLimit({
     windowMs: 3600000,
-    limit: 5,
+    limit: config.recoveryRateLimitMax,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     store: createRateLimitStore("recovery"),
