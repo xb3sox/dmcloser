@@ -41,6 +41,9 @@ export interface Config {
   metricsToken?: string;
   sentryDsn?: string;
   sentryRelease?: string;
+  rateLimitMax?: number;
+  authRateLimitMax?: number;
+  recoveryRateLimitMax?: number;
 }
 
 export async function loadConfig(): Promise<Config> {
@@ -123,5 +126,8 @@ export async function loadConfig(): Promise<Config> {
     metricsToken: env.METRICS_TOKEN,
     sentryDsn: env.SENTRY_DSN || undefined,
     sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
+    rateLimitMax: Number(env.RATE_LIMIT_MAX || 300),
+    authRateLimitMax: Number(env.AUTH_RATE_LIMIT_MAX || env.RATE_LIMIT_MAX || 15),
+    recoveryRateLimitMax: Number(env.RECOVERY_RATE_LIMIT_MAX || env.RATE_LIMIT_MAX || 5),
   };
 }

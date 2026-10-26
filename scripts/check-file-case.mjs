@@ -1,4 +1,6 @@
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 /**
  * Finds case collisions in a list of file paths.
@@ -66,6 +68,6 @@ function main() {
   console.log("No file path case collisions found.");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main();
 }

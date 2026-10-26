@@ -44,7 +44,12 @@ jobs:
         run: |
           git config user.name "main-guard[bot]"
           git config user.email "main-guard@users.noreply.github.com"
-          git revert --no-edit "$SHA" -m 1 || { echo "::error::revert conflicted; needs a human"; exit 1; }
+          parents=$(git rev-list --parents -n 1 "$SHA" | awk '{print NF - 1}')
+          if [ "$parents" -gt 1 ]; then
+            git revert --no-edit -m 1 "$SHA" || { echo "::error::revert conflicted; needs a human"; exit 1; }
+          else
+            git revert --no-edit "$SHA" || { echo "::error::revert conflicted; needs a human"; exit 1; }
+          fi
           git commit --amend -m "Revert \"$(git log -1 --format=%s "$SHA")\"" \
             -m "Automatic revert: Product Gates failed on main (${RUN_URL})." \
             -m "This reverts commit ${SHA}."

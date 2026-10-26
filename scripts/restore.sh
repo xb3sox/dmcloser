@@ -11,9 +11,13 @@ if [ -z "$archive" ] || [ ! -f "$archive" ]; then
   exit 1
 fi
 
+if [ -f "$archive.sha256" ]; then
+  sha256sum -c "$archive.sha256"
+fi
+
+trap 'docker compose start app' EXIT
 docker compose stop app
 gunzip -c "$archive" \
   | docker compose exec -T database \
     psql -U dmcloser -d dmcloser -v ON_ERROR_STOP=1
-docker compose start app
 echo "Restored $archive"
