@@ -86,7 +86,7 @@ export const spamPatterns: RegExp[] = [
 
 export const injectionPatterns: RegExp[] = [
   re(
-    "ignore (all |previous |your )?instructions|system prompt|developer message|reveal.*(secret|token|password)|bypass.*(rule|policy)",
+    "(ignore|disregard|forget|override) (all |previous |your )?(instructions|rules)|system prompt|developer message|reveal.*(secret|token|password)|bypass.*(rule|policy)|(show|print|display) (me )?(your |the )?instructions",
   ),
   arPhrase("تجاهل (كل )?التعليمات"),
   arPhrase("تعليمات النظام"),
