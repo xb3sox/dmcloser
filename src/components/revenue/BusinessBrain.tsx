@@ -249,6 +249,10 @@ export default function BusinessBrain() {
   const entries = (data?.entries || []).filter(
     (entry) => filter === "all" || entry.kind === filter,
   );
+  // ⚡ Bolt Optimization: Map entries by ID once (O(N)) to avoid repeated O(N*M) searches when rendering links
+  const entriesMap = new Map(
+    (data?.entries || []).map((entry) => [entry.id, entry.title]),
+  );
   const sectorFields = draftFields ?? data?.profile.sectorFields ?? [];
   function updateField(index: number, patch: Partial<SectorField>) {
     setDraftFields((current) => {
@@ -584,15 +588,9 @@ export default function BusinessBrain() {
                 {data.links.map((link) => (
                   <li key={link.id}>
                     <span>
-                      {
-                        data.entries.find((entry) => entry.id === link.fromId)
-                          ?.title
-                      }{" "}
+                      {entriesMap.get(link.fromId)}{" "}
                       <small>{link.relation.replace(/_/g, " ")}</small>{" "}
-                      {
-                        data.entries.find((entry) => entry.id === link.toId)
-                          ?.title
-                      }
+                      {entriesMap.get(link.toId)}
                     </span>
                     {owner && (
                       <button

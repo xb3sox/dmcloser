@@ -1,0 +1,3 @@
+## 2025-05-18 - Pre-indexing lookups in RevenueService & BusinessBrain
+**Learning:** Nested array operations (`messages.filter(...)` per deal in `overview` and `active.find(...)` per link in `context` and `BusinessBrain`) created $O(N \cdot M)$ bottlenecks during revenue analytics and AI context synthesis. Pre-indexing entities into Map data structures turned these lookups into $O(1)$ operations ($O(N + M)$ total).
+**Action:** Always pre-group messages by conversation ID and index knowledge entries by ID using `Map` before iterating over deals or relationships in revenue services and React components.

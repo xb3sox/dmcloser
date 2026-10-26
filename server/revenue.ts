@@ -777,6 +777,13 @@ export class RevenueService {
     const industryOutcomes = outcomes.filter(
       (outcome) => outcome.snapshot.industry === profile.industry,
     );
+    // ⚡ Bolt Optimization: Group messages by conversation ID once (O(M)) to avoid nested filtering (O(D*M))
+    const messagesByConversation = new Map<string, any[]>();
+    for (const message of messages) {
+      const list = messagesByConversation.get(message.conversation_id) || [];
+      list.push(message);
+      messagesByConversation.set(message.conversation_id, list);
+    }
     const opportunities = rows
       .map((row) => ({
         deal: dealView(row),
@@ -786,10 +793,7 @@ export class RevenueService {
           dealView(row),
           {
             intent: row.intent,
-            messages: messages
-              .filter(
-                (message) => message.conversation_id === row.conversation_id,
-              )
+            messages: (messagesByConversation.get(row.conversation_id) || [])
               .map((message) => ({
                 id: message.id,
                 sender: message.sender,
@@ -1392,8 +1396,10 @@ export class RevenueService {
       .map((entry) => `${entry.kind}: ${entry.title}: ${entry.content}`)
       .join("\n")
       .slice(0, 4000);
+    // ⚡ Bolt Optimization: Index active entries by ID (O(N)) to avoid O(N*M) lookups when building link guidance
+    const activeMap = new Map(active.map((entry) => [entry.id, entry.title]));
     const guidance =
-      `${entryGuidance}\nKnowledge relationships:\n${links.map((link) => `${active.find((entry) => entry.id === link.fromId)?.title} ${link.relation} ${active.find((entry) => entry.id === link.toId)?.title}`).join("\n")}`.slice(
+      `${entryGuidance}\nKnowledge relationships:\n${links.map((link) => `${activeMap.get(link.fromId)} ${link.relation} ${activeMap.get(link.toId)}`).join("\n")}`.slice(
         0,
         5000,
       );
