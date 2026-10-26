@@ -1,0 +1,65 @@
+name: Agent-Ready Task / Sub-Issue
+description: Create an actionable, agent-ready implementation task or issue
+title: "[Task]: "
+labels: ["task", "agent-ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for actionable implementation items executable by human engineers or AI agents.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What must be achieved?
+      placeholder: Clear, concise statement of goal...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this needed? (Link related features, bugs, specs, or customer value)
+      placeholder: e.g. Needed for FEAT-002 or fixing issue #126...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What should and should not change?
+      placeholder: |
+        IN SCOPE:
+        - ...
+        OUT OF SCOPE:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What observable conditions define success?
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Architecture, security, performance, or compatibility requirements.
+      placeholder: e.g. Must preserve tenancy, no float money representations, pure domain functions in src/domain/...
+    validations:
+      required: false
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: How should completion be validated? (Commands to run, tests to execute)
+      placeholder: |
+        - `node scripts/check.mjs`
+        - `npx playwright test`
+    validations:
+      required: true

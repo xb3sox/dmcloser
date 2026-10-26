@@ -18,12 +18,12 @@ for (const artifact of artifacts)
 const suites = readdirSync("server/tests")
   .filter((name) => name.endsWith(".test.ts"))
   .sort()
-  .map((name) => ["npx", ["tsx", "--test", `server/tests/${name}`]]);
+  .map((name) => ["./node_modules/.bin/tsx", ["--test", `server/tests/${name}`]]);
 for (const [command, args] of [
   ["node", ["scripts/check-file-case.mjs"]],
   ["node", ["scripts/check-migrations.mjs"]],
-  ["npx", ["tsc", "--noEmit"]],
-  ["npx", ["tsc", "-p", "tsconfig.server.json"]],
+  ["./node_modules/.bin/tsc", ["--noEmit"]],
+  ["./node_modules/.bin/tsc", ["-p", "tsconfig.server.json"]],
   ...suites,
   ["node", ["--test", "scripts/control-bands.test.mjs"]],
   ["npm", ["run", "build"]],
