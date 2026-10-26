@@ -30,6 +30,10 @@ test("verifyPassword handles valid, invalid, and malformed stored hashes", async
   assert.equal(await verifyPassword(password, "malformed_hash_without_colon"), false);
   assert.equal(await verifyPassword(password, ""), false);
   assert.equal(await verifyPassword(password, ":"), false);
+  assert.equal(await verifyPassword(password, null as any), false);
+  assert.equal(await verifyPassword(password, undefined as any), false);
+  assert.equal(await verifyPassword(password, "salt:"), false);
+  assert.equal(await verifyPassword(password, ":hash"), false);
 });
 
 test("encrypt and decrypt roundtrip successfully", () => {

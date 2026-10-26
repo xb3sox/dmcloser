@@ -39,12 +39,18 @@ export async function hashPassword(password: string) {
 const dummySalt = "00".repeat(16);
 const dummyHash = "00".repeat(64);
 
+// Guarantees constant-time password verification even for non-string or malformed inputs to mitigate timing attacks / user enumeration.
 export async function verifyPassword(password: string, stored: string) {
-  if (typeof stored !== "string") return false;
-  const [salt, hash] = stored.split(":");
-  const valid = Boolean(salt && hash);
-  const key = (await scrypt(password, valid ? salt : dummySalt, 64)) as Buffer;
-  return valid && equal(key.toString("hex"), hash || dummyHash);
+  const isString = typeof stored === "string";
+  const parts = isString ? stored.split(":") : [];
+  const valid = parts.length === 2 && Boolean(parts[0]) && Boolean(parts[1]);
+  const salt = valid ? parts[0] : dummySalt;
+  const hash = valid ? parts[1] : dummyHash;
+
+  // Always run key derivation and constant-time comparison to prevent timing side-channels
+  const key = (await scrypt(password, salt, 64)) as Buffer;
+  const matches = equal(key.toString("hex"), hash);
+  return valid && matches;
 }
 export function encrypt(token: string, secret: string) {
   const iv = randomBytes(12);
