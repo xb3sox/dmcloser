@@ -157,31 +157,71 @@ Two labels, two different meanings. Do not confuse them.
 | `agent` | This issue is repo-contained and testable by Jules. A human shortlist. | humans only |
 | `jules` | Start a task now. Adding it to an issue starts a Jules session. | the Jules GitHub App |
 
-`agent` never starts anything — 22 open and closed issues carry it and every dispatch so far
-was a manual CLI call. The `jules` trigger requires the Jules GitHub App to have access to
-this repo; prove it on one low-risk issue and confirm a session appears before relying on it.
+`agent` never starts anything — issues carry it as a shortlist marker.
+The `jules` label trigger requires the Jules GitHub App installed on the repo.
 
-The CLI does not open pull requests. `jules new` runs a remote session that holds the patch,
-and a session ending `COMPLETED` still has no branch on GitHub. Pull it and deliver it
-yourself:
+### CLI reference & verified commands
 
-```sh
-jules remote pull --session <id> --apply   # apply the patch locally
-node scripts/check.mjs                     # gate it
-git push -u origin agent/<issue>-<slug>    # push it
-```
+| Task | Command | Notes |
+| --- | --- | --- |
+| Interactive TUI | `jules` | Browse, inspect, and manage sessions interactively. |
+| Start session | `jules new "<prompt>"` | Uses current repo context by default. |
+| Target specific repo | `jules new --repo <owner/repo> "<prompt>"` | Dispatches to specified remote repo. |
+| Parallel explorations | `jules new --parallel <1-5> "<prompt>"` | Starts up to 5 concurrent sessions for competing solutions. |
+| Pipe task from stdin | `gh issue view <num> --json body -q .body | jules new` | Pipes issue description directly. |
+| List active repos | `jules remote list --repo` | Shows all connected repositories. |
+| List remote sessions | `jules remote list --session` | Shows session ID, description, repo, age, status. |
+| Inspect remote diff | `jules remote pull --session <id>` | Dumps git diff to stdout without modifying disk. |
+| Apply remote patch | `jules remote pull --session <id> --apply` | Applies patch directly to local working tree. |
+| Teleport into session | `jules teleport <session_id>` | Auto clones repo + branch + patch, or applies to matching repo. |
 
-Before any dispatch, all three checks:
+### PR feedback and review comments
 
-```sh
-# 1. WIP: never more than two open agent PRs
-gh pr list --state open --json headRefName --jq '[.[]|select(.headRefName|startswith("agent/") or startswith("jules"))]|length'
-# 2. Do not redo closed work
-gh pr list --state all --search "<issue> in:body" --json number,state
-# 3. Two concurrent issues must share no file (service.ts, app.ts, OPERATIONS.md collide often)
-```
+When the Jules GitHub App is active on a PR:
+- **Jules listens to PR reviews**: Jules comments on PR creation (`google-labs-jules`), reacts with 👀 when reading review comments, and pushes follow-up commits addressing the feedback.
+- **Instructing Jules**:
+  - By default, Jules acts on feedback directed at it.
+  - In **Reactive Mode**, Jules only responds when explicitly tagged: `@jules <feedback>`.
+  - **Security rule**: Jules only accepts instructions from the user who triggered the session or owns the task.
 
-A label cannot carry file ownership and cannot count open PRs. That stays manual.
+### End-to-end agent workflow
+
+The Jules CLI executes remotely and holds patches in cloud VMs. **Jules does not create git branches or PRs.** The local agent must retrieve, gate, and deliver the patch:
+
+1. **Pre-dispatch checks**:
+   ```sh
+   # 1. WIP limit: max 2 open agent PRs
+   gh pr list --state open --json headRefName --jq '[.[]|select(.headRefName|startswith("agent/") or startswith("jules"))]|length'
+   # 2. Prevent duplicate work
+   gh pr list --state all --search "<issue> in:body" --json number,state
+   # 3. File isolation: ensure no other active agent touches the same files
+   ```
+2. **Dispatch**:
+   ```sh
+   jules new "Fix issue #<num>: <clear concise description>"
+   ```
+3. **Monitor**:
+   ```sh
+   jules remote list --session
+   ```
+4. **Checkout branch & apply patch**:
+   ```sh
+   git checkout -b agent/<issue>-<slug>
+   jules remote pull --session <id> --apply
+   ```
+5. **Run test & quality gates**:
+   ```sh
+   node scripts/check.mjs
+   npx playwright test    # required if UI or routes changed
+   ```
+6. **Push & open PR**:
+   ```sh
+   git push -u origin agent/<issue>-<slug>
+   gh pr create --title "Fix: ..." --body "Resolves #<issue>. Applied and verified from Jules session <id>."
+   ```
+7. **Iterate via PR review**:
+   - Tag `@jules <change request>` in PR review comments for requested revisions.
+   - Jules reacts with 👀, executes the fix, and pushes a commit directly to the PR branch.
 
 ## Branch enforcement (free plan)
 
