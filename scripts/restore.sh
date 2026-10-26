@@ -36,12 +36,26 @@ else
   echo "warning: no $archive.sha256; restoring without integrity check" >&2
 fi
 
-# Only restart the app if we actually stopped it and the restore succeeded.
-# A failed restore (e.g. pg_dump --clean --if-exists leaves half-dropped tables)
-# must NOT restart the app on an inconsistent DB.
+# Only restart the app if the restore succeeded. A failed restore (e.g.
+# pg_dump --clean --if-exists leaves half-dropped tables) must leave it stopped.
+app_stopped=0
 restored=0
-trap 'status=$?; if [ "$restored" = 1 ]; then docker compose start app; else echo "restore FAILED (exit $status) — app left stopped, database may be inconsistent" >&2; fi; exit $status' EXIT
+restore_cleanup() {
+  status=$?
+  trap - EXIT
+  if [ "$restored" = 1 ]; then
+    if ! docker compose start app; then
+      echo "restore succeeded but failed to restart app" >&2
+      exit 1
+    fi
+  elif [ "$app_stopped" = 1 ]; then
+    echo "restore FAILED (exit $status) — app left stopped, database may be inconsistent" >&2
+  fi
+  exit "$status"
+}
+trap restore_cleanup EXIT
 docker compose stop app
+app_stopped=1
 gunzip -c "$archive" \
   | docker compose exec -T database \
     psql -U dmcloser -d dmcloser -v ON_ERROR_STOP=1
