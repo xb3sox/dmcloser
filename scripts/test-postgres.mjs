@@ -7,7 +7,7 @@ const suites = readdirSync("server/tests")
 
 for (const suite of suites) {
   console.log(`Running Postgres test suite: server/tests/${suite}`);
-  const result = spawnSync("npx", ["tsx", "--test", `server/tests/${suite}`], {
+  const result = spawnSync("npx", ["tsx", "--test", "--test-force-exit", `server/tests/${suite}`], {
     stdio: "inherit",
     shell: process.platform === "win32",
     env: process.env,
