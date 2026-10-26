@@ -159,6 +159,7 @@ function MessageBubble({
             <div className="message-delivery-actions">
               {message.deliveryStatus === "failed" && (
                 <button
+                  type="button"
                   className="app-text-button"
                   disabled={busy}
                   onClick={() => {
@@ -171,6 +172,7 @@ function MessageBubble({
               {message.deliveryStatus === "uncertain" &&
                 live.snapshot.user.role === "owner" && (
                   <button
+                    type="button"
                     className="app-text-button"
                     onClick={() => {
                       setResolving(true);
@@ -385,6 +387,7 @@ export default function ChatView() {
     <section className="chat-panel" aria-labelledby="chat-contact-name">
       <header className="chat-panel-header">
         <button
+          type="button"
           className="app-icon-button chat-back-button"
           onClick={() => dispatch({ type: "SET_VIEW", view: "inbox" })}
           aria-label={t("chat.back.label")}
@@ -524,6 +527,7 @@ export default function ChatView() {
           />
           <div className="lead-memory-actions">
             <button
+              type="button"
               className="app-small-button"
               disabled={notes === conversation.leadNotes}
               onClick={async () => {
@@ -584,6 +588,7 @@ export default function ChatView() {
             <p>{conversation.aiError}</p>
             {live?.snapshot.capabilities.ai && (
               <button
+                type="button"
                 className="app-text-button"
                 onClick={() => {
                   void live
@@ -634,12 +639,14 @@ export default function ChatView() {
                 rows={3}
                 onKeyDown={(event) => onEnter(event, () => send(editedReply))}
                 aria-label={t("chat.suggestion.editLabel")}
+                aria-describedby="chat-composer-hint"
               />
             ) : (
               <p tabIndex={0}>{aiSuggestion.text}</p>
             )}
             <div className="chat-suggestion-actions">
               <button
+                type="button"
                 className="app-small-button"
                 disabled={(editing && !editedReply.trim()) || !!live?.pending}
                 onClick={() =>
@@ -650,6 +657,7 @@ export default function ChatView() {
                 <Send size={13} />
               </button>
               <button
+                type="button"
                 className="app-text-button"
                 onClick={() => {
                   setEditing(!editing);
