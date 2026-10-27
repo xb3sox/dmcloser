@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Inbox, Languages, Moon, Settings, Sun, TrendingUp, BookOpen, FlaskConical } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -10,9 +11,13 @@ export default function MobileNav({ onHome }: { onHome: () => void }) {
   const { theme, toggle } = useTheme();
   const { locale, setLocale } = useLocale();
   const t = useStrings(navStrings);
-  const unread = state.conversations.filter(
-    (conversation) => conversation.unread,
-  ).length;
+
+  // ⚡ Bolt Optimization: Memoize unread conversation count calculation
+  // to avoid iterating state.conversations on unrelated re-renders.
+  const unread = useMemo(
+    () => state.conversations.filter((conversation) => conversation.unread).length,
+    [state.conversations],
+  );
   return (
     <>
       <header className="app-mobile-header">

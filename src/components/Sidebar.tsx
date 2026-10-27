@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import {
   ArrowLeft,
   Inbox,
@@ -22,9 +22,28 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
   const { theme, toggle } = useTheme();
   const { locale, setLocale } = useLocale();
   const t = useStrings(navStrings);
-  const unread = state.conversations.filter(
-    (conversation) => conversation.unread,
-  ).length;
+
+  // ⚡ Bolt Optimization: Memoize unread and channel counts in a single pass O(N) loop
+  // to avoid running multiple filter array iterations and allocations on every render.
+  const { unread, channelCounts } = useMemo(() => {
+    let unreadCount = 0;
+    const counts: Record<InboxChannel, number> = {
+      all: state.conversations.length,
+      instagram: 0,
+      whatsapp: 0,
+    };
+    for (const conversation of state.conversations) {
+      if (conversation.unread) {
+        unreadCount++;
+      }
+      if (conversation.platform === "instagram") {
+        counts.instagram++;
+      } else if (conversation.platform === "whatsapp") {
+        counts.whatsapp++;
+      }
+    }
+    return { unread: unreadCount, channelCounts: counts };
+  }, [state.conversations]);
   return (
     <aside className="app-sidebar">
       <a
@@ -131,13 +150,7 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
               {channel.icon}
               <span>{channel.label}</span>
               <span className="channel-count">
-                {
-                  state.conversations.filter(
-                    (conversation) =>
-                      channel.value === "all" ||
-                      conversation.platform === channel.value,
-                  ).length
-                }
+                {channelCounts[channel.value]}
               </span>
             </button>
           ))}
