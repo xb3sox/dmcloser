@@ -1,0 +1,5 @@
+# Deterministic test-only constants in server/tests/security.test.ts. The value is a
+# 64-character hex encryption key used to prove the roundtrip, not a credential.
+# Fingerprints from Security run 40315449568. Remove only with a real code change.
+e30b834f02e34ef7a20cfe670e53b144b1afdfc5:server/tests/security.test.ts:generic-api-key:36
+e30b834f02e34ef7a20cfe670e53b144b1afdfc5:server/tests/security.test.ts:generic-api-key:43

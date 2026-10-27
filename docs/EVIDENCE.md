@@ -58,6 +58,16 @@ row quotes the hosted figure because that run is linkable. The `2026-10-24` tota
 accurate when written; the suite has grown by nine tests since (mail 1, worker 4, and four
 added across product/revenue).
 
+## 2026-10-28 run (current)
+
+| Claim / Gate | Command | Date | Result | Artifact Path | Verifier |
+|---|---|---|---|---|---|
+| Server Test Suite Total (PGlite local) | `node scripts/check.mjs` | 2026-10-28 | 104/104 pass across 11 suites | `server/tests/*.test.ts` | Automated (`scripts/check.mjs`, Node 26.12.1) |
+| Playwright Browser Test Suite | `npx playwright test` | 2026-10-28 | 66/66 pass | `tests/*.spec.ts` | Automated (`playwright`, chromium-headless-shell 156) |
+| Production Frontend Build | `npm run build` | 2026-10-28 | pass (847.04 kB single-file bundle, 245.00 kB gzip) | `dist/index.html` | Automated (`vite build`) |
+| Dependency Security Audit | `npm audit --audit-level=moderate` | 2026-10-28 | 0 vulnerabilities | `package-lock.json` | Automated (`npm audit`) |
+| Full-history secret scan | `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --log-opts=--all` | 2026-10-28 | no leaks found (121 commits) | `.gitleaksignore` | Automated (gitleaks 8.30.1) |
+
 ## Hosted CI
 
 | Claim / Gate | Command | Date | Result | Artifact Path | Verifier |

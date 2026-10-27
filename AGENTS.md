@@ -141,12 +141,33 @@ not finished.
 ## Agent policy
 
 - One issue per pull request. Branch as `agent/<issue>-<slug>`.
-- A maximum of two open agent PRs per repository. Finish or close before starting more.
+- A maximum of two open agent PRs per repository. The cap counts every bot prefix
+  (`agent/`, `jules/`, `bolt/`, `sentinel/`, `palette/`, `arena/`), not only `agent/`.
+  Finish or close before starting more.
 - Agents never merge, never force-push, never touch `main`.
 - npm only: update `package-lock.json`; never commit `pnpm-lock.yaml` or `yarn.lock`.
 - Keep the PR at 400 changed lines or fewer, excluding `package-lock.json`.
 - Run `node scripts/check.mjs`, and `npx playwright test` when UI or tests change.
 - No secrets, no live provider calls, no deployment, no new dependency unless the issue names it.
+
+## Autonomous build loop
+
+One issue, one branch, one PR. Stop instead of guessing.
+
+1. Preflight, all must pass:
+   - `git status --porcelain` is empty.
+   - `node -v` matches `.nvmrc`.
+   - `node_modules` exists (`npm ci` if not).
+   - Fewer than two open non-dependabot PRs:
+     `gh pr list --state open --json author --jq '[.[]|select(.author.login!="dependabot[bot]")]|length'`.
+   - No open PR already closes the issue: `gh pr list --state all --search "<issue> in:body"`.
+2. Pick one open `agent` issue whose files do not overlap an open PR.
+3. Branch as `agent/<issue>-<slug>`. Implement only that issue, at 400 changed lines or fewer
+   excluding `package-lock.json`.
+4. Run `node scripts/check.mjs`; run `npx playwright test` when UI or tests change.
+5. Open a PR whose body contains `Closes #<issue>`. Never add `pnpm-lock.yaml` or `yarn.lock`.
+6. Stop and report when: two open PRs, the gate is still red after two fix attempts, the issue
+   is `gate:launch`, credentials or owner approval are needed, or a product decision is ambiguous.
 
 ## Dispatching Jules
 
@@ -174,8 +195,8 @@ git push -u origin agent/<issue>-<slug>    # push it
 Before any dispatch, all three checks:
 
 ```sh
-# 1. WIP: never more than two open agent PRs
-gh pr list --state open --json headRefName --jq '[.[]|select(.headRefName|startswith("agent/") or startswith("jules"))]|length'
+# 1. WIP: never more than two open PRs, whatever the bot prefix
+gh pr list --state open --json author --jq '[.[]|select(.author.login!="dependabot[bot]")]|length'
 # 2. Do not redo closed work
 gh pr list --state all --search "<issue> in:body" --json number,state
 # 3. Two concurrent issues must share no file (service.ts, app.ts, OPERATIONS.md collide often)
