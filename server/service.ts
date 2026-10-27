@@ -69,10 +69,13 @@ export function encodeCursor(cursor: PageCursor): string {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
 export function decodeCursor(value: string): PageCursor {
-  let parsed: Partial<PageCursor> = {};
+  let parsed: Partial<PageCursor> | null = {};
   try {
     parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
   } catch {
+    throw new HttpError(400, "The page cursor is not valid.");
+  }
+  if (!parsed || typeof parsed !== "object") {
     throw new HttpError(400, "The page cursor is not valid.");
   }
   const excludeId = parsed.excludeId ?? null;

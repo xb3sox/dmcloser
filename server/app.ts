@@ -343,6 +343,8 @@ export async function createApp(
           throw new HttpError(400, "Invalid signed payload.");
         }
         if (
+          !parsed ||
+          typeof parsed !== "object" ||
           parsed.algorithm !== "HMAC-SHA256" ||
           !/^\d+$/.test(String(parsed.user_id)) ||
           !Number.isFinite(parsed.issued_at) ||
@@ -416,9 +418,10 @@ export async function createApp(
     );
   }
   app.get("/api/data-deletion/:code", async (req, res) => {
+    const code = z.string().min(1).max(150).parse(req.params.code);
     const [row] = await db.query(
       "SELECT completed_at FROM deletion_requests WHERE code=$1",
-      [req.params.code],
+      [code],
     );
     if (!row) throw new HttpError(404, "Confirmation not found.");
     res.json({ status: "completed", completedAt: row.completed_at });
@@ -1129,9 +1132,10 @@ export async function createApp(
     res.status(202).json({ ok: true });
   });
   app.post("/api/messages/:id/retry", async (req, res) => {
+    const id = z.string().min(1).max(150).parse(req.params.id);
     const [message] = await db.query(
       "SELECT * FROM messages WHERE id=$1 AND workspace_id=$2",
-      [req.params.id, req.actor!.workspaceId],
+      [id, req.actor!.workspaceId],
     );
     if (!message || message.status !== "failed")
       throw new HttpError(
@@ -1151,6 +1155,7 @@ export async function createApp(
     res.json({ ok: true });
   });
   app.post("/api/messages/:id/resolve", owner, async (req, res) => {
+    const id = z.string().min(1).max(150).parse(req.params.id);
     const body = z
       .object({
         outcome: z.enum(["sent", "not-sent"]),
@@ -1165,7 +1170,7 @@ export async function createApp(
         body.outcome === "not-sent"
           ? "Owner confirmed non-delivery; safe to retry."
           : null,
-        req.params.id,
+        id,
         req.actor!.workspaceId,
       ],
     );
@@ -1380,16 +1385,17 @@ export async function createApp(
     res.json({ ok: true });
   });
   app.delete("/api/team/:userId", owner, async (req, res) => {
-    if (req.params.userId === req.actor!.userId)
+    const targetUserId = z.string().min(1).max(150).parse(req.params.userId);
+    if (targetUserId === req.actor!.userId)
       throw new HttpError(400, "The workspace owner cannot be removed.");
     await db.transaction(async (tx) => {
       await tx.query(
         "DELETE FROM members WHERE workspace_id=$1 AND user_id=$2 AND role='member'",
-        [req.actor!.workspaceId, req.params.userId],
+        [req.actor!.workspaceId, targetUserId],
       );
       await tx.query(
         "DELETE FROM sessions WHERE workspace_id=$1 AND user_id=$2",
-        [req.actor!.workspaceId, req.params.userId],
+        [req.actor!.workspaceId, targetUserId],
       );
     });
     service.changed(req.actor!.workspaceId);
@@ -1552,9 +1558,10 @@ export async function createApp(
     res.json({ jobs, latency, targetP95Ms: 2000 });
   });
   app.post("/api/operations/:id/retry", owner, async (req, res) => {
+    const id = z.string().min(1).max(150).parse(req.params.id);
     const [job] = await db.query(
       "SELECT * FROM jobs WHERE id=$1 AND workspace_id=$2 AND state='dead'",
-      [req.params.id, req.actor!.workspaceId],
+      [id, req.actor!.workspaceId],
     );
     if (!job || job.kind === "deliver")
       throw new HttpError(
