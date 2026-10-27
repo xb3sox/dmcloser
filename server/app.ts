@@ -1299,6 +1299,16 @@ export async function createApp(
 
   app.post("/api/team/invites", owner, async (req, res) => {
     const { email } = z.object({ email: emailSchema }).strict().parse(req.body);
+    const [existingMember] = await db.query(
+      "SELECT 1 FROM members m JOIN users u ON u.id=m.user_id WHERE m.workspace_id=$1 AND u.email=$2",
+      [req.actor!.workspaceId, email],
+    );
+    if (existingMember)
+      throw new HttpError(409, "This user is already a member of this workspace.");
+    await db.query(
+      "DELETE FROM tokens WHERE workspace_id=$1 AND purpose='invite' AND email=$2",
+      [req.actor!.workspaceId, email],
+    );
     const [workspace] = await db.query(
       "SELECT plan FROM workspaces WHERE id=$1",
       [req.actor!.workspaceId],

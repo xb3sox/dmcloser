@@ -734,6 +734,35 @@ test("no mail job is queued when the server has no SMTP host", async () => {
   assert.equal(rows.length, 0);
 });
 
+test("inviting an existing workspace member fails with HTTP 409", async () => {
+  const owner = await fixture();
+  const res = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: owner.email });
+  assert.equal(res.status, 409);
+  assert.equal(res.body.error, "This user is already a member of this workspace.");
+});
+
+test("re-inviting an email revokes previous token and succeeds without exceeding seats", async () => {
+  const owner = await fixture();
+  const inviteeEmail = `invitee-${randomUUID()}@example.com`;
+  const firstRes = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: inviteeEmail });
+  assert.equal(firstRes.status, 200);
+
+  const secondRes = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: inviteeEmail });
+  assert.equal(secondRes.status, 200);
+
+  const tokens = await db.query(
+    "SELECT hash FROM tokens WHERE workspace_id=$1 AND purpose='invite' AND email=$2",
+    [owner.snapshot.workspace.id, inviteeEmail],
+  );
+  assert.equal(tokens.length, 1);
+});
+
 test("account deletion removes workspace data and sessions", async () => {
   const f = await fixture();
   await inbound(f);
