@@ -436,6 +436,13 @@ export async function createApp(
         "Email delivery is not configured. Contact the service owner.",
       );
     const token = randomToken();
+    // Security: Revoke older unexpired password reset tokens when issuing a new reset request.
+    if (purpose === "reset") {
+      await db.query(
+        "DELETE FROM tokens WHERE user_id=$1 AND purpose='reset'",
+        [user.id],
+      );
+    }
     await db.query(
       "INSERT INTO tokens(hash,user_id,purpose,expires_at) VALUES($1,$2,$3,$4)",
       [digest(token), user.id, purpose, Date.now() + 3600000],
@@ -746,6 +753,11 @@ export async function createApp(
       );
       if (!token)
         throw new HttpError(400, "This recovery link is invalid or expired.");
+      // Security: Revoke all remaining reset tokens for this user upon a successful password reset.
+      await tx.query(
+        "DELETE FROM tokens WHERE user_id=$1 AND purpose='reset'",
+        [token.user_id],
+      );
       await tx.query("UPDATE users SET password_hash=$1 WHERE id=$2", [
         hash,
         token.user_id,
