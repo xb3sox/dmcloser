@@ -581,38 +581,43 @@ export default function BusinessBrain() {
             <p>{t("revenue.brain.relationshipsText")}</p>
             {data.links.length ? (
               <ul className="brain-links">
-                {data.links.map((link) => (
-                  <li key={link.id}>
-                    <span>
-                      {
-                        data.entries.find((entry) => entry.id === link.fromId)
-                          ?.title
-                      }{" "}
-                      <small>{link.relation.replace(/_/g, " ")}</small>{" "}
-                      {
-                        data.entries.find((entry) => entry.id === link.toId)
-                          ?.title
-                      }
-                    </span>
-                    {owner && (
-                      <button
-                        className="app-icon-button"
-                        aria-label={t("revenue.brain.deleteRelationship")}
-                        disabled={pending}
-                        onClick={() => {
-                          void run(async () => {
-                            await request!(`/brain/links/${link.id}`, {
-                              method: "DELETE",
-                              body: {},
+                {data.links.map((link) => {
+                  const fromTitle =
+                    data.entries.find((entry) => entry.id === link.fromId)
+                      ?.title || "";
+                  const toTitle =
+                    data.entries.find((entry) => entry.id === link.toId)
+                      ?.title || "";
+                  return (
+                    <li key={link.id}>
+                      <span>
+                        {fromTitle}{" "}
+                        <small>{link.relation.replace(/_/g, " ")}</small>{" "}
+                        {toTitle}
+                      </span>
+                      {owner && (
+                        <button
+                          className="app-icon-button"
+                          aria-label={t("revenue.brain.deleteRelationship", {
+                            from: fromTitle,
+                            to: toTitle,
+                          })}
+                          disabled={pending}
+                          onClick={() => {
+                            void run(async () => {
+                              await request!(`/brain/links/${link.id}`, {
+                                method: "DELETE",
+                                body: {},
+                              });
                             });
-                          });
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </li>
-                ))}
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="revenue-method-note">

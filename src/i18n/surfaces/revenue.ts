@@ -171,8 +171,8 @@ export const revenueStrings = {
     ar: "لا توجد علاقات بعد. أضف مدخلين لربطهما.",
   },
   "revenue.brain.deleteRelationship": {
-    en: "Delete knowledge relationship",
-    ar: "حذف علاقة المعرفة",
+    en: "Delete relationship between {from} and {to}",
+    ar: "حذف العلاقة بين {from} و {to}",
   },
   "revenue.brain.linkFrom": {
     en: "From",
