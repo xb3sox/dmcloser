@@ -45,6 +45,12 @@ function dockerUp() {
     "--format",
     "{{.Names}}",
   ]);
+  if (existing.error)
+    throw new Error(
+      `Docker is unavailable (${existing.error.message}). Start Docker, or set PARITY_DATABASE_URL to an empty scratch database.`,
+    );
+  if (existing.status !== 0)
+    throw new Error(`docker ps failed: ${existing.stderr || existing.stdout}`);
   if (existing.stdout.trim()) sh("docker", ["rm", "-f", CONTAINER]);
   const run = sh("docker", [
     "run",
@@ -61,8 +67,10 @@ function dockerUp() {
     `127.0.0.1:${PORT}:5432`,
     "postgres:17-alpine",
   ]);
-  if (run.status !== 0)
-    throw new Error(`docker run failed: ${run.stderr || run.stdout}`);
+  if (run.error || run.status !== 0)
+    throw new Error(
+      `docker run failed: ${run.stderr || run.stdout || run.error?.message || "unknown error"}`,
+    );
   return `postgres://parity:parity@127.0.0.1:${PORT}/parity`;
 }
 

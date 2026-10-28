@@ -22,8 +22,8 @@ invents a price.
 |---|---|
 | `src/` | React 19 + Vite client. `components/` (landing, workspace, revenue, ui), `domain/` (pure, shared with the server), `types/`, `context/`, `i18n/` (typed message surfaces, `en` + `ar`), `styles/`, `data/` (demo fixtures — never translate). |
 | `server/` | Express 5 API. `app.ts` (core routes), `revenue-routes.ts` (Revenue OS routes), `quality-routes.ts` (AI Quality Lab routes), `service.ts` (domain logic), `revenue.ts`, `quality.ts`, `ai.ts`, `worker.ts` (durable queue), `providers.ts` (Meta), `db.ts` (migrations), `security.ts`, `billing.ts`, `config.ts`. |
-| `server/migrations/` | Numbered, forward-only SQL. `001.sql` core, `002_revenue.sql` Revenue OS, `003_sector.sql` custom sector, `004_ai_quality.sql` prompt versions and eval cases. |
-| `server/tests/` | `node:test` suites — `product.test.ts`, `revenue.test.ts`, `safety.test.ts`, `quality.test.ts`, `recovery.test.ts`. Pure + DB, no browser. |
+| `server/migrations/` | Numbered, forward-only SQL (`001.sql`–`011_media.sql`), including core, Revenue OS, AI quality, operational hardening, feature flags, and private media. |
+| `server/tests/` | `node:test` suites discovered by the gate; currently covers analytics, assignment, flags, logging, mail, media, multi-instance behavior, observability, product, quality, recovery, revenue, safety, security, and workers. Pure + DB, no browser. |
 | `tests/` | Playwright browser + axe accessibility specs, including `arabic.spec.ts` for the RTL locale, plus `global-teardown.ts` which removes the suite's PGlite directory. |
 | `scripts/` | `check.mjs` (**the single gate entry point**), `control-bands.mjs`, `monitor.mjs`, `backup.sh`, `restore.sh`. |
 | `docs/` | `API.md`, `OPERATIONS.md`, `REVENUE_OS.md`, `REVIEW.md`, `PRD.md`, `TECH.md`, `DESIGN.md`, `BUSINESS.md`, `BRIEF.md`, `AGENTS.md` (upstream proposal set), [`adr/README.md`](docs/adr/README.md) (ADR index). |
