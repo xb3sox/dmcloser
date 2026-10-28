@@ -11,6 +11,7 @@ import {
   normalizeAssignment,
 } from "../src/domain/assignment.ts";
 import {
+  MAX_MEDIA_BYTES,
   MetaProvider,
   ProviderError,
   type IncomingMessage,
@@ -42,7 +43,7 @@ export const emptySettings: BusinessSettings = {
   autoReplyEnabled: false,
   autoSendConfidenceThreshold: 90,
 };
-export const MAX_MEDIA_SIZE = 5 * 1024 * 1024; // 5 MB
+export const MAX_MEDIA_SIZE = MAX_MEDIA_BYTES;
 export const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
