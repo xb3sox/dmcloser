@@ -49,7 +49,7 @@ jobs:
           RATE_LIMIT_MAX: "10000"
           AUTH_RATE_LIMIT_MAX: "10000"
           RECOVERY_RATE_LIMIT_MAX: "10000"
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npx playwright test
       - name: Build the production image
         run: docker build -t dmcloser:${{ github.sha }} .

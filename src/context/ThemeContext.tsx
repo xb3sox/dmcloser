@@ -36,6 +36,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.remove("light", "dark");
     root.classList.add(theme);
     root.style.colorScheme = theme;
+    const active = document.activeElement;
+    document.body.style.display = "none";
+    void document.body.offsetHeight;
+    document.body.style.display = "";
+    if (active instanceof HTMLElement) active.focus({ preventScroll: true });
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute("content", theme === "dark" ? "#131b15" : "#fafbf7");

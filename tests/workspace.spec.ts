@@ -496,6 +496,8 @@ for (const theme of ["light", "dark"] as const) {
           await page
             .getByRole("button", { name: "Dark mode", exact: true })
             .click();
+        await expect(page.locator("html")).toHaveClass("dark");
+        await page.waitForTimeout(200);
       }
       const audit = async () => {
         const results = await new AxeBuilder({ page })
