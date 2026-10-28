@@ -80,6 +80,7 @@ import {
 } from "./service.ts";
 import { Billing } from "./billing.ts";
 import { Worker } from "./worker.ts";
+import { withTraceId } from "./trace.ts";
 import { mountRevenueRoutes } from "./revenue-routes.ts";
 import { mountQualityRoutes } from "./quality-routes.ts";
 import {
@@ -166,10 +167,13 @@ export async function createApp(
             status: res.statusCode,
             ms: Math.round(performance.now() - start),
             requestId: req.requestId,
+            ...(req.actor
+              ? { workspace: digest(req.actor.workspaceId).slice(0, 12) }
+              : {}),
           }),
         );
     });
-    next();
+    withTraceId(req.requestId, next);
   });
   app.use(
     helmet({

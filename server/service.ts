@@ -15,6 +15,7 @@ import {
 import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
+import { traceId } from "./trace.ts";
 
 export interface Actor {
   userId: string;
@@ -286,8 +287,15 @@ export class ProductService {
     db = this.db,
   ) {
     await db.query(
-      "INSERT INTO jobs(id,workspace_id,kind,payload,available_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
-      [id, workspaceId, kind, JSON.stringify(payload), Date.now() + delay],
+      "INSERT INTO jobs(id,workspace_id,kind,payload,trace_id,available_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING",
+      [
+        id,
+        workspaceId,
+        kind,
+        JSON.stringify(payload),
+        traceId() ?? null,
+        Date.now() + delay,
+      ],
     );
   }
 

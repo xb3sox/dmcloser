@@ -10,6 +10,7 @@ import {
   type Mailer,
   type MailMessage,
 } from "./mail.ts";
+import { withTraceId } from "./trace.ts";
 
 /** Default lease a processing job holds before another worker may reclaim it. */
 const BASE_LEASE_MS = 60000;
@@ -69,7 +70,7 @@ export class Worker {
     const job = await this.claim();
     if (!job) return false;
     this.inFlight++;
-    const task = this.run(job)
+    const task = withTraceId(job.trace_id, () => this.run(job))
       .catch(() =>
         console.error(JSON.stringify({ event: "worker.tick_failure" })),
       )
@@ -285,6 +286,7 @@ export class Worker {
           JSON.stringify({
             event: "email.failure",
             id: job.id,
+            traceId: job.trace_id ?? null,
             purpose: job.payload?.purpose,
             dead,
             attempts: job.attempts,
@@ -303,6 +305,7 @@ export class Worker {
         JSON.stringify({
           event: "job.failure",
           id: job.id,
+          traceId: job.trace_id ?? null,
           kind: job.kind,
           dead,
           attempts: job.attempts,
