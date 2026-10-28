@@ -1,5 +1,6 @@
 import type { Config } from "./config.ts";
 import { HttpError } from "./security.ts";
+import { traceId } from "./trace.ts";
 
 export interface IncomingMessage {
   platform: "instagram" | "whatsapp";
@@ -127,6 +128,13 @@ export class MetaProvider {
         signal: AbortSignal.timeout(10000),
       });
     } catch {
+      console.error(
+        JSON.stringify({
+          event: "provider.unreachable",
+          traceId: traceId() ?? null,
+          sending,
+        }),
+      );
       throw new ProviderError(
         sending
           ? "Delivery outcome is unknown. Check the provider inbox before sending again."
@@ -136,6 +144,14 @@ export class MetaProvider {
       );
     }
     if (!response.ok) {
+      console.error(
+        JSON.stringify({
+          event: "provider.error",
+          traceId: traceId() ?? null,
+          status: response.status,
+          sending,
+        }),
+      );
       if (response.status === 429)
         throw new ProviderError(
           "Provider rate limit. Delivery will retry safely.",

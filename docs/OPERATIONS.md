@@ -105,6 +105,25 @@ Before real customer traffic: configure SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_US
 - Rollback: stop new sends (disable auto-reply and pause worker), retain queued records, select the previous approved image, migrate only if backward-compatible, run health/auth/ingestion smoke tests, then re-enable after owner approval. Reconcile every `sending/uncertain` record first. Backups, PITR and rollback are procedures, not verified infrastructure here.
 - Workspace export excludes credentials and CSRF. Deletion cancels an active subscription before deleting workspace rows. Processed webhook/job payloads are scrubbed; pending channel receipts are redacted on erasure. Receipt IDs expire after seven days when no processing job depends on them. Audit and off-site backup retention still need a jurisdiction-specific policy before public launch. Members' independent accounts are not deleted when an owner's workspace is removed.
 
+### Correlating One Request
+
+Every API response carries `X-Request-Id`. The same value is logged as `requestId`, stored on each queued job as `jobs.trace_id`, and emitted by worker and provider logs as `traceId`. `workspace` is a 12-character SHA-256 prefix, never the id itself. No message text, email, phone or token is logged.
+
+The commands below assume the compose stack. On a host with a platform log store or an external database, substitute its log query and psql connection.
+
+```sh
+# API access log
+docker compose logs --no-log-prefix --since 1h app | jq 'select(.event=="http" and .requestId=="<id>")'
+
+# Jobs queued by that request, including retries and dead letters
+docker compose exec -T database psql -U dmcloser -d dmcloser -c "SELECT id,kind,state,attempts,trace_id FROM jobs WHERE trace_id='<id>' ORDER BY created_at"
+
+# Worker and provider lines for the same request
+docker compose logs --no-log-prefix --since 1h app | jq 'select(.traceId=="<id>")'
+```
+
+These queries are versioned with this document. A request id from a user support report is enough to reach the API line, every job it queued, and the provider outcome.
+
 ### Deletion and Data Retention Inventory
 
 Workspace deletion guarantees erasure of customer text. When a workspace is deleted, the following tables and rows containing customer data (including message bodies, contacts, and tokens) are dropped or scrubbed:
