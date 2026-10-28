@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Restore a database archive produced by scripts/backup.sh.
 # Usage: scripts/restore.sh backups/dmcloser-20260101T000000Z.sql.gz
-# Overwrites the current database. The app is stopped for the restore.
+# Overwrites the current database. The app is stopped for the restore and
+# restarted only when every step succeeds; on failure it stays stopped.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

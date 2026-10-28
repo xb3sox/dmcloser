@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { randomInt } from "node:crypto";
 import request from "supertest";
 import { equal, hashPassword, verifyPassword, encrypt, decrypt } from "../security.ts";
 import { decodeCursor } from "../service.ts";
@@ -125,6 +126,11 @@ test("rate limiter returns HTTP 429 when limit is exceeded", async () => {
     databaseSsl: false,
     dataDir: ":memory:",
   });
+  const clientIp = `198.51.100.${randomInt(1, 255)}`;
+  const key = `api:${clientIp}`;
+  const clearKey = () =>
+    db.query("DELETE FROM rate_limits WHERE key=$1", [key]).catch(() => undefined);
+  await clearKey();
 
   try {
     const { app } = await createApp(
@@ -153,9 +159,8 @@ test("rate limiter returns HTTP 429 when limit is exceeded", async () => {
       db,
     );
 
-    // The shared Postgres limiter is keyed by client IP, so a fresh IP keeps this
-    // test independent of the suites that ran before it in the same database.
-    const clientIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
+    // The shared Postgres limiter is keyed by client IP, so a fresh key keeps
+    // this test independent of the suites that ran before it in the same database.
     const hit = () =>
       request(app).get("/api/health").set("X-Forwarded-For", clientIp);
 
@@ -169,6 +174,7 @@ test("rate limiter returns HTTP 429 when limit is exceeded", async () => {
     assert.equal(res3.status, 429);
     assert.equal(res3.body.error, "Too many requests. Please wait a minute.");
   } finally {
+    await clearKey();
     await db.close();
   }
 });

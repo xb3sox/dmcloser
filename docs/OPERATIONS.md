@@ -40,9 +40,11 @@ window is shorter than a worst-case AI timeout plus the connection drain. Do not
 **Backup and restore.** `scripts/backup.sh [dir]` writes a timestamped `pg_dump --clean --if-exists
 --no-owner --no-privileges` archive (gzipped) plus a `.sha256` sidecar under `backups/` (gitignored).
 `scripts/restore.sh <archive>` stops the app, restores into the running database, and starts the app
-again. **A restore is destructive and overwrites the current database** — rehearse it against an
-isolated staging database first, never production, and verify the `.sha256` sidecar before
-restoring. Back up the encryption key separately through the secret manager; it is not in the dump.
+only after every step succeeds. If any step fails, the script exits with the app still stopped; fix
+the failure, then run `docker compose start app` to resume service. **A restore is destructive and
+overwrites the current database** — rehearse it against an isolated staging database first, never
+production, and verify the `.sha256` sidecar before restoring. Back up the encryption key separately
+through the secret manager; it is not in the dump.
 
 **Release.** CI builds the image, smoke-tests it against a real Postgres service, records the
 immutable image id and the commit, and exports the image as a 30-day artifact. Deployment stays
