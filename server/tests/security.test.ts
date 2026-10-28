@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { equal, hashPassword, verifyPassword, encrypt, decrypt } from "../security.ts";
+import { decodeCursor } from "../service.ts";
 
 // A length short-circuit in equal() turns every token comparison into a length oracle.
 // These cases fail if the comparison ever branches on input length again.
@@ -49,4 +50,12 @@ test("decrypt throws expected error on malformed or empty ciphertext", () => {
   assert.throws(() => decrypt("zzzzzzzzzzzzzzzzzzzzzzzz.00000000000000000000000000000000.00", secret), {
     message: "Invalid encrypted payload format.",
   });
+});
+
+test("decodeCursor rejects null, primitive, and malformed cursors with HttpError 400", () => {
+  const nullCursor = Buffer.from("null").toString("base64url");
+  const numberCursor = Buffer.from("123").toString("base64url");
+  assert.throws(() => decodeCursor(nullCursor), { status: 400, message: "The page cursor is not valid." });
+  assert.throws(() => decodeCursor(numberCursor), { status: 400, message: "The page cursor is not valid." });
+  assert.throws(() => decodeCursor("invalid-base64!"), { status: 400, message: "The page cursor is not valid." });
 });
