@@ -1,6 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type { Config } from "./config.ts";
-import { renderMail } from "./mail-templates.tsx";
+import { renderMail } from "./mail-templates.ts";
 
 /** A queued outbound message. Kept plain so it survives a round trip through jsonb. */
 export type MailMessage = {

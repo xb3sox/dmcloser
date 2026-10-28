@@ -1,8 +1,7 @@
 // Prisma schema for dmcloser.
 //
-// Mechanical 1:1 translation of the eight hand-written SQL migrations in
-// server/migrations/ (001.sql, 002_revenue.sql, 003_sector.sql, 004_ai_quality.sql,
-// 005_void_reversals.sql, 006_latency.sql, 007_assignee.sql, 008_multi_instance.sql).
+// Mechanical 1:1 translation of the eleven hand-written SQL migrations in
+// server/migrations/ (001.sql through 011_media.sql).
 // Column names are preserved verbatim (snake_case) and every table keeps its physical
 // name through @@map, so existing raw SQL keeps working unchanged.
 //

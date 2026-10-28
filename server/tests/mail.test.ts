@@ -7,7 +7,7 @@ import {
   isTransientMailError,
   sendEmail,
 } from "../mail.ts";
-import { renderMail } from "../mail-templates.tsx";
+import { renderMail } from "../mail-templates.ts";
 
 const config = { mailFrom: "test@example.com" } as Config;
 const link = "https://app.example.com/workspace?verify=token";
@@ -72,6 +72,19 @@ test("every template renders the link and a plain-text alternative", async () =>
   const failure = await renderMail({ purpose: "delivery-failure" });
   assert.match(failure.html, /could not be delivered/);
   assert.match(failure.text, /Activity/);
+});
+
+test("mail rendering escapes action links and rejects unsafe URL schemes", async () => {
+  const escaped = await renderMail({
+    purpose: "verify",
+    link: 'https://app.example.com/action?x="<script>&y=1',
+  });
+  assert.match(escaped.html, /%22%3Cscript%3E&amp;y=1/);
+  assert.doesNotMatch(escaped.html, /<script>/);
+
+  const unsafe = await renderMail({ purpose: "verify", link: "javascript:alert(1)" });
+  assert.doesNotMatch(unsafe.html, /href=/);
+  assert.doesNotMatch(unsafe.text, /javascript:/);
 });
 
 test("the Resend adapter sends the expected payload and maps HTTP status", async () => {
