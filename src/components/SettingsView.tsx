@@ -272,6 +272,35 @@ export default function SettingsView() {
             </div>
           )}
         </section>
+        {mode === "live" && (
+          <section
+            className="settings-section"
+            aria-labelledby="analytics-heading"
+          >
+            <div className="settings-toggle-row">
+              <div className="settings-section-intro">
+                <h2 id="analytics-heading">{t("settings.analytics.title")}</h2>
+                <p id="analytics-help">{t("settings.analytics.description")}</p>
+              </div>
+              <Switch
+                label={t("settings.analytics.consent")}
+                checked={settings.analyticsConsent === true}
+                describedBy="analytics-help"
+                disabled={
+                  !!live?.pending || live?.snapshot.user.role !== "owner"
+                }
+                onChange={() =>
+                  void update({
+                    type: "UPDATE_SETTINGS",
+                    settings: {
+                      analyticsConsent: settings.analyticsConsent !== true,
+                    },
+                  })
+                }
+              />
+            </div>
+          </section>
+        )}
         {mode === "demo" && (
           <>
             {" "}

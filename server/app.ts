@@ -120,6 +120,7 @@ const settingsSchema = z
     tone: z.enum(["friendly", "premium", "aggressive"]),
     autoReplyEnabled: z.boolean(),
     autoSendConfidenceThreshold: z.number().int().min(50).max(100),
+    analyticsConsent: z.boolean(),
   })
   .partial()
   .strict();
@@ -650,6 +651,7 @@ export async function createApp(
         password: passwordSchema,
         name: z.string().trim().min(1).max(100),
         businessName: z.string().trim().min(1).max(100),
+        analyticsConsent: z.boolean().optional(),
       })
       .strict()
       .parse(req.body);
@@ -675,6 +677,7 @@ export async function createApp(
             JSON.stringify({
               ...emptySettings,
               businessName: body.businessName,
+              analyticsConsent: body.analyticsConsent === true,
             }),
             Date.now() + 14 * 86400000,
           ],
@@ -694,6 +697,10 @@ export async function createApp(
     }
     await issueSession(res, userId, workspaceId);
     await service.audit(workspaceId, userId, "workspace.created");
+    await service.analytics.capture(db, workspaceId, "signup");
+    await service.analytics.capture(db, workspaceId, "workspace_created", {
+      plan: "trial",
+    });
     if (mailer)
       emailToken({ id: userId, email: body.email }, "verify", workspaceId).catch(
         (error) =>

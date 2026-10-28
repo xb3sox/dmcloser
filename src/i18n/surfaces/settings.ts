@@ -159,6 +159,18 @@ export const settingsStrings = {
     en: "More review",
     ar: "مراجعة أكثر",
   },
+  "settings.analytics.title": {
+    en: "Product analytics",
+    ar: "تحليلات المنتج",
+  },
+  "settings.analytics.description": {
+    en: "Anonymous events help measure activation. No message text, email, phone or token is sent.",
+    ar: "تساعد الأحداث المجهولة على قياس التفعيل. لا تُرسل نصوص الرسائل أو البريد أو الهاتف أو الرموز.",
+  },
+  "settings.analytics.consent": {
+    en: "Share anonymous product analytics",
+    ar: "مشاركة تحليلات المنتج المجهولة",
+  },
 
   "settings.accounts.title": {
     en: "Messaging accounts",

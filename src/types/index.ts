@@ -132,6 +132,7 @@ export interface BusinessSettings {
   tone: Tone;
   autoReplyEnabled: boolean;
   autoSendConfidenceThreshold: number;
+  analyticsConsent?: boolean;
 }
 
 export type View = "inbox" | "chat" | "settings" | 'revenue' | 'brain' | 'quality';

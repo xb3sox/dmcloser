@@ -44,6 +44,9 @@ export interface Config {
   metricsToken?: string;
   sentryDsn?: string;
   sentryRelease?: string;
+  posthogKey?: string;
+  posthogHost?: string;
+  analyticsEnabled?: boolean;
   rateLimitMax: number;
   authRateLimitMax: number;
   recoveryRateLimitMax: number;
@@ -138,6 +141,11 @@ export async function loadConfig(): Promise<Config> {
     metricsToken: env.METRICS_TOKEN,
     sentryDsn: env.SENTRY_DSN || undefined,
     sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
+    posthogKey: env.POSTHOG_KEY || undefined,
+    posthogHost: env.POSTHOG_HOST || "https://us.i.posthog.com",
+    analyticsEnabled: !/^(false|0|off|no)$/i.test(
+      env.ANALYTICS_ENABLED?.trim() ?? "",
+    ),
     rateLimitMax: parseRateLimit("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 300, production),
     authRateLimitMax: parseRateLimit("AUTH_RATE_LIMIT_MAX", env.AUTH_RATE_LIMIT_MAX, 15, production),
     recoveryRateLimitMax: parseRateLimit("RECOVERY_RATE_LIMIT_MAX", env.RECOVERY_RATE_LIMIT_MAX, 5, production),
