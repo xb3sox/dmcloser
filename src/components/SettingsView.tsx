@@ -6,8 +6,15 @@ import { settingsStrings } from "@/i18n/surfaces/settings";
 import { InstagramIcon, WhatsAppIcon } from "./landing/Brand";
 import { DialogShell } from "./ui/Dialog";
 import Switch from "./ui/Switch";
-import type { Platform, Tone } from "@/types";
+import type { AssignmentSettings, Platform, Tone } from "@/types";
 import AccountSettings from "./workspace/AccountSettings";
+
+const fallbackAssignment: AssignmentSettings = {
+  mode: "manual",
+  cap: 20,
+  eligibleUserIds: [],
+  timezone: "UTC",
+};
 
 const tones = [
   {
@@ -40,6 +47,12 @@ export default function SettingsView() {
     update,
   } = useApp();
   const t = useStrings(settingsStrings);
+  const assignment = settings.assignment ?? fallbackAssignment;
+  const saveAssignment = (patch: Partial<AssignmentSettings>) =>
+    void update({
+      type: "UPDATE_SETTINGS",
+      settings: { assignment: { ...assignment, ...patch } },
+    });
   const [businessName, setBusinessName] = useState(settings.businessName);
   const [products, setProducts] = useState(settings.productsSold);
   const [description, setDescription] = useState(settings.businessDescription);
@@ -299,6 +312,69 @@ export default function SettingsView() {
                 }
               />
             </div>
+          </section>
+        )}
+        {mode === "live" && (
+          <section className="settings-section" aria-labelledby="assignment-heading">
+            <div className="settings-section-intro">
+              <h2 id="assignment-heading">{t("settings.assignment.title")}</h2>
+              <p id="assignment-help">{t("settings.assignment.description")}</p>
+            </div>
+            <div className="assignment-grid">
+              <label>
+                {t("settings.assignment.mode")}
+                <select
+                  value={assignment.mode}
+                  disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}
+                  onChange={(event) => saveAssignment({ mode: event.target.value as AssignmentSettings["mode"] })}
+                >
+                  <option value="manual">{t("settings.assignment.manual")}</option>
+                  <option value="round_robin">{t("settings.assignment.roundRobin")}</option>
+                  <option value="load_capped">{t("settings.assignment.loadCapped")}</option>
+                </select>
+              </label>
+              <label>
+                {t("settings.assignment.cap")}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={assignment.cap}
+                  onBlur={(event) => saveAssignment({ cap: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })}
+                />
+              </label>
+              <label>
+                {t("settings.assignment.timezone")}
+                <input
+                  type="text"
+                  defaultValue={assignment.timezone}
+                  disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}
+                  onBlur={(event) => {
+                    const timezone = event.target.value.trim();
+                    if (timezone) saveAssignment({ timezone });
+                  }}
+                />
+              </label>
+            </div>
+            <fieldset className="assignment-members" disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}>
+              <legend>{t("settings.assignment.eligible")}</legend>
+              {(live?.snapshot.members ?? []).map((member) => (
+                <label key={member.id}>
+                  <input
+                    type="checkbox"
+                    checked={assignment.eligibleUserIds.includes(member.id)}
+                    onChange={(event) =>
+                      saveAssignment({
+                        eligibleUserIds: event.target.checked
+                          ? [...assignment.eligibleUserIds, member.id]
+                          : assignment.eligibleUserIds.filter((id) => id !== member.id),
+                      })
+                    }
+                  />
+                  <span>{member.name}</span>
+                </label>
+              ))}
+            </fieldset>
           </section>
         )}
         {mode === "demo" && (

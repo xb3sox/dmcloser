@@ -171,6 +171,15 @@ export const settingsStrings = {
     en: "Share anonymous product analytics",
     ar: "مشاركة تحليلات المنتج المجهولة",
   },
+  "settings.assignment.title": { en: "Assignment routing", ar: "توجيه الإسناد" },
+  "settings.assignment.description": { en: "Route new unassigned conversations to eligible members within a load cap.", ar: "وجّه المحادثات الجديدة غير المسندة إلى أعضاء مؤهلين ضمن حد أقصى للحمل." },
+  "settings.assignment.mode": { en: "Rule", ar: "القاعدة" },
+  "settings.assignment.manual": { en: "Manual", ar: "يدوي" },
+  "settings.assignment.roundRobin": { en: "Round-robin", ar: "بالتناوب" },
+  "settings.assignment.loadCapped": { en: "Load-capped", ar: "بحد أقصى للحمل" },
+  "settings.assignment.cap": { en: "Cap per member", ar: "الحد الأقصى لكل عضو" },
+  "settings.assignment.timezone": { en: "Timezone", ar: "المنطقة الزمنية" },
+  "settings.assignment.eligible": { en: "Eligible members", ar: "الأعضاء المؤهلون" },
 
   "settings.accounts.title": {
     en: "Messaging accounts",
