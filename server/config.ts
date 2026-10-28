@@ -126,8 +126,28 @@ export async function loadConfig(): Promise<Config> {
     metricsToken: env.METRICS_TOKEN,
     sentryDsn: env.SENTRY_DSN || undefined,
     sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
-    rateLimitMax: Number(env.RATE_LIMIT_MAX || 300),
-    authRateLimitMax: Number(env.AUTH_RATE_LIMIT_MAX || env.RATE_LIMIT_MAX || 15),
-    recoveryRateLimitMax: Number(env.RECOVERY_RATE_LIMIT_MAX || env.RATE_LIMIT_MAX || 5),
+    rateLimitMax: parseRateLimit("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 300, production),
+    authRateLimitMax: parseRateLimit("AUTH_RATE_LIMIT_MAX", env.AUTH_RATE_LIMIT_MAX, 15, production),
+    recoveryRateLimitMax: parseRateLimit("RECOVERY_RATE_LIMIT_MAX", env.RECOVERY_RATE_LIMIT_MAX, 5, production),
   };
+}
+
+function parseRateLimit(
+  name: string,
+  raw: string | undefined,
+  defaultValue: number,
+  production: boolean,
+): number {
+  if (raw === undefined || raw.trim() === "") {
+    return defaultValue;
+  }
+  const str = raw.trim();
+  const val = Number(str);
+  if (!/^\d+$/.test(str) || !Number.isInteger(val) || val < 1 || val > 100000) {
+    if (production) {
+      throw new Error(`${name} must be an integer between 1 and 100000.`);
+    }
+    return defaultValue;
+  }
+  return val;
 }
