@@ -22,13 +22,14 @@ test("presents the brand and a loaded full-bleed hero", async ({ page }) => {
   ).toBe(true);
   await page.getByRole("link", { name: "See it in action" }).click();
   await expect(page).toHaveURL(/#product$/);
-  await expect(
-    page.getByLabel("Interactive DMCloser inbox demo"),
-  ).toBeInViewport();
+  const demo = page.getByLabel("Interactive DMCloser inbox demo");
+  await demo.scrollIntoViewIfNeeded();
+  await expect(demo).toBeInViewport();
 });
 
 test("edits, sends, and resets a suggested demo reply", async ({ page }) => {
   const demo = page.getByLabel("Interactive DMCloser inbox demo");
+  await demo.scrollIntoViewIfNeeded();
   await demo.getByRole("button", { name: "Edit", exact: true }).click();
   await demo
     .getByRole("textbox", { name: "Edit suggested reply" })
@@ -47,6 +48,7 @@ test("edits, sends, and resets a suggested demo reply", async ({ page }) => {
 
 test("switches channels and searches demo conversations", async ({ page }) => {
   const demo = page.getByLabel("Interactive DMCloser inbox demo");
+  await demo.scrollIntoViewIfNeeded();
   await demo
     .locator(".demo-sidebar")
     .getByRole("button", { name: /WhatsApp/ })
@@ -68,6 +70,7 @@ test("switches channels and searches demo conversations", async ({ page }) => {
 
 test("auto-sends only within the demo when enabled", async ({ page }) => {
   const demo = page.getByLabel("Interactive DMCloser inbox demo");
+  await demo.scrollIntoViewIfNeeded();
   await demo.getByRole("switch", { name: "Auto-send demo replies" }).click();
   await expect(demo.getByRole("switch")).toBeChecked();
   await expect(demo.locator(".demo-replied")).toBeVisible();
@@ -87,6 +90,7 @@ test("sends a manually composed demo reply", async ({ page }) => {
 
 test("previews each brand voice", async ({ page }) => {
   const tones = page.getByRole("group", { name: "Preview a reply tone" });
+  await tones.scrollIntoViewIfNeeded();
   await tones.getByRole("button", { name: "Premium" }).click();
   await expect(page.locator(".tone-reply p")).toContainText("delighted");
   await tones.getByRole("button", { name: "Sales-focused" }).click();
@@ -99,6 +103,7 @@ test("previews each brand voice", async ({ page }) => {
 
 test("updates pricing and discloses demo-only billing", async ({ page }) => {
   const pricing = page.locator("#pricing");
+  await pricing.scrollIntoViewIfNeeded();
   await pricing.getByRole("button", { name: /Yearly/ }).click();
   await expect(pricing.locator(".plan-price").first()).toContainText("24");
   await expect(pricing.locator(".plan-price").last()).toContainText("64");

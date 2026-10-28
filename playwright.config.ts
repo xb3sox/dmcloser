@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 // The browser suite runs the API against a PGlite directory (DATA_DIR below).
 // Nothing removed it, so every run left ~40 MB behind. The directory is named
@@ -18,6 +18,20 @@ export default defineConfig({
     reducedMotion: "reduce",
     trace: "retain-on-failure",
   },
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+    },
+  ],
   webServer: [
     {
       command: "npm run dev -- --host 127.0.0.1 --port 5173",
