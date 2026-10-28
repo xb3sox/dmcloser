@@ -853,6 +853,15 @@ export async function createApp(
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
     origin(req, res, (error) => (error ? next(error) : csrf(req, res, next)));
   });
+  app.get("/api/media/:id", async (req, res) => {
+    const mediaId = z.string().uuid().parse(req.params.id);
+    const media = await service.getMedia(req.actor!.workspaceId, mediaId);
+    res.setHeader("Content-Type", media.mimeType);
+    res.setHeader("Content-Length", media.data.length);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(media.data);
+  });
+
   app.get("/api/bootstrap", async (req, res) => {
     const snapshot = await service.snapshot(
       req.actor!,
@@ -1125,11 +1134,23 @@ export async function createApp(
   app.post("/api/conversations/:id/messages", async (req, res) => {
     const body = z
       .object({
-        text: z.string().trim().min(1).max(4096),
+        text: z.string().trim().max(4096).optional(),
         sourceId: z.string().max(100).optional(),
+        mediaUrl: z.string().max(2000).optional(),
+        mediaId: z.string().max(100).optional(),
+        mediaType: z.string().max(100).optional(),
       })
       .strict()
       .parse(req.body);
+    if (body.mediaUrl || body.mediaId || body.mediaType) {
+      throw new HttpError(
+        400,
+        "Outbound media is unsupported until template policy is approved.",
+      );
+    }
+    if (!body.text || !body.text.trim()) {
+      throw new HttpError(400, "Message text is required.");
+    }
     const key = z.string().min(16).max(128).parse(req.get("idempotency-key"));
     const message = await service.queueMessage(
       req.actor!.workspaceId,
