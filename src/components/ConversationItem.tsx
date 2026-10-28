@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Conversation } from "@/types";
 import { useApp } from "@/context/AppContext";
 import { useStrings } from "@/context/LocaleContext";
@@ -19,7 +20,10 @@ const statusKeys = {
   lost: "workspace.status.lost",
 } as const;
 
-export default function ConversationItem({
+// ⚡ Bolt Optimization: Wrap ConversationItem in React.memo to prevent unnecessary
+// re-renders of un-changed conversation list rows when sibling conversations, search inputs,
+// or parent InboxView layout state updates.
+const ConversationItem = memo(function ConversationItem({
   conversation,
 }: {
   conversation: Conversation;
@@ -83,4 +87,6 @@ export default function ConversationItem({
       </span>
     </button>
   );
-}
+});
+
+export default ConversationItem;
