@@ -1,5 +1,7 @@
+// Security: Match sensitive keys (credentials, session tokens, and API/crypto keys)
+// to ensure sensitive credentials are scrubbed before telemetry/Sentry transmission.
 export const SENSITIVE_KEY_PATTERN =
-  /^(authorization|cookie|cookies|set-cookie|x-csrf-token|token|tokens|password|secret|access_token|accessToken|auth)$/i;
+  /^(authorization|cookie|cookies|set-cookie|x-csrf-token|token|tokens|password|secret|access_token|accessToken|auth|api_key|apiKey|secret_key|secretKey|private_key|privateKey)$/i;
 export const BODY_KEY_PATTERN =
   /^(message|body|text|content|payload|notes|description|productsSold|messageBody|customerText)$/i;
 

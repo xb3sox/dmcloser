@@ -39,6 +39,10 @@ test("observability: scrubber removes email, phone, message body and Authorizati
         email: "customer@company.org",
         phone: "+15559876543",
         token: "session-secret-token",
+        apiKey: "sk-proj-1234567890abcdef",
+        api_key: "sk-proj-abcdef1234567890",
+        secretKey: "sec-key-123456",
+        private_key: "-----BEGIN PRIVATE KEY-----",
         notes: "Private customer note content",
       },
     },
@@ -93,8 +97,12 @@ test("observability: scrubber removes email, phone, message body and Authorizati
   assert.equal((scrubbed.request?.data as any)?.notes, "[SCRUBBED_BODY]");
   assert.equal((scrubbed.extra as any)?.messageBody, "[SCRUBBED_BODY]");
 
-  // Check token scrubbing
+  // Check token and API key scrubbing
   assert.equal((scrubbed.request?.data as any)?.token, "[SCRUBBED]");
+  assert.equal((scrubbed.request?.data as any)?.apiKey, "[SCRUBBED]");
+  assert.equal((scrubbed.request?.data as any)?.api_key, "[SCRUBBED]");
+  assert.equal((scrubbed.request?.data as any)?.secretKey, "[SCRUBBED]");
+  assert.equal((scrubbed.request?.data as any)?.private_key, "[SCRUBBED]");
 
   // Non-sensitive request fields preserved and query params scrubbed
   assert.equal(scrubbed.event_id, "test-event-123");
