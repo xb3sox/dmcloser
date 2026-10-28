@@ -101,29 +101,13 @@ test("the revenue API rejects a workspace outside the pilot list", async () => {
   const register = await agent
     .post("/api/auth/register")
     .set("Origin", config.appUrl)
-    .send({
-      email,
-      password: "correct horse battery staple",
-      name: "Pilot",
-      businessName: "Pilot Co",
-    });
+    .send({ email, password: "correct horse battery staple", name: "Pilot", businessName: "Pilot Co" });
   assert.equal(register.status, 201);
-  const [workspace] = await db.query(
-    "SELECT w.id FROM workspaces w JOIN users u ON u.id=w.owner_id WHERE u.email=$1",
-    [email],
-  );
-  await db.query(
-    "UPDATE feature_flags SET value='true'::jsonb WHERE key IN ('automation.enabled','revenue.enabled')",
-  );
-  await db.query(
-    "UPDATE feature_flags SET value='[\"other-workspace\"]'::jsonb WHERE key='pilot.workspaces'",
-  );
+  const [workspace] = await db.query("SELECT w.id FROM workspaces w JOIN users u ON u.id=w.owner_id WHERE u.email=$1", [email]);
+  await db.query("UPDATE feature_flags SET value='true'::jsonb WHERE key IN ('automation.enabled','revenue.enabled')");
+  await db.query("UPDATE feature_flags SET value='[\"other-workspace\"]'::jsonb WHERE key='pilot.workspaces'");
   assert.equal((await agent.get("/api/revenue")).status, 403);
-
-  await db.query(
-    "UPDATE feature_flags SET value=$1::jsonb WHERE key='pilot.workspaces'",
-    [JSON.stringify([workspace.id])],
-  );
+  await db.query("UPDATE feature_flags SET value=$1::jsonb WHERE key='pilot.workspaces'", [JSON.stringify([workspace.id])]);
   assert.equal((await agent.get("/api/revenue")).status, 200);
 });
 
@@ -160,4 +144,27 @@ test("the kill switch blocks automation and records a reason", async () => {
   assert.equal(audits.length, 1);
   assert.equal(audits[0].resource_id, "source-1");
   assert.equal(audits[0].detail.reason, "kill_switch");
+
+  const connectionId = randomUUID();
+  const inboundId = randomUUID();
+  const autoId = randomUUID();
+  await db.query(
+    "INSERT INTO connections(id,workspace_id,platform,account_id,label,token_cipher) VALUES($1,$2,'whatsapp','123','Test','x')",
+    [connectionId, workspaceId],
+  );
+  await db.query(
+    "UPDATE conversations SET connection_id=$1,window_until=$2 WHERE id=$3",
+    [connectionId, Date.now() + 3600000, conversationId],
+  );
+  await db.query(
+    "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,connection_id,status,source_id,automatic) VALUES ($1,$2,$3,'contact','Hi',$4,$5,'received',NULL,false),($6,$2,$3,'ai','Reply',$4,$5,'queued',$1,true)",
+    [inboundId, workspaceId, conversationId, Date.now(), connectionId, autoId],
+  );
+  await service.deliver(workspaceId, autoId);
+  const [cancelled] = await db.query(
+    "SELECT status,error FROM messages WHERE id=$1",
+    [autoId],
+  );
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.error, "Automation paused for review.");
 });
