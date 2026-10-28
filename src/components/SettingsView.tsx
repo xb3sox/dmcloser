@@ -315,39 +315,22 @@ export default function SettingsView() {
           </section>
         )}
         {mode === "live" && (
-          <section
-            className="settings-section"
-            aria-labelledby="assignment-heading"
-          >
+          <section className="settings-section" aria-labelledby="assignment-heading">
             <div className="settings-section-intro">
-              <h2 id="assignment-heading">
-                {t("settings.assignment.title")}
-              </h2>
-              <p id="assignment-help">
-                {t("settings.assignment.description")}
-              </p>
+              <h2 id="assignment-heading">{t("settings.assignment.title")}</h2>
+              <p id="assignment-help">{t("settings.assignment.description")}</p>
             </div>
             <div className="assignment-grid">
               <label>
                 {t("settings.assignment.mode")}
                 <select
                   value={assignment.mode}
-                  disabled={live?.snapshot.user.role !== "owner"}
-                  onChange={(event) =>
-                    saveAssignment({
-                      mode: event.target.value as AssignmentSettings["mode"],
-                    })
-                  }
+                  disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}
+                  onChange={(event) => saveAssignment({ mode: event.target.value as AssignmentSettings["mode"] })}
                 >
-                  <option value="manual">
-                    {t("settings.assignment.manual")}
-                  </option>
-                  <option value="round_robin">
-                    {t("settings.assignment.roundRobin")}
-                  </option>
-                  <option value="load_capped">
-                    {t("settings.assignment.loadCapped")}
-                  </option>
+                  <option value="manual">{t("settings.assignment.manual")}</option>
+                  <option value="round_robin">{t("settings.assignment.roundRobin")}</option>
+                  <option value="load_capped">{t("settings.assignment.loadCapped")}</option>
                 </select>
               </label>
               <label>
@@ -356,16 +339,8 @@ export default function SettingsView() {
                   type="number"
                   min={1}
                   max={100}
-                  value={assignment.cap}
-                  disabled={live?.snapshot.user.role !== "owner"}
-                  onChange={(event) =>
-                    saveAssignment({
-                      cap: Math.max(
-                        1,
-                        Math.min(100, Number(event.target.value) || 1),
-                      ),
-                    })
-                  }
+                  defaultValue={assignment.cap}
+                  onBlur={(event) => saveAssignment({ cap: Math.max(1, Math.min(100, Number(event.target.value) || 1)) })}
                 />
               </label>
               <label>
@@ -373,14 +348,15 @@ export default function SettingsView() {
                 <input
                   type="text"
                   defaultValue={assignment.timezone}
-                  disabled={live?.snapshot.user.role !== "owner"}
-                  onBlur={(event) =>
-                    saveAssignment({ timezone: event.target.value })
-                  }
+                  disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}
+                  onBlur={(event) => {
+                    const timezone = event.target.value.trim();
+                    if (timezone) saveAssignment({ timezone });
+                  }}
                 />
               </label>
             </div>
-            <fieldset className="assignment-members">
+            <fieldset className="assignment-members" disabled={!!live?.pending || live?.snapshot.user.role !== "owner"}>
               <legend>{t("settings.assignment.eligible")}</legend>
               {(live?.snapshot.members ?? []).map((member) => (
                 <label key={member.id}>
@@ -391,9 +367,7 @@ export default function SettingsView() {
                       saveAssignment({
                         eligibleUserIds: event.target.checked
                           ? [...assignment.eligibleUserIds, member.id]
-                          : assignment.eligibleUserIds.filter(
-                              (id) => id !== member.id,
-                            ),
+                          : assignment.eligibleUserIds.filter((id) => id !== member.id),
                       })
                     }
                   />

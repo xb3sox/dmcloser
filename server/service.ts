@@ -719,7 +719,7 @@ export class ProductService {
       loads.map((row) => [String(row.user_id), Number(row.load)]),
     );
     const [last] = await tx.query(
-      "SELECT detail->>'assigneeUserId' AS user_id FROM audit_events WHERE workspace_id=$1 AND action='conversation.auto_assigned' ORDER BY created_at DESC LIMIT 1",
+      "SELECT detail->>'assigneeUserId' AS user_id FROM audit_events WHERE workspace_id=$1 AND action='conversation.auto_assigned' ORDER BY created_at DESC, id DESC LIMIT 1",
       [workspaceId],
     );
     const chosen = chooseAssignee(
@@ -736,13 +736,14 @@ export class ProductService {
       [chosen, conversationId, workspaceId],
     );
     if (updated.length === 0) return null;
-    await this.audit(
-      workspaceId,
-      null,
-      "conversation.auto_assigned",
-      conversationId,
-      { assigneeUserId: chosen, mode: rule.mode, cap: rule.cap },
-      tx,
+    await tx.query(
+      "INSERT INTO audit_events(id,workspace_id,actor_id,action,resource_id,detail,created_at) VALUES($1,$2,NULL,'conversation.auto_assigned',$3,$4,clock_timestamp())",
+      [
+        randomUUID(),
+        workspaceId,
+        conversationId,
+        JSON.stringify({ assigneeUserId: chosen, mode: rule.mode, cap: rule.cap }),
+      ],
     );
     return chosen;
   }

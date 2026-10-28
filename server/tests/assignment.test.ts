@@ -4,34 +4,25 @@ import { randomUUID } from "node:crypto";
 import { createDatabase, type Database } from "../db.ts";
 import { createApp } from "../app.ts";
 import type { Config } from "../config.ts";
-import {
-  chooseAssignee,
-  normalizeAssignment,
-} from "../../src/domain/assignment.ts";
+import { chooseAssignee, normalizeAssignment } from "../../src/domain/assignment.ts";
 
-const config: Config = {
+const config = {
   production: false,
-  port: 3001,
   appUrl: "http://localhost:5173",
   publicUrl: "http://localhost:3001",
   databaseSsl: false,
   dataDir: ":memory:",
   encryptionKey: "ab".repeat(32),
-  openaiModel: "fake",
-  aiTimeout: 1000,
-  workerConcurrency: 1,
-  workerKinds: [],
   workerEnabled: false,
   graphVersion: "v26.0",
   prices: {},
   smtpPort: 587,
   mailFrom: "test@example.com",
-  trustProxy: 0,
   rateLimitMax: 10000,
   authRateLimitMax: 10000,
   recoveryRateLimitMax: 10000,
-  metricsToken: "internal-test-token",
-};
+  trustProxy: 0,
+} as Config;
 
 let db: Database;
 before(async () => {
@@ -50,14 +41,29 @@ const members = [
 ];
 
 test("round-robin follows the fixed order and honours the cap", () => {
-  const rule = { ...normalizeAssignment({}), mode: "round_robin" as const, cap: 1 };
+  const rule = normalizeAssignment({
+    mode: "round_robin",
+    cap: 1,
+    eligibleUserIds: ["u1", "u2", "u3"],
+    timezone: "UTC",
+  });
   assert.equal(chooseAssignee(rule, members, null), "u1");
   assert.equal(chooseAssignee(rule, members, "u1"), "u2");
+  assert.equal(
+    chooseAssignee(
+      rule,
+      members.map((m) => (m.userId === "u2" ? { ...m, load: 1 } : m)),
+      "u1",
+    ),
+    "u3",
+  );
   assert.equal(
     chooseAssignee(rule, members.map((m) => ({ ...m, load: 1 })), "u1"),
     null,
   );
+  assert.equal(chooseAssignee({ ...rule, eligibleUserIds: [] }, members), null);
   assert.equal(chooseAssignee({ ...rule, mode: "manual" }, members), null);
+  assert.equal(normalizeAssignment({ mode: "bogus", cap: 0 }).mode, "manual");
   assert.equal(
     chooseAssignee(
       { ...rule, eligibleUserIds: ["u3"], mode: "load_capped" },
@@ -68,7 +74,12 @@ test("round-robin follows the fixed order and honours the cap", () => {
 });
 
 test("load-capped picks the least loaded member below the cap", () => {
-  const rule = { ...normalizeAssignment({}), mode: "load_capped" as const, cap: 2 };
+  const rule = normalizeAssignment({
+    mode: "load_capped",
+    cap: 2,
+    eligibleUserIds: ["u1", "u2", "u3"],
+    timezone: "UTC",
+  });
   const loads = [
     { userId: "u1", load: 2 },
     { userId: "u2", load: 1 },
@@ -80,10 +91,6 @@ test("load-capped picks the least loaded member below the cap", () => {
     chooseAssignee({ ...rule, eligibleUserIds: ["u1"] }, loads),
     null,
   );
-});
-
-test("normalizeAssignment rejects malformed values", () => {
-  assert.equal(normalizeAssignment({ mode: "bogus", cap: 0 }).mode, "manual");
 });
 
 test("autoAssign is workspace-scoped, capped and audited", async () => {
@@ -130,10 +137,21 @@ test("autoAssign is workspace-scoped, capped and audited", async () => {
       [id, workspaceId, randomUUID(), Date.now()],
     );
 
-  const [first, second] = [ids[0], ids[1]].sort();
+  const [first, second] = [ids[0], ids[1]].sort((a, b) => a.localeCompare(b));
   assert.equal(await service.autoAssign(db, workspaceId, conversations[0]), first);
   assert.equal(await service.autoAssign(db, workspaceId, conversations[1]), second);
   assert.equal(await service.autoAssign(db, workspaceId, conversations[2]), null);
+  const otherConversation = randomUUID();
+  await db.query(
+    "INSERT INTO conversations(id,workspace_id,platform,external_id,name,last_at,window_until) VALUES($1,$2,'whatsapp',$3,'Other',$4,$4)",
+    [otherConversation, otherWorkspaceId, randomUUID(), Date.now()],
+  );
+  assert.equal(await service.autoAssign(db, otherWorkspaceId, otherConversation), null);
+  const loads = await db.query(
+    "SELECT count(*)::integer AS n FROM conversations WHERE workspace_id=$1 AND assignee_user_id IS NOT NULL GROUP BY assignee_user_id",
+    [workspaceId],
+  );
+  assert.ok(loads.every((row) => row.n <= 1));
   const [assigned, audited] = await db.query(
     "SELECT count(*)::integer AS n FROM conversations WHERE workspace_id=$1 AND assignee_user_id IS NOT NULL",
     [workspaceId],
