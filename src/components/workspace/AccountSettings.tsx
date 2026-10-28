@@ -387,6 +387,16 @@ export default function AccountSettings() {
               {t("workspace.account.operations.title")}
             </h2>
             <p>{t("workspace.account.operations.description")}</p>
+            <p>
+              {t("workspace.account.operations.flags", {
+                automation: live?.snapshot.flags?.automationEnabled
+                  ? t("workspace.account.operations.flagOn")
+                  : t("workspace.account.operations.flagOff"),
+                revenue: live?.snapshot.flags?.revenueEnabled
+                  ? t("workspace.account.operations.flagOn")
+                  : t("workspace.account.operations.flagOff"),
+              })}
+            </p>
           </div>
           <button
             className="app-text-button"

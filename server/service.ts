@@ -16,6 +16,7 @@ import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
 import { traceId } from "./trace.ts";
+import { resolveFlags } from "./flags.ts";
 
 export interface Actor {
   userId: string;
@@ -559,6 +560,7 @@ export class ProductService {
       },
       members,
       audit,
+      flags: await resolveFlags(this.db, actor.workspaceId),
       capabilities: {
         ai: !!this.config.openaiKey,
         instagram: !!(
@@ -654,7 +656,11 @@ export class ProductService {
         "UPDATE conversations SET last_at=GREATEST(last_at,$1),window_until=GREATEST(window_until,$2),unread=true,ai_error=NULL,intent=CASE WHEN $3 THEN 'spam' ELSE intent END,updated_at=now() WHERE id=$4",
         [timestamp, timestamp + 86400000, risk === "spam", conversation.id],
       );
-      if (!message.reviewOnly && risk !== "spam")
+      if (
+        !message.reviewOnly &&
+        risk !== "spam" &&
+        (await resolveFlags(tx, connection.workspace_id)).automationEnabled
+      )
         await this.enqueue(
           "generate",
           { conversationId: conversation.id, sourceId: id },
@@ -878,7 +884,7 @@ export class ProductService {
         "UPDATE conversations SET intent=$1,memory=$2,ai_error=NULL,updated_at=now() WHERE id=$3 AND workspace_id=$4",
         [result.intent, result.memory, conversationId, workspaceId],
       );
-      if (result.safe)
+      if (result.safe && (await resolveFlags(tx, workspaceId)).automationEnabled)
         await this.enqueue(
           "auto-send",
           { conversationId, sourceId },
@@ -1060,6 +1066,23 @@ export class ProductService {
     conversation: any,
     sourceId: string,
   ) {
+    const flags = await resolveFlags(tx, workspaceId);
+    if (!flags.automationEnabled) {
+      const [already] = await tx.query(
+        "SELECT 1 FROM audit_events WHERE workspace_id=$1 AND action='automation.blocked' AND resource_id=$2 LIMIT 1",
+        [workspaceId, sourceId],
+      );
+      if (!already)
+        await this.audit(
+          workspaceId,
+          null,
+          "automation.blocked",
+          sourceId,
+          { reason: "kill_switch" },
+          tx,
+        );
+      return false;
+    }
     const [opportunity] = await tx.query(
       "SELECT escalated,stage FROM deals WHERE workspace_id=$1 AND conversation_id=$2",
       [workspaceId, conversation.id],

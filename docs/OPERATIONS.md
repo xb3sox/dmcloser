@@ -92,6 +92,27 @@ Before real customer traffic: configure SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_US
 3. Stale replies, spam, risk, expired windows, disabled switches, drafts, human hold, invalid credentials and expired entitlements block automation. New contacts default to manual approval.
 4. Failed AI jobs retain the message and allow manual replies; fix configuration and retry from Activity. Durable leases recover interrupted work; interrupted sends become uncertain.
 
+### Incident Kill Switch
+
+Automation and Revenue are resolved per workspace from `feature_flags`. An environment variable with the same name overrides the row, so an incident can force a value at boot without a SQL write. Missing rows default off; the migration seeds the current behavior on.
+
+```sh
+# Stop every automatic send without a deploy. Queued auto-sends are re-evaluated
+# and cancelled with audit action automation.blocked and reason kill_switch.
+docker compose exec -T database psql -U dmcloser -d dmcloser -c \
+  "UPDATE feature_flags SET value='false'::jsonb, updated_at=now() WHERE key='automation.enabled'"
+
+# Restore automation.
+docker compose exec -T database psql -U dmcloser -d dmcloser -c \
+  "UPDATE feature_flags SET value='true'::jsonb, updated_at=now() WHERE key='automation.enabled'"
+
+# Limit Revenue to a pilot cohort. An empty array means no pilot restriction.
+docker compose exec -T database psql -U dmcloser -d dmcloser -c \
+  "UPDATE feature_flags SET value='[\"<workspace-id>\"]'::jsonb, updated_at=now() WHERE key='pilot.workspaces'"
+```
+
+Environment overrides: `AUTOMATION_ENABLED=false`, `REVENUE_ENABLED=false`, `PILOT_WORKSPACES=id,id`. The client only reflects the server result; it never decides a flag.
+
 ## Observe And Restore
 
 - Health: `/api/health`. Internal aggregate metrics: `/internal/metrics` with `Authorization: Bearer $METRICS_TOKEN`; never expose this token to the browser.

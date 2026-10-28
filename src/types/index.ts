@@ -110,6 +110,10 @@ export interface WorkspaceSnapshot {
     detail: Record<string, unknown>;
     created_at: string;
   }[];
+  flags: {
+    automationEnabled: boolean;
+    revenueEnabled: boolean;
+  };
   capabilities: {
     ai: boolean;
     instagram: boolean;

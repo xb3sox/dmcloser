@@ -351,6 +351,18 @@ export const workspaceStrings = {
     en: "Check background work",
     ar: "مراجعة المهام الخلفية",
   },
+  "workspace.account.operations.flags": {
+    en: "Automation: {automation}. Revenue: {revenue}.",
+    ar: "الأتمتة: {automation}. الإيرادات: {revenue}.",
+  },
+  "workspace.account.operations.flagOn": {
+    en: "enabled",
+    ar: "مفعّلة",
+  },
+  "workspace.account.operations.flagOff": {
+    en: "disabled",
+    ar: "معطّلة",
+  },
   "workspace.account.operations.latency": {
     en: "AI p95: {ms}ms across {count} replies in the last 24 hours.",
     ar: "زمن استجابة AI عند المئين 95: {ms}ms عبر {count} رداً خلال آخر 24 ساعة.",
