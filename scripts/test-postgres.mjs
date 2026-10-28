@@ -3,7 +3,11 @@ import { readdirSync } from "node:fs";
 
 // A suite normally finishes in seconds. The bound turns a future stall into a
 // named failure instead of letting the whole job sit until its 35-minute limit.
-const suiteTimeoutMs = Number(process.env.TEST_SUITE_TIMEOUT_MS || 120000);
+const requestedTimeout = Number(process.env.TEST_SUITE_TIMEOUT_MS || 120000);
+const suiteTimeoutMs =
+  Number.isFinite(requestedTimeout) && requestedTimeout > 0
+    ? requestedTimeout
+    : 120000;
 const suites = readdirSync("server/tests")
   .filter((name) => name.endsWith(".test.ts"))
   .sort();
@@ -23,9 +27,15 @@ for (const suite of suites) {
     },
   );
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
-  if (result.error?.code === "ETIMEDOUT" || result.signal) {
+  if (result.error?.code === "ETIMEDOUT") {
     console.error(
       `::error::server/tests/${suite} exceeded ${suiteTimeoutMs}ms. Rerun it alone with TEST_DATABASE_URL to reproduce.`,
+    );
+    process.exit(1);
+  }
+  if (result.signal) {
+    console.error(
+      `::error::server/tests/${suite} was terminated by ${result.signal} after ${seconds}s.`,
     );
     process.exit(1);
   }
