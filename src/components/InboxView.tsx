@@ -167,6 +167,12 @@ export default function InboxView() {
             aria-label={t("inbox.searchLabel")}
             placeholder={t("inbox.searchPlaceholder")}
             type="search"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && search) {
+                event.preventDefault();
+                setSearch("");
+              }
+            }}
           />
           {search && (
             <button
