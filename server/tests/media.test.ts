@@ -169,3 +169,46 @@ test("outbound media attempts are explicitly refused", async () => {
     "Outbound media is unsupported until template policy is approved.",
   );
 });
+
+test("download aborts an oversized stream and a large content-length", async () => {
+  const chunk = new Uint8Array(1024 * 1024);
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (let index = 0; index < 6; index++) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  const provider = new MetaProvider(
+    config,
+    async () => new Response(stream, { headers: { "content-type": "image/jpeg" } }),
+  );
+  await assert.rejects(
+    () =>
+      provider.downloadMedia(
+        "instagram",
+        { url: "https://example.test/media" },
+        "token",
+      ),
+    /5 MB/,
+  );
+
+  const declared = new MetaProvider(
+    config,
+    async () =>
+      new Response(null, {
+        headers: {
+          "content-length": String(6 * 1024 * 1024),
+          "content-type": "image/jpeg",
+        },
+      }),
+  );
+  await assert.rejects(
+    () =>
+      declared.downloadMedia(
+        "instagram",
+        { url: "https://example.test/media" },
+        "token",
+      ),
+    /5 MB/,
+  );
+});

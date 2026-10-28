@@ -2,6 +2,8 @@ import type { Config } from "./config.ts";
 import { HttpError } from "./security.ts";
 import { traceId } from "./trace.ts";
 
+export const MAX_MEDIA_BYTES = 5 * 1024 * 1024;
+
 export interface IncomingMediaAttachment {
   providerMediaId?: string;
   url?: string;
@@ -340,8 +342,28 @@ export class MetaProvider {
       );
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const data = Buffer.from(arrayBuffer);
+    const length = Number(response.headers.get("content-length"));
+    if (Number.isFinite(length) && length > MAX_MEDIA_BYTES)
+      throw new ProviderError("Media exceeds the 5 MB limit.");
+    const reader = response.body?.getReader();
+    if (!reader)
+      return {
+        data: Buffer.alloc(0),
+        mimeType: expectedMime || "application/octet-stream",
+      };
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_MEDIA_BYTES) {
+        await reader.cancel();
+        throw new ProviderError("Media exceeds the 5 MB limit.");
+      }
+      chunks.push(value);
+    }
+    const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
     const contentType =
       response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() ||
       expectedMime ||
