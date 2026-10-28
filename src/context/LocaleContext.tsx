@@ -29,6 +29,35 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 const storageKey = "dmcloser-locale";
 
+const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+
+const dateTimeOptionsMap = {
+  dateTime: { dateStyle: "medium", timeStyle: "short" } as const,
+  time: { hour: "2-digit", minute: "2-digit" } as const,
+  monthDay: { month: "short", day: "numeric" } as const,
+};
+
+function getDateTimeFormatter(locale: string, options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = options ? `${locale}:${JSON.stringify(options)}` : locale;
+  let formatter = dateTimeFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    dateTimeFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+function getNumberFormatter(locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = options ? `${locale}:${JSON.stringify(options)}` : locale;
+  let formatter = numberFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options);
+    numberFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
 function getInitialLocale(): Locale {
   if (typeof window === "undefined") return "en";
   try {
@@ -56,39 +85,30 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   }, [locale, dir]);
 
   const setLocale = useCallback((next: Locale) => setLocaleState(next), []);
-  // Default options, so the English output is identical to the browser's
-  // `toLocaleDateString()` — only the locale changes.
+  // Performance optimization: Cache Intl.DateTimeFormat and Intl.NumberFormat
+  // instances to prevent expensive instantiation during repeated render/list formatting.
   const formatDate = useCallback(
     (value: number | string | Date) =>
-      new Intl.DateTimeFormat(localeTag[locale]).format(new Date(value)),
+      getDateTimeFormatter(localeTag[locale]).format(new Date(value)),
     [locale],
   );
   const formatDateTime = useCallback(
     (value: number | string | Date) =>
-      new Intl.DateTimeFormat(localeTag[locale], {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(value)),
+      getDateTimeFormatter(localeTag[locale], dateTimeOptionsMap.dateTime).format(new Date(value)),
     [locale],
   );
   const formatTime = useCallback(
     (value: number | string | Date) =>
-      new Intl.DateTimeFormat(localeTag[locale], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(new Date(value)),
+      getDateTimeFormatter(localeTag[locale], dateTimeOptionsMap.time).format(new Date(value)),
     [locale],
   );
   const formatMonthDay = useCallback(
     (value: number | string | Date) =>
-      new Intl.DateTimeFormat(localeTag[locale], {
-        month: "short",
-        day: "numeric",
-      }).format(new Date(value)),
+      getDateTimeFormatter(localeTag[locale], dateTimeOptionsMap.monthDay).format(new Date(value)),
     [locale],
   );
   const formatNumber = useCallback(
-    (value: number) => new Intl.NumberFormat(localeTag[locale]).format(value),
+    (value: number) => getNumberFormatter(localeTag[locale]).format(value),
     [locale],
   );
 
