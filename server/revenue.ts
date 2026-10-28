@@ -22,6 +22,7 @@ import {
   scoreLead,
   scoringVersion,
 } from "../src/domain/revenue.ts";
+import { traceId } from "./trace.ts";
 
 export const defaultProfile: BusinessProfile = {
   industry: "general",
@@ -1275,11 +1276,12 @@ export class RevenueService {
         ],
       );
       await tx.query(
-        "INSERT INTO jobs(id,workspace_id,kind,payload,available_at) VALUES($1,$2,'sales-task',$3,$4)",
+        "INSERT INTO jobs(id,workspace_id,kind,payload,trace_id,available_at) VALUES($1,$2,'sales-task',$3,$4,$5)",
         [
           `sales:${taskId}`,
           actor.workspaceId,
           JSON.stringify({ taskId }),
+          traceId() ?? null,
           input.dueAt,
         ],
       );

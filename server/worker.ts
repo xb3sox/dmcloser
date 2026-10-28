@@ -70,7 +70,7 @@ export class Worker {
     const job = await this.claim();
     if (!job) return false;
     this.inFlight++;
-    const task = withTraceId(job.trace_id, () => this.run(job))
+    const task = this.runJob(job)
       .catch(() =>
         console.error(JSON.stringify({ event: "worker.tick_failure" })),
       )
@@ -81,6 +81,11 @@ export class Worker {
     this.running.add(task);
     await task;
     return true;
+  }
+
+  /** Run one claimed job in its request trace, whichever loop claimed it. */
+  private runJob(job: any) {
+    return withTraceId(job.trace_id, () => this.run(job));
   }
 
   /**
@@ -363,7 +368,7 @@ export class Worker {
       .then((job) => {
         if (!job) return;
         claimed = true;
-        const task = this.run(job)
+        const task = this.runJob(job)
           .catch(() =>
             console.error(JSON.stringify({ event: "worker.tick_failure" })),
           )

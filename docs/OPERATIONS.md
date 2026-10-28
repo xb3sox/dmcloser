@@ -101,27 +101,28 @@ Before real customer traffic: configure SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_US
     - *Error-Rate Spike:* Alert on-call when error rates exceed 10 exceptions/minute or 5% of request volume.
     - *Worker Failure:* Trigger immediate high-priority alerts when worker jobs reach dead state (`dead: true`) or worker queue age exceeds 60 seconds.
 - `MONITOR_API_URL=... METRICS_TOKEN=... node scripts/monitor.mjs` checks dead jobs, queue age >60s, and AI p95 >2s (at least 20 samples). Breaches create `incidents/*-intent.md` for owner triage; no deployment is triggered. Schedule this externally and alert on exit 2/unavailability.
+- Back up managed Postgres plus the encryption key through your secret manager. Use provider PITR or `scripts/backup.sh`, which writes a checksummed `pg_dump` archive under `backups/`. Encrypt off-site backups, set retention, and rehearse restoring with `scripts/restore.sh` (or `pg_restore --clean --if-exists --no-owner --dbname "$RESTORE_DATABASE_URL" backup.dump`) into an isolated staging database. Never overwrite production during a rehearsal. The restore path has been rehearsed end to end against a fresh compose Postgres (backup, checksum, marker row, restore, marker gone — see Rehearsal Evidence); a restore of a production-shaped dataset, with a separately held encryption key and off-site retention, is still untested — treat the first such restore as untested until it is.
+- Rollback: stop new sends (disable auto-reply and pause worker), retain queued records, select the previous approved image, migrate only if backward-compatible, run health/auth/ingestion smoke tests, then re-enable after owner approval. Reconcile every `sending/uncertain` record first. Backups, PITR and rollback are procedures, not verified infrastructure here.
+- Workspace export excludes credentials and CSRF. Deletion cancels an active subscription before deleting workspace rows. Processed webhook/job payloads are scrubbed; pending channel receipts are redacted on erasure. Receipt IDs expire after seven days when no processing job depends on them. Audit and off-site backup retention still need a jurisdiction-specific policy before public launch. Members' independent accounts are not deleted when an owner's workspace is removed.
 
 ### Correlating One Request
 
 Every API response carries `X-Request-Id`. The same value is logged as `requestId`, stored on each queued job as `jobs.trace_id`, and emitted by worker and provider logs as `traceId`. `workspace` is a 12-character SHA-256 prefix, never the id itself. No message text, email, phone or token is logged.
 
+The commands below assume the compose stack. On a host with a platform log store or an external database, substitute its log query and psql connection.
+
 ```sh
-# API access log (same fields on stdout or the platform log store)
-journalctl -u dmcloser --since "1 hour ago" | jq 'select(.event=="http" and .requestId=="<id>")'
+# API access log
+docker compose logs --no-log-prefix --since 1h app | jq 'select(.event=="http" and .requestId=="<id>")'
 
 # Jobs queued by that request, including retries and dead letters
-psql "$DATABASE_URL" -c "SELECT id,kind,state,attempts,trace_id FROM jobs WHERE trace_id='<id>' ORDER BY created_at"
+docker compose exec -T database psql -U dmcloser -d dmcloser -c "SELECT id,kind,state,attempts,trace_id FROM jobs WHERE trace_id='<id>' ORDER BY created_at"
 
 # Worker and provider lines for the same request
-journalctl -u dmcloser --since "1 hour ago" | jq 'select(.traceId=="<id>")'
+docker compose logs --no-log-prefix --since 1h app | jq 'select(.traceId=="<id>")'
 ```
 
 These queries are versioned with this document. A request id from a user support report is enough to reach the API line, every job it queued, and the provider outcome.
-
-- Back up managed Postgres plus the encryption key through your secret manager. Use provider PITR or `scripts/backup.sh`, which writes a checksummed `pg_dump` archive under `backups/`. Encrypt off-site backups, set retention, and rehearse restoring with `scripts/restore.sh` (or `pg_restore --clean --if-exists --no-owner --dbname "$RESTORE_DATABASE_URL" backup.dump`) into an isolated staging database. Never overwrite production during a rehearsal. The restore path has been rehearsed end to end against a fresh compose Postgres (backup, checksum, marker row, restore, marker gone — see Rehearsal Evidence); a restore of a production-shaped dataset, with a separately held encryption key and off-site retention, is still untested — treat the first such restore as untested until it is.
-- Rollback: stop new sends (disable auto-reply and pause worker), retain queued records, select the previous approved image, migrate only if backward-compatible, run health/auth/ingestion smoke tests, then re-enable after owner approval. Reconcile every `sending/uncertain` record first. Backups, PITR and rollback are procedures, not verified infrastructure here.
-- Workspace export excludes credentials and CSRF. Deletion cancels an active subscription before deleting workspace rows. Processed webhook/job payloads are scrubbed; pending channel receipts are redacted on erasure. Receipt IDs expire after seven days when no processing job depends on them. Audit and off-site backup retention still need a jurisdiction-specific policy before public launch. Members' independent accounts are not deleted when an owner's workspace is removed.
 
 ### Deletion and Data Retention Inventory
 
