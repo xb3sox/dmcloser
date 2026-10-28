@@ -266,12 +266,29 @@ export class Worker {
           [reason, job.payload.conversationId, job.workspace_id],
         );
       }
-      if (dead && job.kind === "deliver")
+      if (dead && job.kind === "deliver") {
         await this.service.failMessage(
           job.workspace_id,
           job.payload.messageId,
           "Delivery retries exhausted. Review the provider inbox before retrying.",
         );
+        const [owner] = await this.service.db.query(
+          "SELECT u.email FROM workspaces w JOIN users u ON u.id=w.owner_id WHERE w.id=$1",
+          [job.workspace_id],
+        );
+        if (owner)
+          await this.service.enqueue(
+            "email",
+            {
+              to: owner.email,
+              subject: "A message could not be delivered",
+              text: "Review the conversation in Activity before retrying.",
+              purpose: "delivery-failure",
+            },
+            job.workspace_id,
+            `delivery-failure:${job.payload.messageId}`,
+          );
+      }
       if (dead && job.kind === "refresh-token")
         await this.service.db.query(
           "UPDATE connections SET status='reconnect',error='Token refresh failed. Reconnect this account before sending.' WHERE id=$1",
