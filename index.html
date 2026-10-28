@@ -33,6 +33,7 @@
             ? "dark"
             : "light";
         document.documentElement.classList.add(theme);
+        document.documentElement.style.colorScheme = theme;
         document.querySelector('meta[name="theme-color"]').content =
           theme === "dark" ? "#131b15" : "#fafbf7";
       } catch (error) {

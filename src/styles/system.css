@@ -1,6 +1,5 @@
 /* Shared identity and interaction tokens for marketing and the workspace. */
 :root {
-  color-scheme: light;
   --land-bg: #fafbf7;
   --land-surface: #ffffff;
   --land-soft: #f0f3eb;
@@ -21,7 +20,6 @@
   font-synthesis: none;
 }
 .dark {
-  color-scheme: dark;
   --land-bg: #131b15;
   --land-surface: #19231b;
   --land-soft: #1c281e;
