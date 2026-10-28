@@ -67,6 +67,7 @@ added across product/revenue).
 | Production Frontend Build | `npm run build` | 2026-10-28 | pass (847.04 kB single-file bundle, 245.00 kB gzip) | `dist/index.html` | Automated (`vite build`) |
 | Dependency Security Audit | `npm audit --audit-level=moderate` | 2026-10-28 | 0 vulnerabilities | `package-lock.json` | Automated (`npm audit`) |
 | Full-history secret scan | `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --log-opts=--all` | 2026-10-28 | no leaks found (121 commits) | `.gitleaksignore` | Automated (gitleaks 8.30.1) |
+| Server Test Suite (External Postgres 17) | `TEST_DATABASE_URL=postgres://test:test@127.0.0.1:55432/dmcloser_test node scripts/test-postgres.mjs` | 2026-10-28 | 12/12 suites pass in 86.7s | `server/tests/*.test.ts` | Automated (local Docker, `postgres:17-alpine`) |
 
 ## Hosted CI
 
