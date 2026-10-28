@@ -65,6 +65,22 @@
   font-size: 11px;
   color: var(--land-muted);
 }
+.workspace-auth-content label.workspace-consent {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+.workspace-auth-content label.workspace-consent input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin-top: 3px;
+  padding: 0;
+}
+.workspace-auth-content label.workspace-consent span {
+  font-size: 12px;
+  line-height: 1.5;
+}
 .workspace-auth-content .closer-button {
   width: 100%;
   justify-content: space-between;

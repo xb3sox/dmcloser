@@ -225,6 +225,7 @@ export class ProductService {
     const client = this.notifyClient;
     this.notifyClient = null;
     if (client) await client.end().catch(() => {});
+    this.analytics.shutdown();
   }
   async redactAccountReceipts(
     platform: string,

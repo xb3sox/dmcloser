@@ -22,6 +22,7 @@ export interface AnalyticsClient {
     event: string;
     properties: AnalyticsProperties;
   }): void;
+  shutdown?(): void | Promise<void>;
 }
 
 /**
@@ -53,18 +54,28 @@ export class Analytics {
     properties: AnalyticsProperties = {},
   ): Promise<void> {
     if (!this.client) return;
-    const [row] = await db.query("SELECT settings FROM workspaces WHERE id=$1", [
-      workspaceId,
-    ]);
-    if (!row?.settings?.analyticsConsent) return;
-    const allowed: readonly string[] = eventProperties[event];
-    const filtered = Object.fromEntries(
-      Object.entries(properties).filter(([key]) => allowed.includes(key)),
-    );
-    this.client.capture({
-      distinctId: digest(workspaceId).slice(0, 16),
-      event,
-      properties: filtered,
-    });
+    try {
+      const [row] = await db.query(
+        "SELECT settings FROM workspaces WHERE id=$1",
+        [workspaceId],
+      );
+      if (row?.settings?.analyticsConsent !== true) return;
+      const allowed: readonly string[] = eventProperties[event];
+      const filtered = Object.fromEntries(
+        Object.entries(properties).filter(([key]) => allowed.includes(key)),
+      );
+      this.client.capture({
+        distinctId: digest(workspaceId).slice(0, 16),
+        event,
+        properties: filtered,
+      });
+    } catch {
+      // Analytics must never fail a signup, a delivery or an outcome write.
+      console.error(JSON.stringify({ event: "analytics.failure" }));
+    }
+  }
+
+  shutdown(): void {
+    void this.client?.shutdown?.();
   }
 }

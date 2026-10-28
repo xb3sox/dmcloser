@@ -143,7 +143,9 @@ export async function loadConfig(): Promise<Config> {
     sentryRelease: env.SENTRY_RELEASE || env.COMMIT_SHA || env.GIT_SHA || undefined,
     posthogKey: env.POSTHOG_KEY || undefined,
     posthogHost: env.POSTHOG_HOST || "https://us.i.posthog.com",
-    analyticsEnabled: env.ANALYTICS_ENABLED !== "false",
+    analyticsEnabled: !/^(false|0|off|no)$/i.test(
+      env.ANALYTICS_ENABLED?.trim() ?? "",
+    ),
     rateLimitMax: parseRateLimit("RATE_LIMIT_MAX", env.RATE_LIMIT_MAX, 300, production),
     authRateLimitMax: parseRateLimit("AUTH_RATE_LIMIT_MAX", env.AUTH_RATE_LIMIT_MAX, 15, production),
     recoveryRateLimitMax: parseRateLimit("RECOVERY_RATE_LIMIT_MAX", env.RECOVERY_RATE_LIMIT_MAX, 5, production),

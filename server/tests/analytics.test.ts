@@ -43,7 +43,6 @@ function fake() {
     client: { capture: (message: (typeof sent)[number]) => sent.push(message) },
   };
 }
-
 test("every event keeps only its allowlisted properties and hashes the workspace", async () => {
   const { sent, client } = fake();
   const analytics = new Analytics(config, client);
@@ -81,7 +80,6 @@ test("every event keeps only its allowlisted properties and hashes the workspace
   ])
     assert.ok(!payload.includes(forbidden), forbidden);
 });
-
 test("consent off and the kill switch both stop capture", async () => {
   const { sent, client } = fake();
   await db.query(
@@ -101,10 +99,33 @@ test("consent off and the kill switch both stop capture", async () => {
   ).capture(db, workspaceId, "signup");
   assert.equal(sent.length, 0);
 });
-
 test("the taxonomy is closed", () => {
   for (const [event, allowed] of Object.entries(eventProperties)) {
     assert.ok(event.length > 0);
     assert.ok(Array.isArray(allowed));
   }
+});
+test("capture failures never throw and shutdown is forwarded", async () => {
+  let shut = false;
+  const client: AnalyticsClient = {
+    capture() {
+      throw new Error("posthog down");
+    },
+    shutdown() {
+      shut = true;
+    },
+  };
+  const analytics = new Analytics(config, client);
+  await assert.doesNotReject(() =>
+    analytics.capture(db, workspaceId, "signup"),
+  );
+  await assert.doesNotReject(() =>
+    analytics.capture(
+      { query: async () => { throw new Error("db down"); } } as unknown as Database,
+      workspaceId,
+      "signup",
+    ),
+  );
+  analytics.shutdown();
+  assert.equal(shut, true);
 });
