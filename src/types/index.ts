@@ -125,6 +125,15 @@ export interface WorkspaceSnapshot {
   };
 }
 
+export type AssignmentMode = "manual" | "round_robin" | "load_capped";
+
+export interface AssignmentSettings {
+  mode: AssignmentMode;
+  cap: number;
+  eligibleUserIds: string[];
+  timezone: string;
+}
+
 export interface BusinessSettings {
   businessName: string;
   businessDescription: string;
@@ -133,6 +142,7 @@ export interface BusinessSettings {
   autoReplyEnabled: boolean;
   autoSendConfidenceThreshold: number;
   analyticsConsent?: boolean;
+  assignment?: AssignmentSettings;
 }
 
 export type View = "inbox" | "chat" | "settings" | 'revenue' | 'brain' | 'quality';

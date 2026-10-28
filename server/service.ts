@@ -7,6 +7,10 @@ import { decrypt, digest, encrypt, HttpError } from "./security.ts";
 import { detectRisk, guardReply, type AIEngine, type AIInput } from "./ai.ts";
 import { isClinical, isOptOut } from "../src/domain/safety.ts";
 import {
+  chooseAssignee,
+  normalizeAssignment,
+} from "../src/domain/assignment.ts";
+import {
   MetaProvider,
   ProviderError,
   type IncomingMessage,
@@ -642,6 +646,7 @@ export class ProductService {
           risk === "spam" ? "spam" : "question",
         ],
       );
+      await this.autoAssign(tx, connection.workspace_id, conversation.id);
       const id = randomUUID();
       const inserted = await tx.query(
         "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,provider_id,connection_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (connection_id,provider_id) DO NOTHING RETURNING id",
@@ -687,6 +692,59 @@ export class ProductService {
       this.metrics.received++;
     });
     this.changed(connection.workspace_id);
+  }
+
+  /**
+   * Assign one unassigned conversation from the workspace rule. The workspace
+   * row lock serialises concurrent inbound messages so the cap is honoured.
+   */
+  async autoAssign(tx: Database, workspaceId: string, conversationId: string) {
+    const [workspace] = await tx.query(
+      "SELECT settings FROM workspaces WHERE id=$1 FOR UPDATE",
+      [workspaceId],
+    );
+    if (!workspace) return null;
+    const rule = normalizeAssignment(workspace.settings?.assignment);
+    if (rule.mode === "manual") return null;
+    const members = await tx.query(
+      "SELECT user_id FROM members WHERE workspace_id=$1 ORDER BY user_id",
+      [workspaceId],
+    );
+    if (members.length === 0) return null;
+    const loads = await tx.query(
+      "SELECT assignee_user_id AS user_id,count(*)::integer AS load FROM conversations WHERE workspace_id=$1 AND assignee_user_id IS NOT NULL AND status NOT IN ('converted','lost') GROUP BY assignee_user_id",
+      [workspaceId],
+    );
+    const load = new Map<string, number>(
+      loads.map((row) => [String(row.user_id), Number(row.load)]),
+    );
+    const [last] = await tx.query(
+      "SELECT detail->>'assigneeUserId' AS user_id FROM audit_events WHERE workspace_id=$1 AND action='conversation.auto_assigned' ORDER BY created_at DESC LIMIT 1",
+      [workspaceId],
+    );
+    const chosen = chooseAssignee(
+      rule,
+      members.map((member) => ({
+        userId: String(member.user_id),
+        load: load.get(String(member.user_id)) ?? 0,
+      })),
+      last?.user_id ?? null,
+    );
+    if (!chosen) return null;
+    const updated = await tx.query(
+      "UPDATE conversations SET assignee_user_id=$1,updated_at=now() WHERE id=$2 AND workspace_id=$3 AND assignee_user_id IS NULL RETURNING id",
+      [chosen, conversationId, workspaceId],
+    );
+    if (updated.length === 0) return null;
+    await this.audit(
+      workspaceId,
+      null,
+      "conversation.auto_assigned",
+      conversationId,
+      { assigneeUserId: chosen, mode: rule.mode, cap: rule.cap },
+      tx,
+    );
+    return chosen;
   }
 
   async delivery(update: DeliveryUpdate) {

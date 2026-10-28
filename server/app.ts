@@ -121,6 +121,14 @@ const settingsSchema = z
     autoReplyEnabled: z.boolean(),
     autoSendConfidenceThreshold: z.number().int().min(50).max(100),
     analyticsConsent: z.boolean(),
+    assignment: z
+      .object({
+        mode: z.enum(["manual", "round_robin", "load_capped"]),
+        cap: z.number().int().min(1).max(100),
+        eligibleUserIds: z.array(z.string().max(100)).max(100),
+        timezone: z.string().trim().min(1).max(64),
+      })
+      .strict(),
   })
   .partial()
   .strict();

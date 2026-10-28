@@ -1452,3 +1452,11 @@ body.workspace-page {
     padding-block: 12px;
   }
 }
+
+.assignment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.assignment-grid label, .assignment-members label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--land-muted); }
+.assignment-grid select, .assignment-grid input { min-height: 42px; border: 1px solid var(--land-line); border-radius: 6px; background: var(--land-surface); padding: 9px 11px; color: var(--land-ink); font-size: 14px; }
+.assignment-members { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 18px; border: 1px solid var(--land-line); border-radius: 8px; padding: 14px; }
+.assignment-members legend { padding: 0 6px; font-size: 12px; color: var(--land-muted); }
+.assignment-members label { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; }
+@media (max-width: 720px) { .assignment-grid { grid-template-columns: 1fr; } }
