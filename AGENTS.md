@@ -187,9 +187,29 @@ and a session ending `COMPLETED` still has no branch on GitHub. Pull it and deli
 yourself:
 
 ```sh
-jules remote pull --session <id> --apply   # apply the patch locally
-node scripts/check.mjs                     # gate it
-git push -u origin agent/<issue>-<slug>    # push it
+jules login                                  # browser OAuth; no API token, no unattended CI use
+jules new --repo <owner>/<repo> --parallel 3 "<task>"   # or pipe: gh issue view <n> | jules new
+jules remote list --session                  # id + state; only COMPLETED holds a patch
+git switch -c agent/<issue>-<slug>           # pull --apply creates no branch
+jules remote pull --session <id> --apply
+jules teleport <id>                          # clone + branch + apply; use when checkout is dirty or missing
+node scripts/check.mjs                       # gate it
+git push -u origin agent/<issue>-<slug>      # push it
+```
+
+Jules cannot read a PR review thread. A review fix is a fresh session with the comment URL
+and branch in the prompt:
+
+```sh
+jules new "address the review comment at <comment-url> on agent/<issue>-<slug>"
+```
+
+Push the fix to the same branch; never force-push. Merge Gate re-runs on `opened`, `edited`,
+`synchronize`, `reopened`, `labeled` and `unlabeled`, so do not rerun it by hand. Then reply
+with the commit and resolve the thread; only Basem approves or merges:
+
+```sh
+gh pr comment <n> --body "Fixed in <sha>."
 ```
 
 Before any dispatch, all three checks:
