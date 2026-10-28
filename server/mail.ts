@@ -42,7 +42,7 @@ class SmtpProvider implements MailProvider {
   }
 }
 
-class ResendProvider implements MailProvider {
+export class ResendProvider implements MailProvider {
   constructor(
     private key: string,
     private from: string,
@@ -68,8 +68,8 @@ class ResendProvider implements MailProvider {
     if (!response.ok) {
       const error = new Error(
         `Resend rejected the message with status ${response.status}.`,
-      ) as Error & { responseCode?: number };
-      error.responseCode = response.status;
+      ) as Error & { httpStatus?: number };
+      error.httpStatus = response.status;
       throw error;
     }
   }
@@ -114,17 +114,20 @@ export function createMailer(config: Config): Mailer | null {
 }
 
 /**
- * Whether an SMTP or HTTP failure is worth another attempt.
- *
- * Connection and greeting failures, timeouts and 4xx replies are transient — the
- * provider is busy or unreachable. 5xx replies and auth failures will fail the same
- * way forever, so retrying only delays the operator's alarm.
+ * Whether a provider failure is worth another attempt. SMTP 4xx is transient and
+ * 5xx is permanent; HTTP 408/425/429 and 5xx are transient. Auth and envelope
+ * rejections never heal on retry.
  */
 export function isTransientMailError(error: unknown): boolean {
   if (!error || typeof error !== "object") return true;
-  const value = error as { code?: string; responseCode?: number };
-  // Rejected credentials and a refused envelope never heal on retry.
+  const value = error as {
+    code?: string;
+    responseCode?: number;
+    httpStatus?: number;
+  };
   if (value.code === "EAUTH" || value.code === "EENVELOPE") return false;
+  if (typeof value.httpStatus === "number")
+    return [408, 425, 429].includes(value.httpStatus) || value.httpStatus >= 500;
   if (typeof value.responseCode === "number")
     return value.responseCode >= 400 && value.responseCode < 500;
   return true;
@@ -139,5 +142,10 @@ export async function sendEmail(
     purpose: message.purpose,
     link: message.link,
   });
-  await mailer.send({ ...message, ...rendered });
+  // A payload queued before this deploy has no link, so keep its original text.
+  await mailer.send({
+    ...message,
+    html: rendered.html,
+    text: message.link ? rendered.text : message.text,
+  });
 }

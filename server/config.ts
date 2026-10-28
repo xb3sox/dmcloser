@@ -52,6 +52,13 @@ export interface Config {
 export async function loadConfig(): Promise<Config> {
   const env = process.env;
   const production = env.NODE_ENV === "production";
+  const mailProvider = env.MAIL_PROVIDER?.trim() || undefined;
+  if (mailProvider && !["smtp", "resend", "sink"].includes(mailProvider))
+    throw new Error("MAIL_PROVIDER must be smtp, resend, or sink.");
+  if (production && mailProvider === "sink")
+    throw new Error("MAIL_PROVIDER=sink is not allowed in production.");
+  if (production && mailProvider === "resend" && !env.RESEND_API_KEY)
+    throw new Error("MAIL_PROVIDER=resend requires RESEND_API_KEY.");
   const dataDir = resolve(env.DATA_DIR || ".data");
   let encryptionKey = env.ENCRYPTION_KEY || "";
   if (!production && !encryptionKey) {
@@ -125,7 +132,7 @@ export async function loadConfig(): Promise<Config> {
     smtpUser: env.SMTP_USER,
     smtpPassword: env.SMTP_PASSWORD,
     mailFrom: env.MAIL_FROM || "DMCloser <hello@example.com>",
-    mailProvider: env.MAIL_PROVIDER || undefined,
+    mailProvider,
     resendKey: env.RESEND_API_KEY || undefined,
     trustProxy: Number(env.TRUST_PROXY_HOPS || 0),
     metricsToken: env.METRICS_TOKEN,

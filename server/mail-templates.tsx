@@ -1,26 +1,10 @@
 import * as React from "react";
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Preview,
-  Text,
-} from "@react-email/components";
+import { Body, Button, Container, Heading, Html, Text } from "@react-email/components";
 import { render } from "@react-email/render";
 
-export type MailTemplateInput = {
-  purpose: string;
-  link?: string;
-};
+export type MailTemplateInput = { purpose: string; link?: string };
 
-const copy: Record<
-  string,
-  { title: string; body: string; action?: string }
-> = {
+const copy: Record<string, { title: string; body: string; action?: string }> = {
   verify: {
     title: "Verify your DMCloser email",
     body: "Confirm this address to finish setting up your workspace.",
@@ -42,62 +26,23 @@ const copy: Record<
   },
 };
 
-const fallback = {
-  title: "DMCloser",
-  body: "Open DMCloser to continue.",
-};
+const footer =
+  "If you did not request this email, ignore it. DMCloser never asks for your password by email.";
 
 export function MailTemplate({ purpose, link }: MailTemplateInput) {
-  const content = copy[purpose] ?? fallback;
+  const content = copy[purpose] ?? { title: "DMCloser", body: "Open DMCloser to continue." };
   return (
     <Html>
-      <Head />
-      <Preview>{content.title}</Preview>
-      <Body
-        style={{
-          backgroundColor: "#f7f4ec",
-          color: "#1c2a22",
-          fontFamily: "Georgia, 'Times New Roman', serif",
-          padding: "32px 12px",
-        }}
-      >
-        <Container
-          style={{
-            backgroundColor: "#fffdf7",
-            border: "1px solid #d9d2c2",
-            borderRadius: "14px",
-            margin: "0 auto",
-            maxWidth: "520px",
-            padding: "32px",
-          }}
-        >
-          <Heading style={{ fontSize: "22px", margin: "0 0 16px" }}>
-            {content.title}
-          </Heading>
-          <Text style={{ fontSize: "15px", lineHeight: "1.6", margin: "0 0 24px" }}>
-            {content.body}
-          </Text>
+      <Body style={{ backgroundColor: "#f7f4ec", color: "#1c2a22", padding: "24px" }}>
+        <Container style={{ backgroundColor: "#fffdf7", padding: "24px" }}>
+          <Heading>{content.title}</Heading>
+          <Text>{content.body}</Text>
           {content.action && link ? (
-            <Button
-              href={link}
-              style={{
-                backgroundColor: "#1f4d3a",
-                borderRadius: "10px",
-                color: "#fffdf7",
-                display: "inline-block",
-                fontSize: "15px",
-                padding: "12px 20px",
-                textDecoration: "none",
-              }}
-            >
+            <Button href={link} style={{ backgroundColor: "#1f4d3a", color: "#fffdf7" }}>
               {content.action}
             </Button>
           ) : null}
-          <Hr style={{ borderColor: "#e7e0d1", margin: "28px 0 16px" }} />
-          <Text style={{ color: "#6b6558", fontSize: "12px", margin: 0 }}>
-            If you did not request this email, ignore it. DMCloser never asks for
-            your password by email.
-          </Text>
+          <Text style={{ color: "#6b6558", fontSize: "12px" }}>{footer}</Text>
         </Container>
       </Body>
     </Html>
@@ -105,17 +50,15 @@ export function MailTemplate({ purpose, link }: MailTemplateInput) {
 }
 
 export async function renderMail(input: MailTemplateInput) {
-  const content = copy[input.purpose] ?? fallback;
+  const content = copy[input.purpose] ?? { title: "DMCloser", body: "Open DMCloser to continue." };
   const html = await render(<MailTemplate {...input} />);
   const text = [
     content.title,
-    "",
     content.body,
     input.link ? `${content.action ?? "Open"}: ${input.link}` : "",
-    "",
-    "If you did not request this email, ignore it. DMCloser never asks for your password by email.",
+    footer,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
   return { html, text };
 }
