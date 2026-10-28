@@ -778,6 +778,16 @@ export class RevenueService {
     const industryOutcomes = outcomes.filter(
       (outcome) => outcome.snapshot.industry === profile.industry,
     );
+    // ⚡ Bolt Optimization: Pre-group messages by conversation_id in a Map (O(M)) to avoid O(N*M) linear array scans.
+    const messagesByConversation = new Map<string, typeof messages>();
+    for (const message of messages) {
+      let list = messagesByConversation.get(message.conversation_id);
+      if (!list) {
+        list = [];
+        messagesByConversation.set(message.conversation_id, list);
+      }
+      list.push(message);
+    }
     const opportunities = rows
       .map((row) => ({
         deal: dealView(row),
@@ -787,16 +797,14 @@ export class RevenueService {
           dealView(row),
           {
             intent: row.intent,
-            messages: messages
-              .filter(
-                (message) => message.conversation_id === row.conversation_id,
-              )
-              .map((message) => ({
-                id: message.id,
-                sender: message.sender,
-                text: message.text,
-                timestamp: Number(message.timestamp),
-              })),
+            messages: (
+              messagesByConversation.get(row.conversation_id) || []
+            ).map((message) => ({
+              id: message.id,
+              sender: message.sender,
+              text: message.text,
+              timestamp: Number(message.timestamp),
+            })),
           },
           brain.entries,
           profile.industry,

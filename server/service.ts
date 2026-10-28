@@ -433,10 +433,19 @@ export class ProductService {
           [actor.workspaceId, JSON.stringify(ids)],
         )
       : [];
+    // ⚡ Bolt Optimization: Pre-group messages by conversation_id in a Map (O(M)) to avoid O(N*M) linear array scans.
+    const messagesByConversation = new Map<string, typeof messages>();
+    for (const message of messages) {
+      let list = messagesByConversation.get(message.conversation_id);
+      if (!list) {
+        list = [];
+        messagesByConversation.set(message.conversation_id, list);
+      }
+      list.push(message);
+    }
     const conversations = display.map((conversation) => {
-      const history = messages
-        .filter((message) => message.conversation_id === conversation.id)
-        .map((message) => ({
+      const history = (messagesByConversation.get(conversation.id) || []).map(
+        (message) => ({
           id: message.id,
           conversationId: conversation.id,
           sender: message.sender,
@@ -449,7 +458,8 @@ export class ProductService {
           mediaUrl: message.media_id
             ? `/api/media/${message.media_id}`
             : null,
-        }));
+        }),
+      );
       const last = history[history.length - 1];
       return {
         id: conversation.id,
