@@ -765,6 +765,10 @@ test("tenant boundaries and owner-only knowledge/payment permissions hold", asyn
     ).status,
     403,
   );
+  assert.equal(
+    (await b.mutate("delete", "/api/brain/links/fake-link-id").send({})).status,
+    403,
+  );
 });
 
 test("outcome learning uses sample thresholds and repeated loss reasons without approving facts", async () => {
