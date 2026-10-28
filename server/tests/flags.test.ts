@@ -1,6 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import request from "supertest";
 import { createDatabase, type Database } from "../db.ts";
 import { createApp } from "../app.ts";
 import { resolveFlags } from "../flags.ts";
@@ -80,6 +81,50 @@ test("the pilot list gates revenue and environment values win", async () => {
     AUTOMATION_ENABLED: "false",
   });
   assert.equal(killed.automationEnabled, false);
+
+  const typo = await resolveFlags(db, "workspace-b", {
+    AUTOMATION_ENABLED: "off",
+  });
+  assert.equal(typo.automationEnabled, false);
+
+  await db.query(
+    "UPDATE feature_flags SET value='\"broken\"'::jsonb WHERE key='pilot.workspaces'",
+  );
+  const malformed = await resolveFlags(db, "workspace-b", {});
+  assert.equal(malformed.revenueEnabled, false);
+});
+
+test("the revenue API rejects a workspace outside the pilot list", async () => {
+  const { app } = await createApp(config, db);
+  const agent = request.agent(app);
+  const email = `pilot-${randomUUID()}@example.com`;
+  const register = await agent
+    .post("/api/auth/register")
+    .set("Origin", config.appUrl)
+    .send({
+      email,
+      password: "correct horse battery staple",
+      name: "Pilot",
+      businessName: "Pilot Co",
+    });
+  assert.equal(register.status, 201);
+  const [workspace] = await db.query(
+    "SELECT w.id FROM workspaces w JOIN users u ON u.id=w.owner_id WHERE u.email=$1",
+    [email],
+  );
+  await db.query(
+    "UPDATE feature_flags SET value='true'::jsonb WHERE key IN ('automation.enabled','revenue.enabled')",
+  );
+  await db.query(
+    "UPDATE feature_flags SET value='[\"other-workspace\"]'::jsonb WHERE key='pilot.workspaces'",
+  );
+  assert.equal((await agent.get("/api/revenue")).status, 403);
+
+  await db.query(
+    "UPDATE feature_flags SET value=$1::jsonb WHERE key='pilot.workspaces'",
+    [JSON.stringify([workspace.id])],
+  );
+  assert.equal((await agent.get("/api/revenue")).status, 200);
 });
 
 test("the kill switch blocks automation and records a reason", async () => {

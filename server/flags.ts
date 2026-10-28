@@ -9,9 +9,9 @@ type Env = Record<string, string | undefined>;
 
 function envBoolean(env: Env, name: string): boolean | undefined {
   const raw = env[name]?.trim().toLowerCase();
-  if (raw === "true" || raw === "1") return true;
-  if (raw === "false" || raw === "0") return false;
-  return undefined;
+  if (raw === undefined || raw === "") return undefined;
+  // A typo must fail closed, not fall back to the seeded true row.
+  return raw === "true" || raw === "1";
 }
 
 async function stored(db: Database, key: string): Promise<unknown> {
@@ -23,7 +23,9 @@ async function stored(db: Database, key: string): Promise<unknown> {
   try {
     return JSON.parse(row.value);
   } catch {
-    return undefined;
+    // A driver may hand back a plain string; keep it so malformed values are
+    // rejected by the caller instead of looking like an absent row.
+    return row.value;
   }
 }
 
@@ -48,7 +50,10 @@ export async function resolveFlags(
         .filter(Boolean)
     : Array.isArray(pilotValue)
       ? pilotValue.map(String)
-      : [];
+      : pilotValue === undefined
+        ? []
+        : // A malformed pilot row must not silently open Revenue to everyone.
+          ["__invalid__"];
   return {
     automationEnabled:
       envBoolean(env, "AUTOMATION_ENABLED") ??

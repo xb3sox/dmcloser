@@ -81,6 +81,7 @@ import {
 import { Billing } from "./billing.ts";
 import { Worker } from "./worker.ts";
 import { withTraceId } from "./trace.ts";
+import { resolveFlags } from "./flags.ts";
 import { mountRevenueRoutes } from "./revenue-routes.ts";
 import { mountQualityRoutes } from "./quality-routes.ts";
 import {
@@ -1599,6 +1600,20 @@ export async function createApp(
       [Date.now(), job.id, req.actor!.workspaceId],
     );
     res.json({ ok: true });
+  });
+
+  const revenuePaths = [
+    /^\/api\/(?:revenue|brain|deals|quotes|appointments|sales-tasks)(?:\/|$)/,
+    /^\/api\/conversations\/[^/]+\/deal(?:\/|$)/,
+    /^\/api\/messages\/[^/]+\/feedback(?:\/|$)/,
+  ];
+  app.use(async (req, _res, next) => {
+    if (!req.actor || !revenuePaths.some((pattern) => pattern.test(req.path)))
+      return next();
+    const flags = await resolveFlags(db, req.actor.workspaceId);
+    if (!flags.revenueEnabled)
+      throw new HttpError(403, "Revenue is not enabled for this workspace.");
+    next();
   });
 
   mountRevenueRoutes(app, service, owner);

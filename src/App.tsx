@@ -17,7 +17,16 @@ import QualityLab from "@/components/revenue/QualityLab";
 import "./styles/app.css";
 
 function AppContent({ onHome }: { onHome: () => void }) {
-  const { state, selectedConversation, storageAvailable } = useApp();
+  const { state, selectedConversation, storageAvailable, live, dispatch } =
+    useApp();
+
+  useEffect(() => {
+    if (
+      state.currentView === "revenue" &&
+      live?.snapshot.flags?.revenueEnabled === false
+    )
+      dispatch({ type: "SET_VIEW", view: "inbox" });
+  }, [state.currentView, live?.snapshot.flags?.revenueEnabled, dispatch]);
 
   useEffect(() => {
     document.title = `${state.currentView === "revenue" ? "Revenue" : state.currentView === "brain" ? "Business Brain" : state.currentView === "quality" ? "AI Quality Lab" : state.currentView === "settings" ? "Settings" : state.currentView === "chat" && selectedConversation ? selectedConversation.contactName : "Inbox"} - DMCloser`;
@@ -48,7 +57,8 @@ function AppContent({ onHome }: { onHome: () => void }) {
             session.
           </p>
         )}
-        {state.currentView === "revenue" ? (
+        {state.currentView === "revenue" &&
+        live?.snapshot.flags?.revenueEnabled !== false ? (
           <RevenueView />
         ) : state.currentView === "brain" ? (
           <BusinessBrain />
