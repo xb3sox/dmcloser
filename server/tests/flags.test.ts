@@ -38,6 +38,12 @@ before(async () => {
   });
 });
 after(async () => {
+  // The external Postgres job shares one database across suites, so restore the
+  // seeded flags before the next suite runs.
+  await db.query("DELETE FROM feature_flags");
+  await db.query(
+    "INSERT INTO feature_flags(key,value) VALUES ('automation.enabled','true'::jsonb),('revenue.enabled','true'::jsonb),('pilot.workspaces','[]'::jsonb)",
+  );
   await db.close();
 });
 
