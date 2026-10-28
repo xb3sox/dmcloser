@@ -145,7 +145,7 @@ test("rate limiter returns HTTP 429 when limit is exceeded", async () => {
         prices: {},
         smtpPort: 587,
         mailFrom: "test@example.com",
-        trustProxy: 0,
+        trustProxy: 1,
         rateLimitMax: 2,
         authRateLimitMax: 10,
         recoveryRateLimitMax: 10,
@@ -153,15 +153,19 @@ test("rate limiter returns HTTP 429 when limit is exceeded", async () => {
       db,
     );
 
-    const client = request(app);
+    // The shared Postgres limiter is keyed by client IP, so a fresh IP keeps this
+    // test independent of the suites that ran before it in the same database.
+    const clientIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
+    const hit = () =>
+      request(app).get("/api/health").set("X-Forwarded-For", clientIp);
 
-    const res1 = await client.get("/api/health");
+    const res1 = await hit();
     assert.equal(res1.status, 200);
 
-    const res2 = await client.get("/api/health");
+    const res2 = await hit();
     assert.equal(res2.status, 200);
 
-    const res3 = await client.get("/api/health");
+    const res3 = await hit();
     assert.equal(res3.status, 429);
     assert.equal(res3.body.error, "Too many requests. Please wait a minute.");
   } finally {
