@@ -40,9 +40,11 @@ window is shorter than a worst-case AI timeout plus the connection drain. Do not
 **Backup and restore.** `scripts/backup.sh [dir]` writes a timestamped `pg_dump --clean --if-exists
 --no-owner --no-privileges` archive (gzipped) plus a `.sha256` sidecar under `backups/` (gitignored).
 `scripts/restore.sh <archive>` stops the app, restores into the running database, and starts the app
-again. **A restore is destructive and overwrites the current database** — rehearse it against an
-isolated staging database first, never production, and verify the `.sha256` sidecar before
-restoring. Back up the encryption key separately through the secret manager; it is not in the dump.
+only after every step succeeds. If any step fails, the script exits with the app still stopped; fix
+the failure, then run `docker compose start app` to resume service. **A restore is destructive and
+overwrites the current database** — rehearse it against an isolated staging database first, never
+production, and verify the `.sha256` sidecar before restoring. Back up the encryption key separately
+through the secret manager; it is not in the dump.
 
 **Release.** CI builds the image, smoke-tests it against a real Postgres service, records the
 immutable image id and the commit, and exports the image as a 30-day artifact. Deployment stays
@@ -75,7 +77,7 @@ Clinical-content detection in Medical Clinics mode routes administrative-risk ca
 
 Follow-up jobs use the existing worker but only produce a due human reminder, never an outbound message. Changed conversation anchors, closed deals and escalations cancel reminders. Internal appointments lock workspace/resources to prevent overlap and export ICS; they do not reserve Google/Microsoft calendar availability. Knowledge approval is owner-controlled; changes, expiry and graph updates invalidate older auto-send context. Score/forecast/learning changes require prospective pilot evals and owner review before expanding automation.
 
-Deploy API/worker instances behind TLS and load balancer. Configure production `DATABASE_URL`, 64-hex-character `ENCRYPTION_KEY`, HTTPS `APP_URL/API_PUBLIC_URL`, and internal `METRICS_TOKEN`. Do not configure `VITE_API_URL` in a same-origin production build. Set `TRUST_PROXY_HOPS` only to your actual proxy depth. Rate limiting is shared across instances using Postgres storage when `DATABASE_URL` is set (with an in-memory fallback for PGlite local dev). Real-time SSE updates fan out across instances using Postgres `LISTEN`/`NOTIFY` pub/sub.
+Deploy API/worker instances behind TLS and load balancer. Configure production `DATABASE_URL`, 64-hex-character `ENCRYPTION_KEY`, HTTPS `APP_URL/API_PUBLIC_URL`, and internal `METRICS_TOKEN`. Do not configure `VITE_API_URL` in a same-origin production build. Set `TRUST_PROXY_HOPS` only to your actual proxy depth. Rate limiting is shared across instances using Postgres storage when `DATABASE_URL` is set (with an in-memory fallback for PGlite local dev). `RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_MAX` and `RECOVERY_RATE_LIMIT_MAX` are per-client-IP integers in `1..100000`; production rejects an invalid value at boot and development falls back to the default. Real-time SSE updates fan out across instances using Postgres `LISTEN`/`NOTIFY` pub/sub.
 
 `docker compose up --build -d` requires `.env` (see `.env.example`), `POSTGRES_PASSWORD` and the secrets above. Compose reads `.env` for interpolation, so `POSTGRES_PASSWORD` and `ENCRYPTION_KEY` can live there or be exported by the shell; compose fails fast with a named error if either is missing.
 
