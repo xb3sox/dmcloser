@@ -1,67 +1,95 @@
 # DMCloser
 
-An inbox-first sales assistant for Instagram and WhatsApp. React/TypeScript/Vite frontend; Node/Express API; Postgres; durable SQL jobs; OpenAI Responses; Meta messaging; optional Stripe and SMTP.
+A bilingual (English and Arabic) sales inbox for Instagram and WhatsApp, with
+AI-assisted replies and tools for managing opportunities and revenue. Built with
+React, TypeScript, Vite, Node.js, and Express; PostgreSQL is used in production.
 
-## Run Locally
+## Features
+
+- Manage channel conversations and lead context in one workspace.
+- Draft replies with AI using approved business context and safety checks.
+- Track deals, quotes, and outcomes; distinguish estimates from confirmed receipts.
+- Work in English or Arabic, including right-to-left layouts.
+
+Forecasts are estimates. Receipts are owner-confirmed, not payment-processor
+verified.
+
+## Quick start
+
+**Requirements:** Node.js 22 (see [`.nvmrc`](.nvmrc)) and npm.
 
 ```sh
-npm install
+npm ci
 cp .env.example .env
-# Terminal 1
-npx tsx server/index.ts
-# Terminal 2
-npm run dev
 ```
 
-Use `http://localhost:5173` consistently with `.env`. The API runs on 3001. Local PGlite persists real Postgres data in `.data/postgres`; keep its generated encryption key. No provider credentials are needed to create an account or exercise the development inbound pipeline. Missing AI, payment, or messaging credentials are explicit setup states, not simulated successes.
+The local defaults use `localhost`. If you change hosts, keep `APP_URL`,
+`API_PUBLIC_URL`, and `VITE_API_URL` consistent; do not mix `localhost` and
+`127.0.0.1`.
 
-| Route        | Experience                                              |
-| ------------ | ------------------------------------------------------- |
-| `/`          | Responsive landing page and interactive product preview |
-| `/app`       | Credential-free, isolated browser demo                  |
-| `/workspace` | Authenticated, server-backed product                    |
-
-## Product
-
-- One shared minimal light/dark identity, mobile-first navigation, keyboard focus, reduced-motion support.
-- Secure registration/login, email verification/recovery, session revocation, workspace isolation, owner/member roles, invites, workspace switching.
-- Inbox, intent/status filters, history search, editable contact memory, persistent per-contact drafts, inline reply review/edit/send, realtime SSE updates.
-- Official Instagram Business Login and WhatsApp Cloud adapters; encrypted tokens; signed durable webhook ingestion and deduplication.
-- Structured AI replies grounded in approved business context; deterministic risk gates; server-enforced opt-ins, confidence, drafts, holds, quota, stale-source checks, and conservative provider windows.
-- Durable outbox and delivery receipts; ambiguous delivery is explicitly reconciled by the owner instead of blindly retried.
-- Optional Stripe Checkout/Portal, verified subscription entitlements, usage limits, complete data export/deletion, audit/failure review and operational metrics.
-
-## Verify
+Start the API and web app in separate terminals:
 
 ```sh
-node scripts/check.mjs
-npx playwright install --with-deps chromium
-npx playwright test
-# Optional external Postgres verification
-TEST_DATABASE_URL=postgres://user:password@localhost/database npx tsx --test --test-concurrency=1 server/tests/product.test.ts server/tests/revenue.test.ts
+npm run serve  # API: http://localhost:3001
+npm run dev    # Web app: http://localhost:5173
 ```
 
-Tests use fake providers for deterministic safety/contracts, not real customer sends or charges. Browser tests start an isolated local backend automatically. Both browser demo and authenticated product are covered. The supplied CI also verifies external Postgres and reserves production release for an approved environment.
+Open <http://localhost:5173>:
 
-## Revenue OS Upgrade
+| Path | Description |
+| --- | --- |
+| `/` | Landing page |
+| `/app` | Isolated demo |
+| `/workspace` | Sign up or log in to the authenticated product |
 
-The existing inbox is extended, not replaced. Live workspaces gain **Revenue**, **Business Brain**, and a collapsed **Deal intelligence** panel. These add opportunity values/BANT, explainable scores and next actions, immutable win/loss and receipt ledgers, currency/date-scoped forecasts, approved products/services/FAQs/offers/playbooks, typed knowledge relationships, industry guidance, internal appointments, quote snapshots and durable follow-up reminders.
+Without `DATABASE_URL`, local development uses PGlite; a separate PostgreSQL
+server is not needed. The app can run locally without live provider credentials;
+real integrations require their own credentials. Data is stored in `.data/`.
+Keep `.data/encryption.key` to retain access to locally encrypted data. Never
+commit `.env`, `.data`, or credentials.
 
-Receipts are explicitly owner-confirmed, not processor-verified. Forecasts and conversion scores are labelled estimates, not calibrated predictions. Outcome learning updates observed rates and repeated-loss recommendations without changing approved business facts or automation permissions. Follow-ups never send themselves; appointments are internal records with ICS export, not external calendar sync.
+## Tests
 
-`server/db.ts` applies numbered SQL migrations once, in order, under a migration lock. `002_revenue.sql` adds the commercial layer without replacing existing records. Exports include the new records, and existing tenant erasure cascades through them. See [docs/REVENUE_OS.md](docs/REVENUE_OS.md) for the gap analysis, six-part feature contracts, formulas, architecture and exact implementation plan.
+`npm test` runs static and type checks, server tests, a production build, and
+`npm audit`. Browser tests use Playwright and start local services as needed.
 
-## Activate And Operate
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
 
-- [ROADMAP.md](ROADMAP.md): concise shipped scope, launch order and exact remaining gates.
-- [docs/OPERATIONS.md](docs/OPERATIONS.md): credentials, Meta review/webhook setup, Docker, CI, failure recovery, monitoring, backups and rollback.
-- [docs/API.md](docs/API.md): REST/auth/idempotency contracts and UI snapshot limits.
-- [intent.md](intent.md), [spec.md](spec.md), [plan.md](plan.md), [CLAUDE.md](CLAUDE.md): the [AI-native SDLC playbook](https://claude.com/resources/articles/the-ai-native-sdlc-playbook) applied as reviewable repository artifacts.
+On Linux, if Playwright reports missing system packages, install them with
+`npx playwright install --with-deps chromium`.
 
-Production requires managed Postgres, HTTPS, a stable encryption key, SMTP, approved Meta credentials, OpenAI configuration, and Stripe configuration if charging. Docker/Compose and CI are supplied; hosted deployment, live-provider behavior, model calibration, latency targets, legal review, and recovery rehearsals still require external evidence and owner approval. Do not equate local tests with production certification.
+## Configuration and deployment
 
-## Source Map
+Edit `.env` to configure integrations. A production launch requires PostgreSQL
+via `DATABASE_URL`, HTTPS `APP_URL` and `API_PUBLIC_URL`, a persistent
+64-character hex `ENCRYPTION_KEY`, and transactional email. Configure provider
+credentials for the services you enable. Docker Compose is provided; see the
+[operations guide](docs/OPERATIONS.md) before deploying.
 
-`src/components/landing/` marketing; `src/components/workspace/` authenticated experience; `src/styles/system.css` shared identity; `server/app.ts` REST/security; `server/service.ts` product rules; `server/worker.ts` durable processing; `server/providers.ts` Meta contracts; `server/ai.ts` prompt/schema/evals; `server/migrations/` storage.
+## Documentation
 
-The studio photograph was generated for this project. Fonts load from Google Fonts with system fallbacks. Live credentials never enter frontend code or browser local storage.
+- [Contributing](CONTRIBUTING.md) — setup, tests, and pull request requirements
+- [Operations](docs/OPERATIONS.md) — configuration, integrations, deployment, and runbooks
+- [API reference](docs/API.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Revenue OS](docs/REVENUE_OS.md)
+- [Security policy](SECURITY.md)
+- [Evidence ledger](docs/EVIDENCE.md) — verification and outstanding release gates
+
+## Support
+
+For bugs, questions, or feature requests, use
+[GitHub Issues](https://github.com/xb3sox/dmcloser/issues). For security
+vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of filing a public issue.
+
+## License
+
+No license file is currently provided. Public visibility alone does not grant permission to
+reuse or redistribute this code.
+
+**Status:** Functional product; production launch awaits external gates and owner
+approval. See the [evidence ledger](docs/EVIDENCE.md); local tests do not certify
+production readiness.
