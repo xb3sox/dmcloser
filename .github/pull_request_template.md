@@ -1,3 +1,7 @@
+## Linked issue
+
+Closes #<!-- issue number; Merge Gate requires this exact form -->
+
 ## Summary
 <!-- Concise summary of the changes made in this pull request -->
 
