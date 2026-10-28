@@ -272,6 +272,29 @@ export default function SettingsView() {
             </div>
           )}
         </section>
+        <section className="settings-section" aria-labelledby="analytics-heading">
+          <div className="settings-section-intro">
+            <h2 id="analytics-heading">{t("settings.analytics.title")}</h2>
+            <p>{t("settings.analytics.description")}</p>
+          </div>
+          <label className="settings-toggle-row">
+            <input
+              type="checkbox"
+              checked={!!settings.analyticsConsent}
+              disabled={
+                !!live?.pending ||
+                (mode === "live" && live?.snapshot.user.role !== "owner")
+              }
+              onChange={(event) =>
+                void update({
+                  type: "UPDATE_SETTINGS",
+                  settings: { analyticsConsent: event.target.checked },
+                })
+              }
+            />
+            <span>{t("settings.analytics.consent")}</span>
+          </label>
+        </section>
         {mode === "demo" && (
           <>
             {" "}

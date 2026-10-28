@@ -206,27 +206,30 @@ export function mountRevenueRoutes(
     ),
   );
   app.post("/api/deals/:id/outcome", async (req, res) => {
-    await revenue.close(
-      req.actor!,
-      id(req.params.id),
-      z
-        .object({
-          version: z.number().int().positive(),
-          outcome: z.enum(["won", "lost"]),
-          reason: z.enum([
-            "fit",
-            "price",
-            "timing",
-            "trust",
-            "competition",
-            "service",
-            "no_response",
-            "other",
-          ]),
-          note: z.string().trim().max(1000).default(""),
-        })
-        .strict()
-        .parse(req.body),
+    const body = z
+      .object({
+        version: z.number().int().positive(),
+        outcome: z.enum(["won", "lost"]),
+        reason: z.enum([
+          "fit",
+          "price",
+          "timing",
+          "trust",
+          "competition",
+          "service",
+          "no_response",
+          "other",
+        ]),
+        note: z.string().trim().max(1000).default(""),
+      })
+      .strict()
+      .parse(req.body);
+    await revenue.close(req.actor!, id(req.params.id), body);
+    await service.analytics.capture(
+      service.db,
+      req.actor!.workspaceId,
+      "outcome_recorded",
+      { stage: body.outcome },
     );
     res.json({ ok: true });
   });

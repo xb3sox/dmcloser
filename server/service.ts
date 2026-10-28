@@ -17,6 +17,7 @@ import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
 import { traceId } from "./trace.ts";
 import { resolveFlags } from "./flags.ts";
+import { Analytics } from "./analytics.ts";
 
 export interface Actor {
   userId: string;
@@ -129,6 +130,7 @@ export class ProductService {
     uncertain: 0,
     totalGenerationMs: 0,
   };
+  analytics: Analytics;
   constructor(
     public db: Database,
     public config: Config,
@@ -136,6 +138,7 @@ export class ProductService {
     public meta: MetaProvider,
   ) {
     this.events.setMaxListeners(1000);
+    this.analytics = new Analytics(config);
     this.revenue = new RevenueService(db, (workspaceId) =>
       this.changed(workspaceId),
     );
@@ -609,6 +612,9 @@ export class ProductService {
     await this.audit(workspaceId, null, "account.connected", accountId, {
       platform,
     });
+    await this.analytics.capture(this.db, workspaceId, "channel_connected", {
+      platform,
+    });
     this.changed(workspaceId);
   }
 
@@ -933,6 +939,11 @@ export class ProductService {
       );
     });
     const totalLatency = ingestMs + persistenceMs + modelMs + draftWriteMs;
+    await this.analytics.capture(this.db, workspaceId, "draft_generated", {
+      intent: result.intent,
+      confidence: result.confidence,
+      safe: result.safe,
+    });
     this.metrics.generated++;
     this.metrics.totalGenerationMs += totalLatency;
     this.changed(workspaceId);
@@ -1273,6 +1284,10 @@ export class ProductService {
         [providerId, messageId, workspaceId],
       );
       await this.audit(workspaceId, null, "message.accepted", messageId);
+      await this.analytics.capture(this.db, workspaceId, "reply_sent", {
+        platform: message.platform,
+        automatic: !!message.automatic,
+      });
       this.metrics.delivered++;
     } catch (error) {
       const failure =

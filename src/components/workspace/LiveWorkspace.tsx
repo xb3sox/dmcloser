@@ -55,6 +55,7 @@ function AuthScreen({
   const [business, setBusiness] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [analyticsConsent, setAnalyticsConsent] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -120,7 +121,7 @@ function AuthScreen({
               if (view === "register")
                 await api("/auth/register", {
                   method: "POST",
-                  body: { name, businessName: business, email, password },
+                  body: { name, businessName: business, email, password, analyticsConsent },
                 });
               if (view === "login")
                 await api("/auth/login", {
@@ -188,6 +189,14 @@ function AuthScreen({
                   maxLength={100}
                   required
                 />
+              </label>
+              <label className="workspace-consent">
+                <input
+                  type="checkbox"
+                  checked={analyticsConsent}
+                  onChange={(event) => setAnalyticsConsent(event.target.checked)}
+                />
+                <span>{t("workspace.auth.field.analyticsConsent")}</span>
               </label>
             </>
           )}

@@ -94,6 +94,10 @@ export const workspaceStrings = {
     en: "At least 12 characters.",
     ar: "12 حرفاً على الأقل.",
   },
+  "workspace.auth.field.analyticsConsent": {
+    en: "Share anonymous product analytics",
+    ar: "مشاركة تحليلات المنتج المجهولة",
+  },
   "workspace.auth.pending": {
     en: "One moment...",
     ar: "لحظة من فضلك...",
