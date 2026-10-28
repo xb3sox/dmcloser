@@ -648,20 +648,27 @@ test("missing AI and billing configurations fail explicitly rather than fabricat
   );
 });
 
-test("email recovery tokens are single-use and revoke every old session", async () => {
+test("email recovery tokens are single-use, revoke old tokens and sessions", async () => {
   const f = await fixture();
-  const token = randomUUID() + randomUUID();
+  const token1 = randomUUID() + randomUUID();
+  const token2 = randomUUID() + randomUUID();
+
+  // Multiple reset tokens exist for the same user
   await db.query(
-    "INSERT INTO tokens(hash,user_id,purpose,expires_at) VALUES($1,$2,$3,$4)",
-    [digest(token), f.snapshot.user.id, "reset", Date.now() + 60000],
+    "INSERT INTO tokens(hash,user_id,purpose,expires_at) VALUES($1,$2,'reset',$3),($4,$2,'reset',$3)",
+    [digest(token1), f.snapshot.user.id, Date.now() + 60000, digest(token2)],
   );
-  const reset = () =>
+
+  const resetWith = (t: string) =>
     request(f.app)
       .post("/api/auth/reset")
       .set("Origin", config.appUrl)
-      .send({ token, password: "another unique password string" });
-  assert.equal((await reset()).status, 200);
-  assert.equal((await reset()).status, 400);
+      .send({ token: t, password: "another unique password string" });
+
+  // Resetting with token1 succeeds and revokes token2 as well
+  assert.equal((await resetWith(token1)).status, 200);
+  assert.equal((await resetWith(token1)).status, 400);
+  assert.equal((await resetWith(token2)).status, 400);
   assert.equal((await f.client.get("/api/bootstrap")).status, 401);
 });
 
@@ -732,6 +739,35 @@ test("no mail job is queued when the server has no SMTP host", async () => {
     [owner.snapshot.workspace.id],
   );
   assert.equal(rows.length, 0);
+});
+
+test("inviting an existing workspace member fails with HTTP 409", async () => {
+  const owner = await fixture();
+  const res = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: owner.email });
+  assert.equal(res.status, 409);
+  assert.equal(res.body.error, "This user is already a member of this workspace.");
+});
+
+test("re-inviting an email revokes previous token and succeeds without exceeding seats", async () => {
+  const owner = await fixture();
+  const inviteeEmail = `invitee-${randomUUID()}@example.com`;
+  const firstRes = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: inviteeEmail });
+  assert.equal(firstRes.status, 200);
+
+  const secondRes = await owner
+    .mutate("post", "/api/team/invites")
+    .send({ email: inviteeEmail });
+  assert.equal(secondRes.status, 200);
+
+  const tokens = await db.query(
+    "SELECT hash FROM tokens WHERE workspace_id=$1 AND purpose='invite' AND email=$2",
+    [owner.snapshot.workspace.id, inviteeEmail],
+  );
+  assert.equal(tokens.length, 1);
 });
 
 test("account deletion removes workspace data and sessions", async () => {
