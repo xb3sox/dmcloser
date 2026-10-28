@@ -37,6 +37,9 @@ export interface Config {
   smtpUser?: string;
   smtpPassword?: string;
   mailFrom: string;
+  /** smtp (default), resend, or sink for tests. */
+  mailProvider?: string;
+  resendKey?: string;
   trustProxy: number;
   metricsToken?: string;
   sentryDsn?: string;
@@ -122,6 +125,8 @@ export async function loadConfig(): Promise<Config> {
     smtpUser: env.SMTP_USER,
     smtpPassword: env.SMTP_PASSWORD,
     mailFrom: env.MAIL_FROM || "DMCloser <hello@example.com>",
+    mailProvider: env.MAIL_PROVIDER || undefined,
+    resendKey: env.RESEND_API_KEY || undefined,
     trustProxy: Number(env.TRUST_PROXY_HOPS || 0),
     metricsToken: env.METRICS_TOKEN,
     sentryDsn: env.SENTRY_DSN || undefined,

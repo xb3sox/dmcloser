@@ -4,11 +4,12 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["server/**/*.ts", "src/types/index.ts"]
+  "include": ["server/**/*.ts", "server/**/*.tsx", "src/types/index.ts"]
 }

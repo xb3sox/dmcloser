@@ -476,6 +476,7 @@ export async function createApp(
             : "Verify your DMCloser email",
         text: `${purpose === "reset" ? "Reset your password" : "Verify your email"} using this single-use link (expires in one hour):\n${url}\n\nIf you did not request this, ignore this email.`,
         purpose,
+        link: url,
       },
       target,
     );
@@ -836,25 +837,26 @@ export async function createApp(
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
     origin(req, res, (error) => (error ? next(error) : csrf(req, res, next)));
   });
-  app.get("/api/bootstrap", async (req, res) =>
-    res.json(
-      await service.snapshot(
-        req.actor!,
-        req.query.include === undefined
-          ? null
-          : z.string().max(150).parse(req.query.include),
-        {
-          assignee: req.query.assignee ? z.string().max(100).parse(req.query.assignee) : null,
-          channel: req.query.channel ? z.string().max(50).parse(req.query.channel) : null,
-          intent: req.query.intent ? z.string().max(50).parse(req.query.intent) : null,
-          unreadOnly: req.query.unread === "true" || req.query.unreadOnly === "true",
-          leadStatus: req.query.leadStatus ? z.string().max(50).parse(req.query.leadStatus) : null,
-          timeRange: req.query.timeRange ? z.string().max(50).parse(req.query.timeRange) : null,
-          search: req.query.search ? z.string().max(200).parse(req.query.search) : null,
-        },
-      ),
-    ),
-  );
+  app.get("/api/bootstrap", async (req, res) => {
+    const snapshot = await service.snapshot(
+      req.actor!,
+      req.query.include === undefined
+        ? null
+        : z.string().max(150).parse(req.query.include),
+      {
+        assignee: req.query.assignee ? z.string().max(100).parse(req.query.assignee) : null,
+        channel: req.query.channel ? z.string().max(50).parse(req.query.channel) : null,
+        intent: req.query.intent ? z.string().max(50).parse(req.query.intent) : null,
+        unreadOnly: req.query.unread === "true" || req.query.unreadOnly === "true",
+        leadStatus: req.query.leadStatus ? z.string().max(50).parse(req.query.leadStatus) : null,
+        timeRange: req.query.timeRange ? z.string().max(50).parse(req.query.timeRange) : null,
+        search: req.query.search ? z.string().max(200).parse(req.query.search) : null,
+      },
+    );
+    // The provider can be Resend without SMTP, so report the real mail surface.
+    snapshot.capabilities.email = !!mailer;
+    res.json(snapshot);
+  });
   app.get("/api/conversations", async (req, res) =>
     res.json(
       await service.conversationPage(req.actor!, {
@@ -1364,6 +1366,7 @@ export async function createApp(
           subject: "Your DMCloser workspace invitation",
           text: `Sign in with ${email} and accept your invitation:\n${url}\nThis link expires in 48 hours.`,
           purpose: "invite",
+          link: url,
         },
         req.actor!.workspaceId,
       );
