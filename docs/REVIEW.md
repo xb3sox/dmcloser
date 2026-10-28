@@ -6,8 +6,15 @@ Implementation is available for local/staging review. No production authorizatio
 
 - Strict client/server TypeScript; production frontend build; compiled API smoke test against real Postgres.
 - API/security tests on both PGlite and PostgreSQL: tenant isolation, CSRF, sessions, recovery, signatures, OAuth state, dedupe, safe automation, uncertain delivery, durable restart, Stripe reconciliation, complete export and erasure.
-- Browser suite: landing/demo regressions plus real registration, server persistence, SSE across tabs, send failure handling, export/deletion and automated light/dark accessibility.
+- Browser suite: landing/demo regressions plus real registration, server persistence, SSE across tabs, send failure handling, export/deletion and automated light/dark accessibility across Chromium, Firefox and WebKit projects.
 - Control-band tests and dependency audit. See the commands in `README.md`; CI repeats these gates but hosted execution is not verified here.
+
+## Browser Differences Boundary
+
+- **Multi-browser automation covers Desktop Chromium, Desktop Firefox, and Desktop Safari (WebKit).**
+- **Framer Motion viewport triggers and scroll behavior:** Below-the-fold animated elements (such as landing page demo components wrapped in Framer Motion `<Reveal>`) require explicit `scrollIntoViewIfNeeded()` in test scripts under Firefox and WebKit to reliably trigger IntersectionObserver animations before interacting with interactive elements.
+- **Dynamic theme computed styles in WebKit:** WebKit does not always invalidate inherited CSS custom properties after the `.dark` class flips. `ThemeProvider` forces one synchronous body reflow after the class change and restores the active element; tests wait for `toHaveClass("dark")` before the axe scan.
+- **No real-device claim:** Desktop WebKit and Firefox project emulation provides automated browser engine coverage but does not substitute for physical iOS Safari or Android Chrome device testing.
 
 ## Human Gates
 

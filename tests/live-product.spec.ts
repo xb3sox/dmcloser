@@ -213,10 +213,12 @@ test("has accessible authentication and live settings in both themes", async ({
   await register(page);
   await settings(page).click();
   for (const theme of ["light", "dark"]) {
-    if (theme === "dark")
+    if (theme === "dark") {
       await page
         .getByRole("button", { name: "Dark mode", exact: true })
         .click();
+      await expect(page.locator("html")).toHaveClass("dark");
+    }
     results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
