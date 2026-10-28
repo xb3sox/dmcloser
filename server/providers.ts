@@ -2,6 +2,13 @@ import type { Config } from "./config.ts";
 import { HttpError } from "./security.ts";
 import { traceId } from "./trace.ts";
 
+export interface IncomingMediaAttachment {
+  providerMediaId?: string;
+  url?: string;
+  mimeType?: string;
+  filename?: string;
+}
+
 export interface IncomingMessage {
   platform: "instagram" | "whatsapp";
   accountId: string;
@@ -11,6 +18,7 @@ export interface IncomingMessage {
   text: string;
   timestamp: number;
   reviewOnly: boolean;
+  media?: IncomingMediaAttachment;
 }
 export interface DeliveryUpdate {
   platform: "instagram" | "whatsapp";
@@ -39,6 +47,9 @@ export function normalizeWebhook(
           !entry.id
         )
           continue;
+        const attachment = Array.isArray(message?.attachments)
+          ? message.attachments[0]
+          : null;
         messages.push({
           platform,
           accountId: String(entry.id),
@@ -51,6 +62,17 @@ export function normalizeWebhook(
               : "[Media message: review in Instagram]",
           timestamp: Number(event.timestamp) || Date.now(),
           reviewOnly: typeof message.text !== "string",
+          media: attachment?.payload?.url
+            ? {
+                url: String(attachment.payload.url),
+                mimeType:
+                  attachment.type === "image"
+                    ? "image/jpeg"
+                    : attachment.type === "file"
+                      ? "application/pdf"
+                      : undefined,
+              }
+            : undefined,
         });
       }
     } else {
@@ -65,6 +87,10 @@ export function normalizeWebhook(
           const contact = (
             Array.isArray(value.contacts) ? value.contacts : []
           ).find((item: any) => item?.wa_id === message.from);
+          const mediaObj =
+            message.type && message.type !== "text"
+              ? message[message.type]
+              : null;
           messages.push({
             platform,
             accountId: String(accountId),
@@ -77,6 +103,18 @@ export function normalizeWebhook(
                 : "[Media message: review in WhatsApp]",
             timestamp: Number(message.timestamp) * 1000 || Date.now(),
             reviewOnly: message.type !== "text",
+            media: mediaObj
+              ? {
+                  providerMediaId: mediaObj.id ? String(mediaObj.id) : undefined,
+                  mimeType: mediaObj.mime_type
+                    ? String(mediaObj.mime_type)
+                    : undefined,
+                  filename: mediaObj.filename
+                    ? String(mediaObj.filename)
+                    : undefined,
+                  url: mediaObj.url ? String(mediaObj.url) : undefined,
+                }
+              : undefined,
           });
         }
         for (const status of Array.isArray(value.statuses)
@@ -262,6 +300,54 @@ export class MetaProvider {
       token: String(value.access_token),
       expiresAt: Date.now() + Number(value.expires_in || 5184000) * 1000,
     };
+  }
+
+  async downloadMedia(
+    platform: "instagram" | "whatsapp",
+    mediaInfo: IncomingMediaAttachment,
+    token: string,
+  ): Promise<{ data: Buffer; mimeType: string }> {
+    let downloadUrl = mediaInfo.url;
+    let expectedMime = mediaInfo.mimeType;
+
+    if (platform === "whatsapp" && mediaInfo.providerMediaId) {
+      const meta = await this.json(
+        `https://graph.facebook.com/${this.config.graphVersion}/${encodeURIComponent(mediaInfo.providerMediaId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!meta?.url)
+        throw new ProviderError("WhatsApp media metadata missing URL.");
+      downloadUrl = meta.url;
+      if (meta.mime_type) expectedMime = meta.mime_type;
+    }
+
+    if (!downloadUrl)
+      throw new ProviderError("Media download URL is not available.");
+
+    let response: Response;
+    try {
+      response = await this.fetcher(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new ProviderError("Failed to reach media download URL.");
+    }
+
+    if (!response.ok) {
+      throw new ProviderError(
+        `Media download failed with status ${response.status}.`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const data = Buffer.from(arrayBuffer);
+    const contentType =
+      response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() ||
+      expectedMime ||
+      "application/octet-stream";
+
+    return { data, mimeType: contentType };
   }
 
   async send(

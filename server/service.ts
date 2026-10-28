@@ -38,6 +38,18 @@ export const emptySettings: BusinessSettings = {
   autoReplyEnabled: false,
   autoSendConfidenceThreshold: 90,
 };
+export const MAX_MEDIA_SIZE = 5 * 1024 * 1024; // 5 MB
+export const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
 export const monthKey = () => new Date().toISOString().slice(0, 7);
 export const contextHash = (settings: BusinessSettings) =>
   digest(
@@ -428,6 +440,10 @@ export class ProductService {
           deliveryStatus: message.status,
           deliveryError: message.error,
           automatic: message.automatic,
+          mediaId: message.media_id ? String(message.media_id) : null,
+          mediaUrl: message.media_id
+            ? `/api/media/${message.media_id}`
+            : null,
         }));
       const last = history[history.length - 1];
       return {
@@ -619,6 +635,44 @@ export class ProductService {
     this.changed(workspaceId);
   }
 
+  async storeInboundMedia(
+    workspaceId: string,
+    mimeType: string,
+    data: Buffer,
+    db = this.db,
+  ): Promise<string> {
+    if (data.length > MAX_MEDIA_SIZE) {
+      throw new HttpError(
+        413,
+        "Media file exceeds maximum allowed size of 5 MB.",
+      );
+    }
+    const cleanMime = mimeType.split(";")[0].trim().toLowerCase();
+    if (!ALLOWED_MIME_TYPES.has(cleanMime)) {
+      throw new HttpError(415, `Unsupported media type: ${cleanMime}`);
+    }
+    const id = randomUUID();
+    const cipher = encrypt(data.toString("base64"), this.config.encryptionKey);
+    await db.query(
+      "INSERT INTO media_files(id,workspace_id,mime_type,size_bytes,data_cipher) VALUES($1,$2,$3,$4,$5)",
+      [id, workspaceId, cleanMime, data.length, cipher],
+    );
+    return id;
+  }
+
+  async getMedia(
+    workspaceId: string,
+    mediaId: string,
+  ): Promise<{ data: Buffer; mimeType: string }> {
+    const [row] = await this.db.query(
+      "SELECT * FROM media_files WHERE id=$1 AND workspace_id=$2",
+      [mediaId, workspaceId],
+    );
+    if (!row) throw new HttpError(404, "Media file not found.");
+    const base64 = decrypt(row.data_cipher, this.config.encryptionKey);
+    return { data: Buffer.from(base64, "base64"), mimeType: row.mime_type };
+  }
+
   async ingest(message: IncomingMessage) {
     const [connection] = await this.db.query(
       "SELECT * FROM connections WHERE platform=$1 AND account_id=$2 AND status='connected'",
@@ -627,6 +681,33 @@ export class ProductService {
     if (!connection) return;
     const timestamp = Math.min(Date.now(), Math.max(0, message.timestamp));
     const risk = detectRisk(message.text);
+
+    let mediaId: string | null = null;
+    if (message.media) {
+      try {
+        const token = decrypt(connection.token_cipher, this.config.encryptionKey);
+        const downloaded = await this.meta.downloadMedia(
+          message.platform,
+          message.media,
+          token,
+        );
+        mediaId = await this.storeInboundMedia(
+          connection.workspace_id,
+          downloaded.mimeType,
+          downloaded.data,
+        );
+      } catch (err) {
+        console.error(
+          JSON.stringify({
+            event: "media.download_failed",
+            platform: message.platform,
+            providerId: message.providerId,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      }
+    }
+
     await this.db.transaction(async (tx) => {
       const [conversation] = await tx.query(
         "INSERT INTO conversations(id,workspace_id,connection_id,platform,external_id,name,last_at,window_until,intent) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (workspace_id,platform,external_id) DO UPDATE SET connection_id=EXCLUDED.connection_id RETURNING *",
@@ -644,7 +725,7 @@ export class ProductService {
       );
       const id = randomUUID();
       const inserted = await tx.query(
-        "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,provider_id,connection_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (connection_id,provider_id) DO NOTHING RETURNING id",
+        "INSERT INTO messages(id,workspace_id,conversation_id,sender,text,timestamp,provider_id,connection_id,media_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (connection_id,provider_id) DO NOTHING RETURNING id",
         [
           id,
           connection.workspace_id,
@@ -654,8 +735,15 @@ export class ProductService {
           timestamp,
           message.providerId,
           connection.id,
+          mediaId,
         ],
       );
+      if (mediaId && inserted.length) {
+        await tx.query(
+          "UPDATE media_files SET message_id=$1 WHERE id=$2 AND workspace_id=$3",
+          [id, mediaId, connection.workspace_id],
+        );
+      }
       if (!inserted.length) return;
       if (risk !== "spam")
         await this.revenue.ensure(connection.workspace_id, conversation.id, tx);
