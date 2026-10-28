@@ -16,6 +16,7 @@ import type { BusinessSettings } from "../src/types/index.ts";
 import { RevenueService } from "./revenue.ts";
 import { QualityService } from "./quality.ts";
 import { traceId } from "./trace.ts";
+import { resolveFlags } from "./flags.ts";
 
 export interface Actor {
   userId: string;
@@ -559,6 +560,7 @@ export class ProductService {
       },
       members,
       audit,
+      flags: await resolveFlags(this.db, actor.workspaceId),
       capabilities: {
         ai: !!this.config.openaiKey,
         instagram: !!(
@@ -1060,6 +1062,18 @@ export class ProductService {
     conversation: any,
     sourceId: string,
   ) {
+    const flags = await resolveFlags(tx, workspaceId);
+    if (!flags.automationEnabled) {
+      await this.audit(
+        workspaceId,
+        null,
+        "automation.blocked",
+        sourceId,
+        { reason: "kill_switch" },
+        tx,
+      );
+      return false;
+    }
     const [opportunity] = await tx.query(
       "SELECT escalated,stage FROM deals WHERE workspace_id=$1 AND conversation_id=$2",
       [workspaceId, conversation.id],

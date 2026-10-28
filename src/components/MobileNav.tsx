@@ -71,15 +71,17 @@ export default function MobileNav({ onHome }: { onHome: () => void }) {
         </button>
         {mode === "live" && (
           <>
-            <button
-              aria-current={
-                state.currentView === "revenue" ? "page" : undefined
-              }
-              onClick={() => dispatch({ type: "SET_VIEW", view: "revenue" })}
-            >
-              <TrendingUp size={19} />
-              <span>{t("nav.revenue")}</span>
-            </button>
+            {live?.snapshot.flags?.revenueEnabled !== false && (
+              <button
+                aria-current={
+                  state.currentView === "revenue" ? "page" : undefined
+                }
+                onClick={() => dispatch({ type: "SET_VIEW", view: "revenue" })}
+              >
+                <TrendingUp size={19} />
+                <span>{t("nav.revenue")}</span>
+              </button>
+            )}
             <button
               aria-current={state.currentView === "brain" ? "page" : undefined}
               onClick={() => dispatch({ type: "SET_VIEW", view: "brain" })}
