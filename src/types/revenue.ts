@@ -268,17 +268,25 @@ export const brainLabels: Record<BrainKind, string> = {
  * call sites keep the default en-US because the AI grounding check compares
  * the formatted string against approved facts verbatim.
  */
+const revenueMoneyCache = new Map<string, Intl.NumberFormat>();
+
 export function money(
   minor: number | null,
   currency: string,
   locale = "en-US",
 ) {
   if (minor === null) return "Not set";
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(minor / 100);
+  const key = `${locale}:${currency}`;
+  let formatter = revenueMoneyCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    });
+    revenueMoneyCache.set(key, formatter);
+  }
+  return formatter.format(minor / 100);
 }
 export function parseMoney(value: string): number | null {
   if (!value.trim()) return null;

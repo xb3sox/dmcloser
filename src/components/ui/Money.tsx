@@ -10,6 +10,22 @@ import { formatStrings } from "@/i18n/surfaces/format";
  * Everywhere else use the `<Money />` component, which adds the bidi
  * isolation a bare number needs.
  */
+const moneyFormatterCache = new Map<string, Intl.NumberFormat>();
+
+function getMoneyFormatter(localeTagStr: string, currency: string): Intl.NumberFormat {
+  const key = `${localeTagStr}:${currency}`;
+  let formatter = moneyFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(localeTagStr, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    });
+    moneyFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
 export function useMoney() {
   const { locale } = useLocale();
   const t = useStrings(formatStrings);
@@ -17,11 +33,7 @@ export function useMoney() {
     (minor: number | null, currency: string) =>
       minor === null
         ? t("format.money.notSet")
-        : new Intl.NumberFormat(localeTag[locale], {
-            style: "currency",
-            currency,
-            maximumFractionDigits: 2,
-          }).format(minor / 100),
+        : getMoneyFormatter(localeTag[locale], currency).format(minor / 100),
     [locale, t],
   );
 }
