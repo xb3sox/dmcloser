@@ -735,7 +735,7 @@ export default function DealPanel() {
             t("revenue.deal.panelSummary")
           )}
         </span>
-        <ChevronDown size={15} />
+        <ChevronDown size={15} aria-hidden="true" />
       </summary>
       <div className="deal-intelligence-content" tabIndex={0}>
         {error && (
