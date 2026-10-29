@@ -326,9 +326,21 @@ export class MetaProvider {
     if (!downloadUrl)
       throw new ProviderError("Media download URL is not available.");
 
+    // Validate URL scheme defensively before fetching with sensitive bearer token
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(downloadUrl);
+    } catch {
+      throw new ProviderError("Invalid media download URL format.");
+    }
+
+    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+      throw new ProviderError("Media download URL must use HTTP or HTTPS.");
+    }
+
     let response: Response;
     try {
-      response = await this.fetcher(downloadUrl, {
+      response = await this.fetcher(parsedUrl.href, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(15000),
       });

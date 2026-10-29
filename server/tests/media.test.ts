@@ -212,3 +212,33 @@ test("download aborts an oversized stream and a large content-length", async () 
     /5 MB/,
   );
 });
+
+test("downloadMedia rejects malformed URLs and non-HTTP/HTTPS schemes", async () => {
+  const provider = new MetaProvider(config);
+
+  await assert.rejects(
+    () =>
+      provider.downloadMedia(
+        "instagram",
+        { url: "not-a-valid-url" },
+        "token",
+      ),
+    /Invalid media download URL format/,
+  );
+
+  for (const invalidUrl of [
+    "file:///etc/passwd",
+    "ftp://example.com/file.jpg",
+    "javascript:alert(1)",
+  ]) {
+    await assert.rejects(
+      () =>
+        provider.downloadMedia(
+          "instagram",
+          { url: invalidUrl },
+          "token",
+        ),
+      /Media download URL must use HTTP or HTTPS/,
+    );
+  }
+});
