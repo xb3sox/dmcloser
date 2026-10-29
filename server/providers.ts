@@ -326,10 +326,44 @@ export class MetaProvider {
     if (!downloadUrl)
       throw new ProviderError("Media download URL is not available.");
 
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(downloadUrl);
+    } catch {
+      throw new ProviderError("Media download URL is invalid.");
+    }
+
+    if (
+      parsedUrl.protocol !== "https:" &&
+      !(
+        !this.config.production &&
+        (parsedUrl.hostname === "localhost" ||
+          parsedUrl.hostname === "127.0.0.1" ||
+          parsedUrl.hostname.endsWith(".test"))
+      )
+    ) {
+      throw new ProviderError("Media download URL must use HTTPS.");
+    }
+
+    const host = parsedUrl.hostname.toLowerCase();
+    const isMetaDomain =
+      host.endsWith(".facebook.com") ||
+      host === "facebook.com" ||
+      host.endsWith(".instagram.com") ||
+      host === "instagram.com" ||
+      host.endsWith(".fbcdn.net") ||
+      host.endsWith(".cdninstagram.com") ||
+      host.endsWith(".fbsbx.com");
+
+    const headers: Record<string, string> = {};
+    if (isMetaDomain) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     let response: Response;
     try {
       response = await this.fetcher(downloadUrl, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
         signal: AbortSignal.timeout(15000),
       });
     } catch {

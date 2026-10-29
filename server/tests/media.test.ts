@@ -212,3 +212,40 @@ test("download aborts an oversized stream and a large content-length", async () 
     /5 MB/,
   );
 });
+
+test("downloadMedia rejects non-HTTPS URLs and restricts Bearer token to Meta domains", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  const provider = new MetaProvider(
+    { ...config, production: true },
+    async (_url, opts) => {
+      capturedHeaders = (opts?.headers as Record<string, string>) || {};
+      return new Response(Buffer.from("media-data"), {
+        headers: { "content-type": "image/jpeg" },
+      });
+    },
+  );
+
+  await assert.rejects(
+    () =>
+      provider.downloadMedia(
+        "instagram",
+        { url: "http://example.com/media.jpg" },
+        "secret-token",
+      ),
+    /HTTPS/,
+  );
+
+  await provider.downloadMedia(
+    "instagram",
+    { url: "https://untrusted-site.com/media.jpg" },
+    "secret-token",
+  );
+  assert.equal(capturedHeaders.Authorization, undefined);
+
+  await provider.downloadMedia(
+    "instagram",
+    { url: "https://scontent.cdninstagram.com/media.jpg" },
+    "secret-token",
+  );
+  assert.equal(capturedHeaders.Authorization, "Bearer secret-token");
+});
