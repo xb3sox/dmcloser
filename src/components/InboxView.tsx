@@ -164,6 +164,12 @@ export default function InboxView() {
             ref={searchRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && search) {
+                event.preventDefault();
+                setSearch("");
+              }
+            }}
             aria-label={t("inbox.searchLabel")}
             placeholder={t("inbox.searchPlaceholder")}
             type="search"

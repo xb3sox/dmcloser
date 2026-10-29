@@ -45,6 +45,12 @@ test("filters channels and searches message content", async ({ page }) => {
     .fill("boutiques");
   await expect(page.locator(".conversation-row")).toHaveCount(1);
   await expect(page.locator(".conversation-row")).toContainText("James Liu");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("searchbox")).toHaveValue("");
+  await expect(page.locator(".conversation-row")).toHaveCount(3);
+  await page
+    .getByRole("searchbox", { name: "Search conversations" })
+    .fill("boutiques");
   await page.getByRole("button", { name: "Clear conversation search" }).click();
   await expect(page.getByRole("searchbox")).toBeFocused();
   await expect(page.locator(".conversation-row")).toHaveCount(3);

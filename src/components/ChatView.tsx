@@ -634,6 +634,7 @@ export default function ChatView() {
                 rows={3}
                 onKeyDown={(event) => onEnter(event, () => send(editedReply))}
                 aria-label={t("chat.suggestion.editLabel")}
+                aria-describedby="chat-composer-hint"
               />
             ) : (
               <p tabIndex={0}>{aiSuggestion.text}</p>
