@@ -433,23 +433,34 @@ export class ProductService {
           [actor.workspaceId, JSON.stringify(ids)],
         )
       : [];
+    // Optimization: Group messages by conversation_id into a Map in O(M) time
+    // to avoid O(N*M) nested filtering inside display.map for large inbox pages.
+    const messagesByConversation = new Map<string, typeof messages>();
+    for (const message of messages) {
+      let list = messagesByConversation.get(message.conversation_id);
+      if (!list) {
+        list = [];
+        messagesByConversation.set(message.conversation_id, list);
+      }
+      list.push(message);
+    }
     const conversations = display.map((conversation) => {
-      const history = messages
-        .filter((message) => message.conversation_id === conversation.id)
-        .map((message) => ({
-          id: message.id,
-          conversationId: conversation.id,
-          sender: message.sender,
-          text: message.text,
-          timestamp: Number(message.timestamp),
-          deliveryStatus: message.status,
-          deliveryError: message.error,
-          automatic: message.automatic,
-          mediaId: message.media_id ? String(message.media_id) : null,
-          mediaUrl: message.media_id
-            ? `/api/media/${message.media_id}`
-            : null,
-        }));
+      const conversationMessages =
+        messagesByConversation.get(conversation.id) ?? [];
+      const history = conversationMessages.map((message) => ({
+        id: message.id,
+        conversationId: conversation.id,
+        sender: message.sender,
+        text: message.text,
+        timestamp: Number(message.timestamp),
+        deliveryStatus: message.status,
+        deliveryError: message.error,
+        automatic: message.automatic,
+        mediaId: message.media_id ? String(message.media_id) : null,
+        mediaUrl: message.media_id
+          ? `/api/media/${message.media_id}`
+          : null,
+      }));
       const last = history[history.length - 1];
       return {
         id: conversation.id,
