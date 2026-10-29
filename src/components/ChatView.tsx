@@ -609,7 +609,7 @@ export default function ChatView() {
           <div className="chat-suggestion">
             <div className="chat-suggestion-heading">
               <span>
-                <Sparkles size={14} />
+                <Sparkles size={14} aria-hidden="true" />
                 {t("chat.suggestion.heading")}
               </span>
               <span
@@ -648,7 +648,7 @@ export default function ChatView() {
                 }
               >
                 {t("chat.suggestion.send")}
-                <Send size={13} />
+                <Send size={13} aria-hidden="true" />
               </button>
               <button
                 className="app-text-button"
@@ -661,7 +661,7 @@ export default function ChatView() {
                   t("chat.suggestion.cancel")
                 ) : (
                   <>
-                    <Pencil size={13} />
+                    <Pencil size={13} aria-hidden="true" />
                     {t("chat.suggestion.edit")}
                   </>
                 )}
@@ -718,7 +718,7 @@ export default function ChatView() {
             }
             aria-label={t("chat.composer.sendLabel")}
           >
-            <Send size={17} />
+            <Send size={17} aria-hidden="true" />
           </button>
         </form>
         <div className="chat-composer-footer">
