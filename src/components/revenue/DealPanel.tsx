@@ -50,6 +50,19 @@ const dateInput = (value: number) => {
     .slice(0, 16);
 };
 
+// ⚡ Bolt Optimization: Cache user timezone to avoid instantiating Intl.DateTimeFormat on every component render.
+let cachedUserTimezone: string | null = null;
+function getUserTimezone(): string {
+  if (!cachedUserTimezone) {
+    try {
+      cachedUserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      cachedUserTimezone = "UTC";
+    }
+  }
+  return cachedUserTimezone;
+}
+
 function DealAction({
   action,
   data,
@@ -537,7 +550,7 @@ function DealAction({
             </label>
             <label htmlFor="appointment-date">
               {t("revenue.deal.startTimezone", {
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezone: getUserTimezone(),
               })}
               <input
                 id="appointment-date"
