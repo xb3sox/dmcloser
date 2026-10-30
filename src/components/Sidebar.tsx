@@ -165,11 +165,21 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
             </small>
           </div>
         </div>
-        <button onClick={toggle}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={theme === "dark"}
+          aria-label={t(
+            theme === "dark"
+              ? "nav.switchToLightMode"
+              : "nav.switchToDarkMode",
+          )}
+        >
           {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           {t(theme === "light" ? "nav.darkMode" : "nav.lightMode")}
         </button>
         <button
+          type="button"
           onClick={() => setLocale(locale === "en" ? "ar" : "en")}
           title={t(
             locale === "en" ? "nav.switchToArabic" : "nav.switchToEnglish",
@@ -182,7 +192,7 @@ export default function Sidebar({ onHome }: { onHome: () => void }) {
           <Languages size={16} />
           {locale === "en" ? "العربية" : "English"}
         </button>
-        <button onClick={onHome}>
+        <button type="button" onClick={onHome}>
           <ArrowLeft size={16} />
           {t("nav.backToWebsite")}
         </button>

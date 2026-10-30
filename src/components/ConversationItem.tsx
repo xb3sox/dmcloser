@@ -33,6 +33,7 @@ const ConversationItem = memo(function ConversationItem({
   const draft = state.drafts[conversation.id];
   return (
     <button
+      type="button"
       className={`conversation-row ${state.selectedConversationId === conversation.id ? "is-selected" : ""} ${conversation.unread ? "is-unread" : ""}`}
       onClick={() =>
         dispatch({ type: "SELECT_CONVERSATION", id: conversation.id })
