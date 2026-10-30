@@ -151,6 +151,7 @@ export default function InboxView() {
             <span aria-hidden="true">{filtered.length}</span>
           </h1>
           <button
+            type="button"
             className={`unread-filter ${unreadOnly ? "is-selected" : ""}`}
             aria-pressed={unreadOnly}
             onClick={() => setUnreadOnly(!unreadOnly)}
@@ -176,6 +177,7 @@ export default function InboxView() {
           />
           {search && (
             <button
+              type="button"
               aria-label={t("inbox.clearSearch")}
               onClick={() => {
                 setSearch("");
@@ -210,6 +212,7 @@ export default function InboxView() {
         >
           {filters.map((filter) => (
             <button
+              type="button"
               key={filter.value}
               aria-pressed={intent === filter.value}
               onClick={() => setIntent(filter.value)}
@@ -313,6 +316,7 @@ export default function InboxView() {
               </>
             )}
             <button
+              type="button"
               className="app-text-button"
               onClick={() => {
                 setSearch("");
