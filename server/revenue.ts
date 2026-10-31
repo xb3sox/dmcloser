@@ -778,15 +778,34 @@ export class RevenueService {
     const industryOutcomes = outcomes.filter(
       (outcome) => outcome.snapshot.industry === profile.industry,
     );
-    // ⚡ Bolt Optimization: Pre-group messages by conversation_id in a Map (O(M)) to avoid O(N*M) linear array scans.
-    const messagesByConversation = new Map<string, typeof messages>();
+    // ⚡ Bolt Optimization: Pre-group and format messages by conversation_id in a Map (O(M)).
+    // Avoids O(N*M) linear array scans and eliminates re-mapping messages inside rows.map.
+    const messagesByConversation = new Map<
+      string,
+      Array<{ id: string; sender: string; text: string; timestamp: number }>
+    >();
     for (const message of messages) {
       let list = messagesByConversation.get(message.conversation_id);
       if (!list) {
         list = [];
         messagesByConversation.set(message.conversation_id, list);
       }
-      list.push(message);
+      list.push({
+        id: message.id,
+        sender: message.sender,
+        text: message.text,
+        timestamp: Number(message.timestamp),
+      });
+    }
+
+    // ⚡ Bolt Optimization: Pre-compute priceLosses once outside rows.map in O(K) time
+    // instead of executing industryOutcomes.filter(...) inside every opportunity row.
+    // Eliminates N intermediate array allocations and O(N*K) redundant iterations.
+    let priceLosses = 0;
+    for (const outcome of industryOutcomes) {
+      if (outcome.outcome === "lost" && outcome.reason === "price") {
+        priceLosses++;
+      }
     }
     const opportunities = rows
       .map((row) => ({
@@ -797,25 +816,13 @@ export class RevenueService {
           dealView(row),
           {
             intent: row.intent,
-            messages: (
-              messagesByConversation.get(row.conversation_id) || []
-            ).map((message) => ({
-              id: message.id,
-              sender: message.sender,
-              text: message.text,
-              timestamp: Number(message.timestamp),
-            })),
+            messages: messagesByConversation.get(row.conversation_id) || [],
           },
           brain.entries,
           profile.industry,
           cohorts,
           now,
-          {
-            priceLosses: industryOutcomes.filter(
-              (outcome) =>
-                outcome.outcome === "lost" && outcome.reason === "price",
-            ).length,
-          },
+          { priceLosses },
         ),
       }))
       .sort(
@@ -918,6 +925,43 @@ export class RevenueService {
       lessons.push(
         `${helpful[0].n} replies were marked helpful by your team. Review them alongside deal outcomes before changing approved messaging.`,
       );
+    // ⚡ Bolt Optimization: Single-pass metric accumulation over open deals.
+    // Consolidates 7 separate filter/reduce passes into one O(P) loop and eliminates
+    // multiple intermediate array allocations and redundant Date object instantiations.
+    let pipelineMinor = 0;
+    let forecastWeighted = 0;
+    let unknownValueDeals = 0;
+    let undatedDeals = 0;
+    let qualifiedLeads = 0;
+    let hotLeads = 0;
+
+    for (const item of open) {
+      const indicative = item.insight.indicativeValueMinor;
+      pipelineMinor += indicative || 0;
+      if (indicative === null) {
+        unknownValueDeals++;
+      }
+      if (!item.deal.expectedClose) {
+        undatedDeals++;
+      } else {
+        const closeEnd = new Date(
+          item.deal.expectedClose + "T23:59:59Z",
+        ).getTime();
+        const closeStart = new Date(
+          item.deal.expectedClose + "T00:00:00Z",
+        ).getTime();
+        if (closeEnd >= now && closeStart <= horizon) {
+          forecastWeighted += (indicative || 0) * item.insight.probability;
+        }
+      }
+      if (item.insight.qualified || item.deal.stage === "qualified") {
+        qualifiedLeads++;
+      }
+      if (item.insight.hot) {
+        hotLeads++;
+      }
+    }
+
     return {
       currency,
       from: new Date(from).toISOString(),
@@ -930,40 +974,16 @@ export class RevenueService {
         (sum, outcome) => sum + Number(outcome.value_minor || 0),
         0,
       ),
-      pipelineMinor: open.reduce(
-        (sum, item) => sum + (item.insight.indicativeValueMinor || 0),
-        0,
-      ),
-      forecastMinor: Math.round(
-        open
-          .filter(
-            (item) =>
-              item.deal.expectedClose &&
-              new Date(item.deal.expectedClose + "T23:59:59Z").getTime() >=
-                now &&
-              new Date(item.deal.expectedClose + "T00:00:00Z").getTime() <=
-                horizon,
-          )
-          .reduce(
-            (sum, item) =>
-              sum +
-              (item.insight.indicativeValueMinor || 0) *
-                item.insight.probability,
-            0,
-          ),
-      ),
-      unknownValueDeals: open.filter(
-        (item) => item.insight.indicativeValueMinor === null,
-      ).length,
-      undatedDeals: open.filter((item) => !item.deal.expectedClose).length,
+      pipelineMinor,
+      forecastMinor: Math.round(forecastWeighted),
+      unknownValueDeals,
+      undatedDeals,
       conversionRate:
         won.length + lost.length
           ? won.length / (won.length + lost.length)
           : null,
-      qualifiedLeads: open.filter(
-        (item) => item.insight.qualified || item.deal.stage === "qualified",
-      ).length,
-      hotLeads: open.filter((item) => item.insight.hot).length,
+      qualifiedLeads,
+      hotLeads,
       wonDeals: won.length,
       lostDeals: lost.length,
       opportunities: opportunities.filter(
