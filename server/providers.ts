@@ -139,6 +139,38 @@ export function normalizeWebhook(
   return { messages, statuses };
 }
 
+// Defensive helper to prevent SSRF against loopback, cloud metadata (169.254.169.254),
+// and private RFC1918 / RFC4193 / RFC4291 internal network addresses.
+export function isPrivateOrLocalHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (
+    host === "localhost" ||
+    host === "::1" ||
+    host === "0.0.0.0" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.startsWith("fc") ||
+    host.startsWith("fd") ||
+    host.startsWith("fe80:")
+  ) {
+    return true;
+  }
+  const parts = host.split(".").map(Number);
+  if (
+    parts.length === 4 &&
+    parts.every((p) => Number.isInteger(p) && p >= 0 && p <= 255)
+  ) {
+    const [a, b] = parts;
+    if (a === 127) return true; // Loopback (127.0.0.0/8)
+    if (a === 10) return true; // Private (10.0.0.0/8)
+    if (a === 172 && b >= 16 && b <= 31) return true; // Private (172.16.0.0/12)
+    if (a === 192 && b === 168) return true; // Private (192.168.0.0/16)
+    if (a === 169 && b === 254) return true; // Link-local / Cloud metadata (169.254.0.0/16)
+    if (a === 0) return true; // Current network (0.0.0.0/8)
+  }
+  return false;
+}
+
 export class ProviderError extends Error {
   constructor(
     message: string,
@@ -343,6 +375,12 @@ export class MetaProvider {
       )
     ) {
       throw new ProviderError("Media download URL must use HTTPS.");
+    }
+
+    if (this.config.production && isPrivateOrLocalHost(parsedUrl.hostname)) {
+      throw new ProviderError(
+        "Media download from private or local network is not allowed.",
+      );
     }
 
     const host = parsedUrl.hostname.toLowerCase();
