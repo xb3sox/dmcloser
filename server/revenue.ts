@@ -788,6 +788,10 @@ export class RevenueService {
       }
       list.push(message);
     }
+    // ⚡ Bolt Optimization: Pre-calculate priceLosses once outside the rows.map loop to avoid redundant O(N*M) filtering of industryOutcomes.
+    const priceLosses = industryOutcomes.filter(
+      (outcome) => outcome.outcome === "lost" && outcome.reason === "price",
+    ).length;
     const opportunities = rows
       .map((row) => ({
         deal: dealView(row),
@@ -811,10 +815,7 @@ export class RevenueService {
           cohorts,
           now,
           {
-            priceLosses: industryOutcomes.filter(
-              (outcome) =>
-                outcome.outcome === "lost" && outcome.reason === "price",
-            ).length,
+            priceLosses,
           },
         ),
       }))
