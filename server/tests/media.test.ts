@@ -88,6 +88,9 @@ test("inbound media store and retrieval for authorized owner", async () => {
   const res = await f.client.get(`/api/media/${mediaId}`);
   assert.equal(res.status, 200);
   assert.equal(res.headers["content-type"], "image/jpeg");
+  assert.equal(res.headers["x-content-type-options"], "nosniff");
+  assert.equal(res.headers["content-security-policy"], "default-src 'none'; sandbox");
+  assert.equal(res.headers["content-disposition"], "inline");
   assert.deepEqual(res.body, sampleImage);
 });
 
