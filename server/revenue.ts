@@ -1033,6 +1033,14 @@ export class RevenueService {
     const dismissed = stale
       .filter((item) => item.row.recovery_action === "revenue.recovery_dismissed")
       .slice(0, limit);
+    if (active.length === 0 && dismissed.length === 0) {
+      return {
+        entries: [],
+        dismissed: [],
+        notice:
+          "Open opportunities waiting on a person. Nothing here is sent automatically; open the conversation to reply.",
+      };
+    }
     // ⚡ Bolt Optimization: Pre-fetch workspace-level context once via Promise.all
     // instead of re-fetching brain (3 queries), cohorts (1 query), and lossCounts (1 query)
     // for every recovery candidate, eliminating up to 250 redundant database queries.
