@@ -27,8 +27,10 @@ export default function MobileNav({ onHome }: { onHome: () => void }) {
           <Brand />
         </a>
         <button
+          type="button"
           className="app-icon-button"
           onClick={toggle}
+          aria-pressed={theme === "dark"}
           aria-label={t(
             theme === "dark"
               ? "nav.switchToLightMode"
@@ -38,6 +40,7 @@ export default function MobileNav({ onHome }: { onHome: () => void }) {
           {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
         </button>
         <button
+          type="button"
           className="app-icon-button"
           onClick={() => setLocale(locale === "en" ? "ar" : "en")}
           aria-label={t(
