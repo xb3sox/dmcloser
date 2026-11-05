@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomInt } from "node:crypto";
 import request from "supertest";
-import { equal, hashPassword, verifyPassword, encrypt, decrypt } from "../security.ts";
+import { createHmac } from "node:crypto";
+import { equal, hashPassword, verifyPassword, encrypt, decrypt, validMetaSignature } from "../security.ts";
 import { decodeCursor } from "../service.ts";
 import { loadConfig } from "../config.ts";
 import { createDatabase } from "../db.ts";
@@ -43,6 +44,19 @@ test("encrypt and decrypt roundtrip successfully", () => {
   const token = "my-secret-access-token";
   const cipher = encrypt(token, secret);
   assert.equal(decrypt(cipher, secret), token);
+});
+
+test("validMetaSignature validates HMAC signatures defensively", () => {
+  const secret = "test-meta-secret";
+  const body = Buffer.from('{"object":"page","entry":[]}');
+  const validSig = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+
+  assert.equal(validMetaSignature(body, validSig, secret), true);
+  assert.equal(validMetaSignature(body, "sha256=invalidhex", secret), false);
+  assert.equal(validMetaSignature(body, "sha1=12345", secret), false);
+  assert.equal(validMetaSignature(body, validSig, undefined), false);
+  assert.equal(validMetaSignature(body, undefined, secret), false);
+  assert.equal(validMetaSignature(body, validSig, ""), false);
 });
 
 test("decrypt throws expected error on malformed or empty ciphertext", () => {
