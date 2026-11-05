@@ -367,22 +367,34 @@ export class RevenueService {
           : null,
     }));
   }
-  async intelligence(workspaceId: string, row: any) {
+  async intelligence(
+    workspaceId: string,
+    row: any,
+    preloaded?: {
+      brain: Awaited<ReturnType<RevenueService["brain"]>>;
+      cohorts: Awaited<ReturnType<RevenueService["cohorts"]>>;
+      priceLosses: number;
+    },
+  ) {
     const [conversation] = await this.db.query(
       "SELECT intent FROM conversations WHERE id=$1 AND workspace_id=$2",
       [row.conversation_id, workspaceId],
     );
-    const [messages, brain, cohorts, lossCounts] = await Promise.all([
+    const [messages, brain, cohorts, priceLosses] = await Promise.all([
       this.db.query(
         "SELECT id,sender,text,timestamp FROM messages WHERE conversation_id=$1 AND workspace_id=$2 ORDER BY timestamp DESC,id DESC LIMIT 100",
         [row.conversation_id, workspaceId],
       ),
-      this.brain(workspaceId),
-      this.cohorts(workspaceId),
-      this.db.query(
-        "SELECT count(*)::integer AS n FROM deal_outcomes WHERE workspace_id=$1 AND outcome='lost' AND reason='price' AND snapshot->>'industry'=COALESCE((SELECT industry FROM business_profiles WHERE workspace_id=$1),'general')",
-        [workspaceId],
-      ),
+      preloaded ? preloaded.brain : this.brain(workspaceId),
+      preloaded ? preloaded.cohorts : this.cohorts(workspaceId),
+      preloaded
+        ? preloaded.priceLosses
+        : this.db
+            .query(
+              "SELECT count(*)::integer AS n FROM deal_outcomes WHERE workspace_id=$1 AND outcome='lost' AND reason='price' AND snapshot->>'industry'=COALESCE((SELECT industry FROM business_profiles WHERE workspace_id=$1),'general')",
+              [workspaceId],
+            )
+            .then((res) => res[0].n),
     ]);
     return scoreLead(
       dealView(row),
@@ -399,7 +411,7 @@ export class RevenueService {
       brain.profile.industry,
       cohorts,
       Date.now(),
-      { priceLosses: lossCounts[0].n },
+      { priceLosses },
     );
   }
   async detail(
@@ -1021,8 +1033,28 @@ export class RevenueService {
     const dismissed = stale
       .filter((item) => item.row.recovery_action === "revenue.recovery_dismissed")
       .slice(0, limit);
+    if (active.length === 0 && dismissed.length === 0) {
+      return {
+        entries: [],
+        dismissed: [],
+        notice:
+          "Open opportunities waiting on a person. Nothing here is sent automatically; open the conversation to reply.",
+      };
+    }
+    // ⚡ Bolt Optimization: Pre-fetch workspace-level context once via Promise.all
+    // instead of re-fetching brain (3 queries), cohorts (1 query), and lossCounts (1 query)
+    // for every recovery candidate, eliminating up to 250 redundant database queries.
+    const [brain, cohorts, lossCounts] = await Promise.all([
+      this.brain(workspaceId),
+      this.cohorts(workspaceId),
+      this.db.query(
+        "SELECT count(*)::integer AS n FROM deal_outcomes WHERE workspace_id=$1 AND outcome='lost' AND reason='price' AND snapshot->>'industry'=COALESCE((SELECT industry FROM business_profiles WHERE workspace_id=$1),'general')",
+        [workspaceId],
+      ),
+    ]);
+    const preloaded = { brain, cohorts, priceLosses: lossCounts[0].n };
     const build = async (item: { row: any; daysStale: number }) => {
-      const insight = await this.intelligence(workspaceId, item.row);
+      const insight = await this.intelligence(workspaceId, item.row, preloaded);
       const entry: RecoveryEntry = {
         dealId: item.row.id,
         conversationId: item.row.conversation_id,
