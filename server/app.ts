@@ -859,6 +859,10 @@ export async function createApp(
     res.setHeader("Content-Type", media.mimeType);
     res.setHeader("Content-Length", media.data.length);
     res.setHeader("Cache-Control", "private, max-age=3600");
+    // Security: Prevent MIME type sniffing and restrict context via sandboxed CSP & disposition
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    res.setHeader("Content-Disposition", "inline");
     res.send(media.data);
   });
 

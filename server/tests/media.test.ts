@@ -88,6 +88,9 @@ test("inbound media store and retrieval for authorized owner", async () => {
   const res = await f.client.get(`/api/media/${mediaId}`);
   assert.equal(res.status, 200);
   assert.equal(res.headers["content-type"], "image/jpeg");
+  assert.equal(res.headers["x-content-type-options"], "nosniff");
+  assert.equal(res.headers["content-security-policy"], "default-src 'none'; sandbox");
+  assert.equal(res.headers["content-disposition"], "inline");
   assert.deepEqual(res.body, sampleImage);
 });
 
@@ -248,4 +251,38 @@ test("downloadMedia rejects non-HTTPS URLs and restricts Bearer token to Meta do
     "secret-token",
   );
   assert.equal(capturedHeaders.Authorization, "Bearer secret-token");
+});
+
+test("downloadMedia in production rejects SSRF attempts to private networks and cloud metadata", async () => {
+  const provider = new MetaProvider(
+    { ...config, production: true },
+    async () =>
+      new Response(Buffer.from("internal-data"), {
+        headers: { "content-type": "application/octet-stream" },
+      }),
+  );
+
+  const blockedUrls = [
+    "https://127.0.0.1/media.jpg",
+    "https://127.0.0.2/media.jpg",
+    "https://localhost/media.jpg",
+    "https://[::1]/media.jpg",
+    "https://169.254.169.254/latest/meta-data",
+    "https://10.0.0.1/secret.png",
+    "https://172.16.0.1/private.png",
+    "https://172.31.255.255/private.png",
+    "https://192.168.1.1/admin.png",
+    "https://service.internal/media.jpg",
+    "https://metadata.local/media.jpg",
+  ];
+
+  for (const url of blockedUrls) {
+    await assert.rejects(
+      () => provider.downloadMedia("instagram", { url }, "token"),
+      {
+        message: "Media download from private or local network is not allowed.",
+      },
+      `Expected ${url} to be blocked by SSRF protection`,
+    );
+  }
 });
