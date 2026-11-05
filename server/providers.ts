@@ -155,6 +155,17 @@ export function isPrivateOrLocalHost(hostname: string): boolean {
   ) {
     return true;
   }
+  // Check decimal IP integer (e.g. 2130706433 or 0x7f000001)
+  if (/^\d+$/.test(host)) {
+    const num = Number(host);
+    if (!Number.isNaN(num) && num >= 0 && num <= 0xffffffff) {
+      const a = (num >>> 24) & 0xff;
+      const b = (num >>> 16) & 0xff;
+      if (a === 127 || a === 10 || a === 0 || (a === 169 && b === 254) || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31)) {
+        return true;
+      }
+    }
+  }
   const parts = host.split(".").map(Number);
   if (
     parts.length === 4 &&
@@ -365,19 +376,17 @@ export class MetaProvider {
       throw new ProviderError("Media download URL is invalid.");
     }
 
-    if (
-      parsedUrl.protocol !== "https:" &&
-      !(
-        !this.config.production &&
-        (parsedUrl.hostname === "localhost" ||
-          parsedUrl.hostname === "127.0.0.1" ||
-          parsedUrl.hostname.endsWith(".test"))
-      )
-    ) {
+    const allowLocalDev =
+      !this.config.production &&
+      (parsedUrl.hostname === "localhost" ||
+        parsedUrl.hostname === "127.0.0.1" ||
+        parsedUrl.hostname.endsWith(".test"));
+
+    if (parsedUrl.protocol !== "https:" && !allowLocalDev) {
       throw new ProviderError("Media download URL must use HTTPS.");
     }
 
-    if (this.config.production && isPrivateOrLocalHost(parsedUrl.hostname)) {
+    if (!allowLocalDev && isPrivateOrLocalHost(parsedUrl.hostname)) {
       throw new ProviderError(
         "Media download from private or local network is not allowed.",
       );
