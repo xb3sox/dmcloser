@@ -94,16 +94,12 @@ export function validMetaSignature(
   signature: string | undefined,
   secret: string | undefined,
 ) {
-  if (
-    typeof secret !== "string" ||
-    !secret ||
-    typeof signature !== "string" ||
-    !signature.startsWith("sha256=")
-  ) {
-    return false;
-  }
-  return equal(
-    `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`,
-    signature,
+  return (
+    !!secret &&
+    !!signature &&
+    equal(
+      `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`,
+      signature,
+    )
   );
 }
