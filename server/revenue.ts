@@ -944,13 +944,19 @@ export class RevenueService {
       if (!item.deal.expectedClose) {
         undatedDeals++;
       } else {
+        const dateStr = item.deal.expectedClose.trim();
         const closeEnd = new Date(
-          item.deal.expectedClose + "T23:59:59Z",
+          dateStr.includes("T") ? dateStr : `${dateStr}T23:59:59Z`,
         ).getTime();
         const closeStart = new Date(
-          item.deal.expectedClose + "T00:00:00Z",
+          dateStr.includes("T") ? dateStr : `${dateStr}T00:00:00Z`,
         ).getTime();
-        if (closeEnd >= now && closeStart <= horizon) {
+        if (
+          !Number.isNaN(closeEnd) &&
+          !Number.isNaN(closeStart) &&
+          closeEnd >= now &&
+          closeStart <= horizon
+        ) {
           forecastWeighted += (indicative || 0) * item.insight.probability;
         }
       }
